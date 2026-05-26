@@ -1,0 +1,694 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Terms of Service – Novelux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: hsl(0 0% 100%);
+      --fg: hsl(0 0% 9%);
+      --primary: hsl(14 62% 38%);
+      --primary-fg: hsl(0 0% 100%);
+      --muted: hsl(0 0% 96%);
+      --muted-fg: hsl(0 0% 45%);
+      --border: hsl(0 0% 90%);
+    }
+
+    html.dark {
+      --bg: hsl(240 6% 6%);
+      --fg: hsl(0 0% 90%);
+      --primary: hsl(14 62% 38%);
+      --primary-fg: hsl(0 0% 100%);
+      --muted: hsl(240 4% 14%);
+      --muted-fg: hsl(0 0% 50%);
+      --border: hsl(240 4% 26%);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Geist', -apple-system, system-ui, sans-serif;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      transition: background .2s, color .2s;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      background: none;
+    }
+
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    nav {
+      position: fixed;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      background: color-mix(in srgb, var(--bg) 95%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo {
+      width: 22px;
+      height: 22px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-brand span {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      color: color-mix(in srgb, var(--fg) 70%, transparent);
+    }
+
+    .icon-sun,
+    .icon-moon {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      transition: opacity .2s, transform .2s;
+    }
+
+    html.light .icon-sun {
+      opacity: 1;
+      transform: rotate(0)scale(1);
+    }
+
+    html.light .icon-moon {
+      opacity: 0;
+      transform: rotate(90deg)scale(0);
+    }
+
+    html.dark .icon-sun {
+      opacity: 0;
+      transform: rotate(-90deg)scale(0);
+    }
+
+    html.dark .icon-moon {
+      opacity: 1;
+      transform: rotate(0)scale(1);
+    }
+
+    .legal-layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 88px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    @media(min-width:900px) {
+      .legal-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 48px;
+      }
+    }
+
+    .toc {
+      display: none;
+    }
+
+    @media(min-width:900px) {
+      .toc {
+        display: block;
+        position: sticky;
+        top: 72px;
+        align-self: start;
+      }
+    }
+
+    .toc-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--muted-fg);
+      margin-bottom: 12px;
+    }
+
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toc-list a {
+      font-size: 13px;
+      color: var(--muted-fg);
+      padding: 5px 8px;
+      display: block;
+      transition: color .15s;
+      border-left: 2px solid transparent;
+    }
+
+    .toc-list a:hover,
+    .toc-list a.active {
+      color: var(--primary);
+      border-left-color: var(--primary);
+    }
+
+    .legal-content h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 500;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .legal-meta {
+      font-size: 12px;
+      color: var(--muted-fg);
+      margin-bottom: 40px;
+    }
+
+    .legal-section {
+      margin-bottom: 48px;
+      scroll-margin-top: 80px;
+    }
+
+    .legal-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -.02em;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .legal-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+    }
+
+    .legal-section p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted-fg);
+      margin-bottom: 12px;
+    }
+
+    .legal-section ul,
+    .legal-section ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .legal-section li {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted-fg);
+      margin-bottom: 6px;
+    }
+
+    .legal-section a {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .highlight-box {
+      padding: 16px 20px;
+      background: color-mix(in srgb, var(--primary) 6%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--fg);
+    }
+
+    .warning-box {
+      padding: 16px 20px;
+      background: color-mix(in srgb, hsl(45 90% 50%) 8%, transparent);
+      border: 1px solid color-mix(in srgb, hsl(45 90% 50%) 30%, transparent);
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    @media(min-width:768px) {
+      .footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-logo-sm {
+      width: 18px;
+      height: 18px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer-brand span {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--muted-fg);
+    }
+
+    .footer-links a:hover {
+      color: var(--fg);
+    }
+
+    /* Mobile TOC */
+    .toc-mobile {
+      display: block;
+      margin-bottom: 24px;
+    }
+
+    @media(min-width:900px) {
+      .toc-mobile {
+        display: none;
+      }
+    }
+
+    .toc-mobile-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--muted);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toc-mobile-list {
+      border: 1px solid var(--border);
+      border-top: none;
+      display: none;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .toc-mobile-list.open {
+      display: flex;
+    }
+
+    .toc-mobile-list a {
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--muted-fg);
+      border-bottom: 1px solid var(--border);
+      transition: color .15s;
+    }
+
+    .toc-mobile-list a:last-child {
+      border-bottom: none;
+    }
+
+    .toc-mobile-list a:hover {
+      color: var(--primary);
+    }
+  </style>
+</head>
+
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">
+        <div class="nav-logo"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+        <span>Novelux</span>
+      </a>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="legal-layout">
+    <aside class="toc">
+      <p class="toc-label">On this page</p>
+      <ul class="toc-list">
+        <li><a href="#acceptance">Acceptance</a></li>
+        <li><a href="#eligibility">Eligibility</a></li>
+        <li><a href="#accounts">Accounts</a></li>
+        <li><a href="#reader-rules">Reader Rules</a></li>
+        <li><a href="#author-rules">Author Rules</a></li>
+        <li><a href="#content">Content Standards</a></li>
+        <li><a href="#ip">Intellectual Property</a></li>
+        <li><a href="#payments">Payments & Royalties</a></li>
+        <li><a href="#termination">Termination</a></li>
+        <li><a href="#liability">Liability</a></li>
+        <li><a href="#disputes">Disputes</a></li>
+        <li><a href="#changes">Changes</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </aside>
+
+    <main class="legal-content">
+      <h1>Terms of Service</h1>
+      <p class="legal-meta">Last updated: April 18, 2026 · Effective: April 18, 2026</p>
+      <div class="toc-mobile">
+        <button class="toc-mobile-toggle" onclick="toggleMobileToc(this)">
+          <span>On this page</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        <div class="toc-mobile-list" id="mobileTocList">
+          <a href="#acceptance" onclick="closeMobileToc()">Acceptance</a><a href="#eligibility"
+            onclick="closeMobileToc()">Eligibility</a><a href="#accounts" onclick="closeMobileToc()">Accounts</a><a
+            href="#reader-rules" onclick="closeMobileToc()">Reader Rules</a><a href="#author-rules"
+            onclick="closeMobileToc()">Author Rules</a><a href="#content" onclick="closeMobileToc()">Content
+            Standards</a><a href="#ip" onclick="closeMobileToc()">Intellectual Property</a><a href="#payments"
+            onclick="closeMobileToc()">Payments & Royalties</a><a href="#termination"
+            onclick="closeMobileToc()">Termination</a><a href="#liability" onclick="closeMobileToc()">Liability</a><a
+            href="#disputes" onclick="closeMobileToc()">Disputes</a><a href="#changes"
+            onclick="closeMobileToc()">Changes</a><a href="#contact" onclick="closeMobileToc()">Contact</a>
+        </div>
+      </div>
+
+
+      <div class="highlight-box">
+        These Terms of Service ("Terms") govern your access to and use of Novelux ("Platform"). By creating an account
+        or using any part of our service, you agree to be bound by these Terms. If you do not agree, please do not use
+        Novelux.
+      </div>
+
+      <div class="legal-section" id="acceptance">
+        <h2>1. Acceptance of Terms</h2>
+        <p>These Terms constitute a legally binding agreement between you and Novelux. By accessing or using our
+          platform — whether as a reader, author, acquisition editor, or visitor — you confirm that you have read,
+          understood, and agree to these Terms and our <a href="/privacy/">Privacy Policy</a>.</p>
+      </div>
+
+      <div class="legal-section" id="eligibility">
+        <h2>2. Eligibility</h2>
+        <p>You must be at least 13 years old to use Novelux. If you are under 18, you must have the permission of a
+          parent or legal guardian. By using Novelux, you represent that you meet these requirements.</p>
+        <p>Authors must be at least 18 years old to enter into contracts or receive payments.</p>
+      </div>
+
+      <div class="legal-section" id="accounts">
+        <h2>3. Accounts</h2>
+        <ul>
+          <li>You are responsible for maintaining the confidentiality of your login credentials.</li>
+          <li>You are responsible for all activity that occurs under your account.</li>
+          <li>You must provide accurate and current information when registering.</li>
+          <li>You may not create more than one account per person without written permission from Novelux.</li>
+          <li>You must notify us immediately of any unauthorised use of your account.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="reader-rules">
+        <h2>4. Reader Rules</h2>
+        <p>As a reader, you agree to:</p>
+        <ul>
+          <li>Use Novelux only for personal, non-commercial reading purposes.</li>
+          <li>Not copy, reproduce, distribute, or scrape any content from the platform.</li>
+          <li>Not use automated tools, bots, or scripts to access or interact with the platform.</li>
+          <li>Not share your account credentials with others to circumvent access limits.</li>
+          <li>Treat other users and authors with respect in comments and messages.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="author-rules">
+        <h2>5. Author Rules</h2>
+        <p>By publishing on Novelux, you agree to:</p>
+        <ul>
+          <li>Submit only original work that you own or have the legal right to publish.</li>
+          <li>Not plagiarise, copy, or submit content that infringes any third-party rights.</li>
+          <li>Format manuscripts according to the guidelines provided in the author portal.</li>
+          <li>Maintain an active update schedule once a story is listed publicly.</li>
+          <li>Not simultaneously publish the same chapter on another platform without disclosing this to Novelux if you
+            hold an exclusive contract.</li>
+          <li>Comply with all applicable laws in your jurisdiction regarding content creation.</li>
+        </ul>
+        <div class="warning-box">
+          ⚠️ Submitting plagiarised content may result in immediate account termination, clawback of any earnings paid,
+          and potential legal action.
+        </div>
+      </div>
+
+      <div class="legal-section" id="content">
+        <h2>6. Content Standards</h2>
+        <p>All content published on Novelux must comply with our content guidelines. The following is strictly
+          prohibited:</p>
+        <ul>
+          <li>Sexual content involving minors (zero tolerance — results in immediate termination and reporting to
+            authorities).</li>
+          <li>Graphic violence glorifying real-world harm or targeted individuals.</li>
+          <li>Hate speech based on race, ethnicity, religion, gender, sexual orientation, or disability.</li>
+          <li>Doxxing — publishing private information about real individuals.</li>
+          <li>Content that facilitates illegal activities.</li>
+          <li>Spam, misleading titles, or artificially inflated engagement.</li>
+        </ul>
+        <p>Novelux reserves the right to remove any content that violates these standards without notice and without
+          compensation.</p>
+      </div>
+
+      <div class="legal-section" id="ip">
+        <h2>7. Intellectual Property</h2>
+        <h3>Your content</h3>
+        <p>You retain full ownership of the original works you publish on Novelux. By uploading content, you grant
+          Novelux a non-exclusive, royalty-free, worldwide licence to host, display, distribute, and promote your
+          content on and through the platform for the duration of your agreement.</p>
+        <h3>Novelux content</h3>
+        <p>The Novelux name, logo, website design, and all proprietary platform features are the intellectual property
+          of Novelux. You may not use, copy, or reproduce any of these without our express written permission.</p>
+        <h3>Copyright infringement</h3>
+        <p>If you believe content on Novelux infringes your copyright, please submit a takedown request to <a
+            href="mailto:legal@novelux.com">legal@novelux.com</a> with the required details.</p>
+      </div>
+
+      <div class="legal-section" id="payments">
+        <h2>8. Payments & Royalties</h2>
+        <ul>
+          <li>Royalties are calculated based on ad revenue generated by your story's views, as outlined in your
+            individual contract.</li>
+          <li>Standard royalty split is 50% to the author, 50% to Novelux, unless otherwise stated in a signed contract.
+          </li>
+          <li>Withdrawals are processed weekly. Minimum withdrawal amounts may apply depending on your selected method.
+          </li>
+          <li>Novelux reserves the right to withhold payment if we suspect fraudulent activity, policy violations, or if
+            there is a dispute over content ownership.</li>
+          <li>All payments are subject to applicable taxes. Authors are solely responsible for reporting and paying
+            taxes on their earnings.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="termination">
+        <h2>9. Termination</h2>
+        <p>Novelux may suspend or terminate your account at any time for violations of these Terms, without prior
+          notice. You may also delete your account at any time from your account settings.</p>
+        <p>Upon termination:</p>
+        <ul>
+          <li>Your access to the platform will be revoked immediately.</li>
+          <li>Published content may remain on the platform if required under an active contract.</li>
+          <li>Any pending earnings will be processed in accordance with the terms of your contract.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="liability">
+        <h2>10. Limitation of Liability</h2>
+        <p>To the fullest extent permitted by law, Novelux and its affiliates, officers, and employees shall not be
+          liable for any indirect, incidental, special, or consequential damages arising from your use of the platform,
+          including but not limited to loss of revenue, data, or business opportunities.</p>
+        <p>The platform is provided "as is" without warranties of any kind, either express or implied.</p>
+      </div>
+
+      <div class="legal-section" id="disputes">
+        <h2>11. Disputes</h2>
+        <p>Any disputes arising from these Terms shall first be attempted to be resolved through good-faith negotiation.
+          If resolution cannot be reached within 30 days, disputes shall be submitted to binding arbitration under the
+          rules of the jurisdiction in which Novelux is registered.</p>
+        <p>You waive any right to participate in class action lawsuits against Novelux to the extent permitted by law.
+        </p>
+      </div>
+
+      <div class="legal-section" id="changes">
+        <h2>12. Changes to Terms</h2>
+        <p>We may update these Terms periodically. We'll notify you of material changes via email or in-app notification
+          at least 14 days before they take effect. Continued use of Novelux after changes take effect constitutes your
+          acceptance of the new Terms.</p>
+      </div>
+
+      <div class="legal-section" id="contact">
+        <h2>13. Contact</h2>
+        <p>For legal inquiries: <a href="mailto:legal@novelux.com">legal@novelux.com</a></p>
+        <p>For general support: <a href="/faq/">Help Center</a></p>
+        <p>For author support: <a href="https://writer.novel-up.com/" target="_blank">writer.novel-up.com</a></p>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo-sm"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+        <span>Novelux</span>
+      </div>
+      <div class="footer-links">
+        <a href="/privacy/">Privacy Policy</a>
+        <a href="/terms/">Terms of Service</a>
+        <a href="/faq/">Help Center</a>
+        <span>© <span id="year"></span> Novelux</span>
+      </div>
+    </div>
+  </footer>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const html = document.documentElement;
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const d = html.classList.contains('dark');
+      html.classList.toggle('dark', !d); html.classList.toggle('light', d);
+    });
+    html.classList.add('light');
+    const sections = document.querySelectorAll('.legal-section');
+    const links = document.querySelectorAll('.toc-list a');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+      links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current));
+    });
+
+    function toggleMobileToc(btn) {
+      const list = document.getElementById('mobileTocList');
+      list.classList.toggle('open');
+      const svg = btn.querySelector('svg');
+      if (svg) svg.style.transform = list.classList.contains('open') ? 'rotate(180deg)' : '';
+    }
+    function closeMobileToc() {
+      const list = document.getElementById('mobileTocList');
+      if (list) list.classList.remove('open');
+    }
+
+  </script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+
+</html>

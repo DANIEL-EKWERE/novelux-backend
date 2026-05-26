@@ -1,0 +1,316 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  document.documentElement.classList.toggle('dark',t==='dark');
+  document.documentElement.classList.toggle('light',t!=='dark');
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Join the Editorial Team – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:#fff;
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--danger:hsl(0 68% 50%);
+  --role-ae:hsl(220 70% 48%);--role-se:hsl(270 60% 48%);
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:'Geist',-apple-system,sans-serif;font-size:14px;
+  background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;
+  display:flex;align-items:flex-start;justify-content:center;
+  min-height:100vh;padding:48px 24px 40px;
+}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+.wrap{width:100%;max-width:440px;}
+
+/* Invite context card */
+.invite-ctx{
+  border:1px solid var(--border);padding:20px 24px;margin-bottom:24px;
+  background:var(--muted);position:relative;overflow:hidden;
+}
+.invite-ctx::before{
+  content:'';position:absolute;inset:0;
+  background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,
+    color-mix(in srgb,var(--fg) 2.5%,transparent) 8px,
+    color-mix(in srgb,var(--fg) 2.5%,transparent) 9px);
+  pointer-events:none;
+}
+.invite-ctx>*{position:relative;z-index:1;}
+.role-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:12px;
+}
+.role-badge.ae{background:color-mix(in srgb,var(--role-ae) 12%,transparent);color:var(--role-ae);}
+.role-badge.se{background:color-mix(in srgb,var(--role-se) 12%,transparent);color:var(--role-se);}
+.invite-ctx h2{font-size:18px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px;}
+.invite-ctx p{font-size:13px;color:var(--muted-fg);line-height:1.6;}
+.invite-ctx .meta{margin-top:14px;display:flex;flex-direction:column;gap:6px;}
+.invite-ctx .meta-row{display:flex;gap:8px;font-size:12px;min-width:0;}
+.invite-ctx .meta-row span:first-child{color:var(--muted-fg);width:100px;flex-shrink:0;}
+.invite-ctx .meta-row span:last-child{font-weight:500;overflow-wrap:break-word;word-break:break-word;min-width:0;}
+
+/* Registration card */
+.reg-card{border:1px solid var(--border);padding:32px 28px;}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:28px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+h1{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+.sub{font-size:13px;color:var(--muted-fg);margin-bottom:28px;}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:480px){.form-row{grid-template-columns:1fr;}}
+.form-group{margin-bottom:18px;}
+label{display:block;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:6px;}
+input{
+  width:100%;padding:10px 12px;font-size:14px;font-family:inherit;
+  border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;
+  transition:border-color .15s;
+}
+input:focus{border-color:var(--primary);}
+input[readonly]{background:var(--muted);color:var(--muted-fg);cursor:not-allowed;}
+input.err{border-color:var(--danger);}
+.err-msg{font-size:11px;color:var(--danger);margin-top:4px;display:none;}
+.err-msg.show{display:block;}
+
+.pw-wrap{position:relative;}
+.pw-wrap input{padding-right:40px;}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted-fg);display:flex;align-items:center;cursor:pointer;}
+.pw-eye:hover{color:var(--fg);}
+
+.btn-submit{
+  width:100%;padding:12px 16px;font-size:14px;font-weight:600;
+  background:var(--primary);color:var(--primary-fg);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity .15s;margin-top:8px;
+}
+.btn-submit:hover{opacity:.88;}
+.btn-submit:disabled{opacity:.45;cursor:not-allowed;}
+
+.err-banner{
+  display:none;
+  background:color-mix(in srgb,var(--danger) 8%,transparent);
+  border:1px solid color-mix(in srgb,var(--danger) 25%,transparent);
+  color:var(--danger);padding:10px 14px;font-size:13px;margin-bottom:20px;
+}
+.err-banner.show{display:block;}
+
+.divider{display:flex;align-items:center;gap:10px;margin:24px 0;font-size:12px;color:var(--muted-fg);}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.checklist{margin-top:16px;display:flex;flex-direction:column;gap:8px;}
+.checklist li{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted-fg);list-style:none;}
+.checklist li svg{flex-shrink:0;color:hsl(142 60% 40%);margin-top:1px;}
+
+.theme-btn{
+  position:fixed;top:16px;right:16px;
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted-fg);cursor:pointer;border:1px solid var(--border);background:var(--bg);
+}
+.ic-sun,.ic-moon{position:absolute;width:15px;height:15px;transition:opacity .2s,transform .2s;}
+html.light .ic-sun{opacity:1;transform:scale(1);}html.light .ic-moon{opacity:0;transform:scale(0);}
+html.dark  .ic-sun{opacity:0;transform:scale(0);}html.dark  .ic-moon{opacity:1;transform:scale(1);}
+</style>
+</head>
+<body>
+
+<button class="theme-btn" id="themeBtn" style="position:relative;">
+  <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<div class="wrap">
+
+  <!-- Invite context -->
+  <div class="invite-ctx">
+    <div class="role-badge {{ invite.role }}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      {{ role_label }}
+    </div>
+    <h2>You've been invited to Novelux</h2>
+    <p>{{ invite.invited_by.get_full_name|default:invite.invited_by.username }} has invited you to join the editorial team. Set up your account below.</p>
+    <div class="meta">
+      <div class="meta-row">
+        <span>Role</span>
+        <span>{{ role_label }}</span>
+      </div>
+      <div class="meta-row">
+        <span>Email</span>
+        <span>{{ invite.email }}</span>
+      </div>
+      {% if invite.supervisor %}
+      <div class="meta-row">
+        <span>Reports to</span>
+        <span>{{ invite.supervisor.get_full_name|default:invite.supervisor.username }}</span>
+      </div>
+      {% endif %}
+      <div class="meta-row">
+        <span>Invited by</span>
+        <span>{{ invite.invited_by.get_full_name|default:invite.invited_by.username }} (Chief Editor)</span>
+      </div>
+      <div class="meta-row">
+        <span>Expires</span>
+        <span>{{ invite.expires_at|date:"N j, Y" }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Registration form -->
+  <div class="reg-card">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <span>Novelux</span>
+    </div>
+
+    <h1>Create your editor account</h1>
+    <p class="sub">Your role and email are pre-configured from the invite.</p>
+
+    {% if errors %}
+    <div class="err-banner show">
+      {% for field, msg in errors.items %}{{ msg }}{% if not forloop.last %} · {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST" id="onboardForm">
+      {% csrf_token %}
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" name="first_name" value="{{ form.first_name|default:'' }}" placeholder="Amara" autocomplete="given-name"/>
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" name="last_name" value="{{ form.last_name|default:'' }}" placeholder="Osei" autocomplete="family-name"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" value="{{ invite.email }}" readonly/>
+      </div>
+
+      <div class="form-group">
+        <label>Role</label>
+        <input type="text" value="{{ role_label }}" readonly/>
+      </div>
+
+      <div class="form-group">
+        <label>Username <span style="color:var(--danger);">*</span></label>
+        <input
+          type="text" name="username"
+          value="{{ form.username|default:'' }}"
+          placeholder="amara_osei"
+          autocomplete="username"
+          class="{% if errors.username %}err{% endif %}"
+          required
+        />
+        {% if errors.username %}<p class="err-msg show">{{ errors.username }}</p>{% endif %}
+      </div>
+
+      <div class="divider">Set your password</div>
+
+      <div class="form-group">
+        <label>Password <span style="color:var(--danger);">*</span></label>
+        <div class="pw-wrap">
+          <input
+            type="password" name="password1" id="pw1"
+            placeholder="At least 8 characters"
+            autocomplete="new-password"
+            class="{% if errors.password1 %}err{% endif %}"
+            required
+          />
+          <button type="button" class="pw-eye" onclick="togglePw('pw1','eye1')">
+            <svg id="eye1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        {% if errors.password1 %}<p class="err-msg show">{{ errors.password1 }}</p>{% endif %}
+      </div>
+
+      <div class="form-group">
+        <label>Confirm Password <span style="color:var(--danger);">*</span></label>
+        <div class="pw-wrap">
+          <input
+            type="password" name="password2" id="pw2"
+            placeholder="Repeat password"
+            autocomplete="new-password"
+            class="{% if errors.password2 %}err{% endif %}"
+            required
+          />
+          <button type="button" class="pw-eye" onclick="togglePw('pw2','eye2')">
+            <svg id="eye2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        {% if errors.password2 %}<p class="err-msg show">{{ errors.password2 }}</p>{% endif %}
+      </div>
+
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Create My Editor Account
+      </button>
+    </form>
+
+    <ul class="checklist">
+      <li>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Your role is locked to <strong>{{ role_label }}</strong> — no extra setup needed.
+      </li>
+      {% if invite.role == 'se' %}
+      <li>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Your editor invite code will be generated automatically.
+      </li>
+      {% endif %}
+      {% if invite.supervisor %}
+      <li>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        You'll report to {{ invite.supervisor.get_full_name|default:invite.supervisor.username }}.
+      </li>
+      {% endif %}
+      <li>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        You'll be taken straight to your dashboard after registering.
+      </li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('themeBtn').onclick = () => {
+  const d = document.documentElement.classList.toggle('dark');
+  document.documentElement.classList.toggle('light', !d);
+  localStorage.setItem('nux_theme', d ? 'dark' : 'light');
+};
+
+function togglePw(inputId, eyeId) {
+  const inp = document.getElementById(inputId);
+  inp.type  = inp.type === 'password' ? 'text' : 'password';
+}
+
+document.getElementById('onboardForm').onsubmit = function(e) {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Creating account…';
+};
+</script>
+</body>
+</html>

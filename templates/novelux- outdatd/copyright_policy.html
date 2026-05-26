@@ -1,0 +1,564 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Copyright Policy – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);
+  --primary-fg:hsl(0 0% 100%);
+  --primary-light:hsl(14 62% 95%);
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--card:hsl(0 0% 99%);
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --primary:hsl(14 62% 38%);
+  --primary-fg:hsl(0 0% 100%);
+  --primary-light:hsl(14 62% 10%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);--card:hsl(240 5% 9%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Geist',-apple-system,sans-serif;font-size:15px;line-height:1.7;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s;}
+a{color:var(--primary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+.nav{position:sticky;top:0;z-index:100;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;padding:0 24px;}
+.nav-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;letter-spacing:.04em;}
+.nav-logo{width:24px;height:24px;border-radius:6px;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.nav-link{font-size:13px;color:var(--muted-fg);transition:color .15s;}
+.nav-link:hover{color:var(--fg);text-decoration:none;}
+.theme-btn{width:32px;height:32px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:none;color:var(--muted-fg);transition:color .15s,border-color .15s;border-radius:4px;}
+.theme-btn:hover{color:var(--fg);border-color:var(--fg);}
+
+.hero{padding:64px 24px 48px;border-bottom:1px solid var(--border);background:var(--primary-light);position:relative;overflow:hidden;text-align:center;}
+.hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 10px,color-mix(in srgb,var(--primary) 4%,transparent) 10px,color-mix(in srgb,var(--primary) 4%,transparent) 11px);pointer-events:none;}
+.hero>*{position:relative;z-index:1;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border:1px solid color-mix(in srgb,var(--primary) 30%,transparent);background:color-mix(in srgb,var(--primary) 8%,transparent);color:var(--primary);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-bottom:20px;}
+.hero h1{font-family:'Playfair Display',Georgia,serif;font-size:clamp(2rem,5vw,3.2rem);font-weight:700;letter-spacing:-.02em;line-height:1.2;margin-bottom:16px;}
+.hero h1 em{color:var(--primary);font-style:italic;}
+.hero-sub{font-size:15px;color:var(--muted-fg);max-width:560px;margin:0 auto 28px;line-height:1.6;}
+.hero-meta{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;}
+.hero-meta-item{font-size:12px;color:var(--muted-fg);display:flex;align-items:center;gap:6px;}
+.hero-meta-item svg{color:var(--primary);}
+
+.layout{display:grid;grid-template-columns:240px 1fr;gap:48px;max-width:1080px;margin:0 auto;padding:48px 24px 80px;}
+@media(max-width:768px){.layout{grid-template-columns:1fr;gap:32px;padding:32px 16px 60px;}}
+
+.toc{position:sticky;top:72px;height:fit-content;}
+.toc-head{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);margin-bottom:12px;font-weight:600;}
+.toc-list{display:flex;flex-direction:column;gap:1px;}
+.toc-link{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:12px;color:var(--muted-fg);border-left:2px solid transparent;transition:all .15s;cursor:pointer;}
+.toc-link:hover{color:var(--fg);border-color:var(--border);text-decoration:none;}
+.toc-link.active{color:var(--primary);border-color:var(--primary);background:color-mix(in srgb,var(--primary) 5%,transparent);}
+.toc-num{font-size:10px;font-weight:700;width:16px;flex-shrink:0;}
+@media(max-width:768px){.toc{position:static;}}
+
+.content{min-width:0;}
+.section{margin-bottom:48px;scroll-margin-top:80px;}
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.section-num{width:32px;height:32px;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.section h2{font-family:'Playfair Display',Georgia,serif;font-size:1.35rem;font-weight:600;letter-spacing:-.01em;}
+.section p{color:var(--muted-fg);margin-bottom:14px;font-size:14px;line-height:1.75;}
+.section p:last-child{margin-bottom:0;}
+.section p strong{color:var(--fg);font-weight:600;}
+
+.callout{border-left:3px solid var(--primary);background:var(--primary-light);padding:16px 20px;margin:20px 0;font-size:13px;display:flex;gap:12px;align-items:flex-start;}
+.callout-icon{width:32px;height:32px;background:color-mix(in srgb,var(--primary) 15%,transparent);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--primary);margin-top:2px;}
+.callout-body strong{color:var(--primary);display:block;margin-bottom:6px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;}
+.callout-body p{color:var(--muted-fg);margin:0;line-height:1.6;}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0;}
+@media(max-width:500px){.info-grid{grid-template-columns:1fr;}}
+.info-card{border:1px solid var(--border);padding:16px;background:var(--card);}
+.info-card .ic-icon{width:32px;height:32px;background:color-mix(in srgb,var(--primary) 10%,transparent);display:flex;align-items:center;justify-content:center;color:var(--primary);margin-bottom:10px;}
+.info-card .ic-title{font-size:12px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em;}
+.info-card .ic-body{font-size:12px;color:var(--muted-fg);line-height:1.5;}
+
+.policy-list{list-style:none;display:flex;flex-direction:column;gap:8px;margin:16px 0;}
+.policy-list li{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--muted-fg);line-height:1.6;padding:10px 14px;border:1px solid var(--border);background:var(--card);}
+.policy-list li .li-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.li-icon.allow{color:hsl(142 60% 35%);}
+.li-icon.deny{color:hsl(0 70% 50%);}
+.li-icon.warn{color:hsl(38 90% 45%);}
+.li-icon.arrow{color:var(--primary);}
+.policy-list li strong{color:var(--fg);}
+
+.steps{display:flex;flex-direction:column;gap:0;margin:20px 0;}
+.step{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--border);}
+.step:last-child{border-bottom:none;}
+.step-circle{width:36px;height:36px;border-radius:50%;border:2px solid var(--primary);color:var(--primary);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--primary-light);}
+.step-body .step-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.step-body .step-desc{font-size:12px;color:var(--muted-fg);line-height:1.6;}
+
+.contact-card{border:1px solid var(--border);padding:24px;background:var(--card);margin-top:20px;display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.contact-icon{width:44px;height:44px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;}
+.contact-body p{font-size:13px;color:var(--muted-fg);margin-top:4px;line-height:1.5;}
+.contact-body strong{font-size:14px;}
+.contact-links{display:flex;flex-direction:column;gap:4px;margin-top:10px;}
+.contact-links a{font-size:13px;color:var(--primary);}
+
+.badge-row{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;font-size:11px;font-weight:500;border:1px solid var(--border);color:var(--muted-fg);background:var(--card);letter-spacing:.03em;}
+.badge svg{color:var(--primary);}
+.badge.active{background:color-mix(in srgb,var(--primary) 10%,transparent);border-color:color-mix(in srgb,var(--primary) 30%,transparent);color:var(--primary);}
+
+.policy-footer{border-top:1px solid var(--border);padding:32px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;background:var(--muted);}
+.policy-footer p{font-size:12px;color:var(--muted-fg);}
+.footer-links{display:flex;gap:16px;}
+.footer-links a{font-size:12px;color:var(--muted-fg);transition:color .15s;}
+.footer-links a:hover{color:var(--primary);}
+
+.back-top{position:fixed;bottom:24px;right:24px;z-index:50;width:40px;height:40px;border:1px solid var(--border);background:var(--card);color:var(--muted-fg);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;pointer-events:none;transition:all .2s;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.back-top.show{opacity:1;pointer-events:all;}
+.back-top:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+.section{animation:fadeUp .4s ease both;}
+.section:nth-child(1){animation-delay:.05s;}.section:nth-child(2){animation-delay:.1s;}.section:nth-child(3){animation-delay:.15s;}.section:nth-child(4){animation-delay:.2s;}.section:nth-child(5){animation-delay:.25s;}.section:nth-child(6){animation-delay:.3s;}.section:nth-child(7){animation-delay:.35s;}.section:nth-child(8){animation-delay:.4s;}.section:nth-child(9){animation-delay:.45s;}.section:nth-child(10){animation-delay:.5s;}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">
+      <img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" />
+      </div>
+    </div>
+    Novelux
+  </div>
+  <div class="nav-right">
+    <a class="nav-link" href="/">Home</a>
+    <a class="nav-link" href="/terms/">Terms</a>
+    <a class="nav-link" href="/privacy/">Privacy</a>
+    <button class="theme-btn" id="themeBtn" title="Toggle theme">
+      <svg id="sunIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg id="moonIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-eyebrow">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Legal Document
+  </div>
+  <h1>Copyright <em>Policy</em></h1>
+  <p class="hero-sub">Novelux respects creators. Your stories belong to you — here's exactly how we protect them and what we expect from everyone on the platform.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+      Last updated: April 24, 2025
+    </div>
+    <div class="hero-meta-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ~8 min read
+    </div>
+    <div class="hero-meta-item">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      DMCA Compliant
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="toc">
+    <div class="toc-head">On this page</div>
+    <nav class="toc-list">
+      <a class="toc-link active" href="#s1"><span class="toc-num">01</span>Ownership of Content</a>
+      <a class="toc-link" href="#s2"><span class="toc-num">02</span>License to Novelux</a>
+      <a class="toc-link" href="#s3"><span class="toc-num">03</span>Prohibited Content</a>
+      <a class="toc-link" href="#s4"><span class="toc-num">04</span>DMCA & Takedowns</a>
+      <a class="toc-link" href="#s5"><span class="toc-num">05</span>Counter-Notices</a>
+      <a class="toc-link" href="#s6"><span class="toc-num">06</span>Repeat Infringers</a>
+      <a class="toc-link" href="#s7"><span class="toc-num">07</span>AI-Generated Content</a>
+      <a class="toc-link" href="#s8"><span class="toc-num">08</span>Fan Fiction & Derivatives</a>
+      <a class="toc-link" href="#s9"><span class="toc-num">09</span>Platform Protections</a>
+      <a class="toc-link" href="#s10"><span class="toc-num">10</span>Contact & Reports</a>
+    </nav>
+    <div style="margin-top:24px;padding:16px;border:1px solid var(--border);background:var(--card);">
+      <p style="font-size:11px;color:var(--muted-fg);line-height:1.6;">This policy is part of our <a href="/terms/">Terms of Service</a>. By publishing on Novelux, you agree to these terms.</p>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <!-- S1 -->
+    <section class="section" id="s1">
+      <div class="section-head">
+        <div class="section-num">01</div>
+        <h2>Ownership of Content</h2>
+      </div>
+      <p><strong>You own what you write.</strong> When you publish a story, chapter, or any creative work on Novelux, you retain full copyright ownership of that content. Novelux does not claim ownership over your original creative works.</p>
+      <p>Copyright protection arises automatically the moment your work is written down in a fixed form — no registration is required, though formal registration with your national copyright office provides significant legal advantages, including the ability to sue for statutory damages.</p>
+
+      <div class="callout">
+        <div class="callout-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        </div>
+        <div class="callout-body">
+          <strong>Author's Rights</strong>
+          <p>Under the Berne Convention (adopted in 189 countries), your work is automatically protected internationally the moment it is created and fixed in a tangible medium. You do not need to include a © notice, though doing so is strongly recommended as it deters innocent infringement claims.</p>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          </div>
+          <div class="ic-title">What you own</div>
+          <div class="ic-body">Your original story text, characters, plot, world-building, dialogue, and unique narrative expression.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 14.14 14.14"/></svg>
+          </div>
+          <div class="ic-title">What isn't protected</div>
+          <div class="ic-body">Ideas, themes, genres, general concepts, historical facts, and titles are not protected by copyright law.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div class="ic-title">You can</div>
+          <div class="ic-body">Publish your work elsewhere simultaneously, remove it from Novelux at any time, and license it to others.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="ic-title">Your moral rights</div>
+          <div class="ic-body">You retain the right to be credited as the author and to object to distorted uses of your work.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- S2 -->
+    <section class="section" id="s2">
+      <div class="section-head">
+        <div class="section-num">02</div>
+        <h2>License to Novelux</h2>
+      </div>
+      <p>By posting content on Novelux, you grant us a <strong>limited, non-exclusive, royalty-free, worldwide license</strong> to host, display, distribute, and promote your work on our platform and associated services.</p>
+      <p>This license is strictly for operating and improving the Novelux platform. It does not grant Novelux the right to sell, sub-license, adapt, or otherwise commercially exploit your work without your explicit written consent.</p>
+      <ul class="policy-list">
+        <li>
+          <div class="li-icon allow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div><strong>Display:</strong> We may show your story to readers on Novelux apps and website.</div>
+        </li>
+        <li>
+          <div class="li-icon allow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div><strong>Promotion:</strong> We may feature excerpts (up to ~300 words) in promotional materials with attribution to you.</div>
+        </li>
+        <li>
+          <div class="li-icon allow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </div>
+          <div><strong>Technical operations:</strong> We may cache, store, and format your work for delivery across devices.</div>
+        </li>
+        <li>
+          <div class="li-icon deny">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </div>
+          <div><strong>We will never:</strong> Sell, publish, or adapt your work in any other format without a separate written agreement signed by you.</div>
+        </li>
+        <li>
+          <div class="li-icon deny">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </div>
+          <div><strong>We will never:</strong> Train AI models on your work without your explicit opt-in consent.</div>
+        </li>
+      </ul>
+      <p>This license terminates automatically when you delete your work from Novelux, subject to a reasonable technical wind-down period of up to 30 days for cached copies.</p>
+    </section>
+
+    <!-- S3 -->
+    <section class="section" id="s3">
+      <div class="section-head">
+        <div class="section-num">03</div>
+        <h2>Prohibited Content & Infringement</h2>
+      </div>
+      <p>You may only publish content you have the legal right to share. The following are strictly prohibited on Novelux:</p>
+      <ul class="policy-list">
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Plagiarism:</strong> Copying another author's story, in whole or in part, and presenting it as your own work.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Pirated published works:</strong> Uploading commercially published books, scripts, or lyrics that you do not own the rights to.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Unauthorized adaptations:</strong> Translating, continuing, or rewriting another author's original work without their explicit written permission.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Song lyrics:</strong> Embedding song lyrics without a license from the rights holder, regardless of attribution.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Screenplay reproduction:</strong> Rewriting or closely reproducing dialogue and events from movies, TV shows, or video games.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Facilitating piracy:</strong> Sharing links to pirated PDFs, requesting illegal downloads, or distributing free access to paywalled works.</div></li>
+      </ul>
+      <div class="callout">
+        <div class="callout-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        </div>
+        <div class="callout-body">
+          <strong>Note on Giving Credit</strong>
+          <p>Credit and attribution do not grant you the right to use another person's copyrighted work. Even if you name the original author, reproducing their content without permission is still infringement.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- S4 -->
+    <section class="section" id="s4">
+      <div class="section-head">
+        <div class="section-num">04</div>
+        <h2>DMCA Takedown Notices</h2>
+      </div>
+      <p>Novelux complies with the <strong>Digital Millennium Copyright Act (DMCA)</strong> and applies this policy globally. If you believe your copyrighted work has been reproduced on Novelux without authorization, you may submit a formal takedown notice.</p>
+      <p>A valid DMCA notice must include all of the following:</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-circle">1</div>
+          <div class="step-body">
+            <div class="step-title">Identification of the copyrighted work</div>
+            <div class="step-desc">Describe the original work claimed to have been infringed. Include title, author name, ISBN/ASIN if applicable, or a link to where the original can be viewed.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">2</div>
+          <div class="step-body">
+            <div class="step-title">Identification of the infringing content</div>
+            <div class="step-desc">Provide the specific URL(s) on Novelux where the infringing material is located. General descriptions are not sufficient.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">3</div>
+          <div class="step-body">
+            <div class="step-title">Your contact information</div>
+            <div class="step-desc">Include your full legal name, mailing address, telephone number, and email address.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">4</div>
+          <div class="step-body">
+            <div class="step-title">Good faith statement</div>
+            <div class="step-desc">A statement that you have a good faith belief that the use of the material is not authorized by the copyright owner, its agent, or the law.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-circle">5</div>
+          <div class="step-body">
+            <div class="step-title">Accuracy statement & signature</div>
+            <div class="step-desc">A statement, under penalty of perjury, that the information is accurate and that you are the copyright owner or authorized to act on their behalf. Include your electronic or physical signature.</div>
+          </div>
+        </div>
+      </div>
+      <div class="callout">
+        <div class="callout-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        </div>
+        <div class="callout-body">
+          <strong>Important Warning</strong>
+          <p>Submitting a false or misleading DMCA notice exposes you to legal liability, including damages. Only the actual copyright owner or their legally authorized representative may submit a takedown notice.</p>
+        </div>
+      </div>
+      <p>Upon receiving a valid notice, Novelux will <strong>promptly remove or disable access</strong> to the allegedly infringing content. We aim to process valid notices within <strong>2–5 business days</strong>.</p>
+    </section>
+
+    <!-- S5 -->
+    <section class="section" id="s5">
+      <div class="section-head">
+        <div class="section-num">05</div>
+        <h2>Counter-Notices</h2>
+      </div>
+      <p>If your content has been removed due to a DMCA notice and you believe the removal was in error — for example, because you are the legitimate rights holder or the use constitutes fair use — you may submit a counter-notice.</p>
+      <p>A valid counter-notice must include:</p>
+      <ul class="policy-list">
+        <li><div class="li-icon arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div><div>Your full legal name, address, phone number, and email.</div></li>
+        <li><div class="li-icon arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div><div>Identification of the content that was removed and its original location on Novelux.</div></li>
+        <li><div class="li-icon arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div><div>A statement under penalty of perjury that you have a good faith belief the content was removed by mistake or misidentification.</div></li>
+        <li><div class="li-icon arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div><div>A statement consenting to jurisdiction of the federal court in your district and acceptance of service of process from the original complainant.</div></li>
+        <li><div class="li-icon arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div><div>Your physical or electronic signature.</div></li>
+      </ul>
+      <p>Upon receiving a valid counter-notice, we will forward it to the original complainant. If the complainant does not file a court action within <strong>10–14 business days</strong>, we may restore the content at our discretion.</p>
+    </section>
+
+    <!-- S6 -->
+    <section class="section" id="s6">
+      <div class="section-head">
+        <div class="section-num">06</div>
+        <h2>Repeat Infringers</h2>
+      </div>
+      <p>Novelux has a <strong>strict repeat infringer policy</strong>. Accounts that accumulate multiple confirmed copyright violations will face escalating consequences:</p>
+      <div class="badge-row">
+        <span class="badge active">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+          1st Violation — Warning & removal
+        </span>
+        <span class="badge active">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          2nd Violation — Temporary suspension
+        </span>
+        <span class="badge active">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          3rd Violation — Permanent ban
+        </span>
+      </div>
+      <p>Violations are linked to the account holder, not individual stories. In cases of egregious or deliberate infringement, Novelux reserves the right to permanently terminate an account upon the <strong>first confirmed violation</strong> without prior warning.</p>
+    </section>
+
+    <!-- S7 -->
+    <section class="section" id="s7">
+      <div class="section-head">
+        <div class="section-num">07</div>
+        <h2>AI-Generated Content</h2>
+      </div>
+      <p>As of 2025, the legal landscape around AI and copyright is rapidly evolving. Novelux's current policy on AI-generated content is as follows:</p>
+      <ul class="policy-list">
+        <li><div class="li-icon allow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><strong>AI-assisted writing is permitted</strong> where a human author provides substantial creative direction, editing, and original expression. The human must be the primary creative force.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Fully AI-generated stories</strong> with no substantial human creative input are not eligible for copyright protection under current U.S. Copyright Office guidance and may not be monetized on Novelux.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Using AI to reproduce copyrighted works</strong> — prompting AI tools to reproduce or closely paraphrase existing stories — is prohibited and constitutes infringement.</div></li>
+        <li><div class="li-icon warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div><div><strong>Disclosure recommended:</strong> We encourage authors to disclose significant AI assistance to their readers. We may require disclosure in future policy updates.</div></li>
+      </ul>
+      <div class="callout">
+        <div class="callout-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        </div>
+        <div class="callout-body">
+          <strong>2025 Legal Context</strong>
+          <p>The landmark <em>Bartz v. Anthropic</em> ruling (2025) established that AI training on legally acquired works may constitute fair use, but training on pirated copies does not. Only works with formal copyright registration qualified for compensation. We strongly encourage authors to register their works.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- S8 -->
+    <section class="section" id="s8">
+      <div class="section-head">
+        <div class="section-num">08</div>
+        <h2>Fan Fiction & Derivative Works</h2>
+      </div>
+      <p>Fan fiction occupies a legally complex space. Novelux permits fan fiction under the following conditions:</p>
+      <ul class="policy-list">
+        <li><div class="li-icon allow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><strong>Non-commercial fan fiction</strong> that uses established fictional characters and worlds in new, transformative stories is generally permitted.</div></li>
+        <li><div class="li-icon allow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div><div><strong>Original fan fiction content</strong> — the unique plot, dialogue, and narrative you create — belongs to you and may be protected by copyright even within a fan fiction context.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Direct reproduction</strong> of copyrighted source material — transcribing scenes, rewriting events with minor changes, or copying dialogue — is not permitted.</div></li>
+        <li><div class="li-icon deny"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></div><div><strong>Changing only names or genders</strong> of characters from an existing story does not constitute original work. This is still infringement of the source author's work.</div></li>
+        <li><div class="li-icon warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></div><div><strong>Rights holders may object:</strong> Even compliant fan fiction can be removed if the original copyright holder submits a valid DMCA notice.</div></li>
+      </ul>
+    </section>
+
+    <!-- S9 -->
+    <section class="section" id="s9">
+      <div class="section-head">
+        <div class="section-num">09</div>
+        <h2>How Novelux Protects Your Work</h2>
+      </div>
+      <p>We take proactive steps to protect authors on our platform:</p>
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </div>
+          <div class="ic-title">Scraping Detection</div>
+          <div class="ic-body">We monitor for external sites that illegally copy Novelux content and issue takedown notices on authors' behalf when authorized.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="ic-title">DMCA Agent</div>
+          <div class="ic-body">You may authorize Novelux to act as your DMCA agent to submit takedown notices to third-party platforms on your behalf.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+          </div>
+          <div class="ic-title">Reporting Tools</div>
+          <div class="ic-body">Every story has a built-in "Report" function. Selecting "Copyright Infringement" routes the report directly to our Trust & Safety team.</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div class="ic-title">No AI Training</div>
+          <div class="ic-body">Novelux does not use author content to train AI models without explicit, informed, opt-in consent from the author.</div>
+        </div>
+      </div>
+      <p style="margin-top:16px;">We strongly recommend all authors <strong>keep backup copies of their work</strong> outside of Novelux. In the event of an account closure, we are unable to restore or transfer story content.</p>
+    </section>
+
+    <!-- S10 -->
+    <section class="section" id="s10">
+      <div class="section-head">
+        <div class="section-num">10</div>
+        <h2>Contact & Report Infringement</h2>
+      </div>
+      <p>To submit a DMCA takedown notice, a counter-notice, or a general copyright inquiry, contact our designated Copyright Agent:</p>
+      <div class="contact-card">
+        <div class="contact-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="contact-body">
+          <strong>Novelux Copyright Agent</strong>
+          <p>Trust & Safety Team<br>Novelux, Inc.<br>Lagos, Nigeria</p>
+          <div class="contact-links">
+            <a href="mailto:copyright@novelux.com">copyright@novelux.com</a>
+            <a href="/dmca/">Submit DMCA Notice Online →</a>
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:20px;font-size:13px;color:var(--muted-fg);">For general questions about copyright or this policy, you may also reach us at <a href="mailto:legal@novelux.com">legal@novelux.com</a>. We aim to respond to all copyright correspondence within <strong>3 business days</strong>.</p>
+      <div class="callout" style="margin-top:20px;">
+        <div class="callout-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        </div>
+        <div class="callout-body">
+          <strong>Disclaimer</strong>
+          <p>This Copyright Policy is provided for informational purposes and does not constitute legal advice. If you have specific legal questions about your rights, please consult a qualified intellectual property attorney.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="policy-footer">
+  <p>© 2025 Novelux, Inc. · This policy was last updated April 24, 2025.</p>
+  <div class="footer-links">
+    <a href="/terms/">Terms of Service</a>
+    <a href="/privacy/">Privacy Policy</a>
+    <a href="/content-guidelines/">Content Guidelines</a>
+    <a href="/dmca/">Report Infringement</a>
+  </div>
+</footer>
+
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+</button>
+
+<script>
+const html = document.documentElement;
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const dark = html.classList.toggle('dark');
+  html.classList.toggle('light', !dark);
+  document.getElementById('sunIcon').style.display = dark ? 'none' : '';
+  document.getElementById('moonIcon').style.display = dark ? '' : 'none';
+});
+
+const sections = document.querySelectorAll('.section');
+const tocLinks = document.querySelectorAll('.toc-link');
+const backTop  = document.getElementById('backTop');
+
+window.addEventListener('scroll', () => {
+  backTop.classList.toggle('show', window.scrollY > 400);
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+  tocLinks.forEach(l => { l.classList.toggle('active', l.getAttribute('href') === '#' + current); });
+}, {passive:true});
+</script>
+</body>
+</html>

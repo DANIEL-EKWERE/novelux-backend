@@ -1,0 +1,892 @@
+{% comment %} {% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.classList.toggle('light',t!=='dark');})();</script>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api"   content="{{ api_url|default:'/api' }}">
+<title>Senior Editor – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);--card:hsl(0 0% 99%);--sw:220px;--role:hsl(270 60% 48%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);--card:hsl(240 5% 9%);--role:hsl(270 60% 65%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}input,select,textarea{font-family:inherit;font-size:inherit;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:var(--sw);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .3s;overflow-y:auto;}
+.sb.open{transform:translateX(0);}@media(min-width:1024px){.sb{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sb-top{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sb-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nlbl{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}.nlbl:first-child{margin-top:0;}
+.nbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;border-radius:2px;transition:background .12s,color .12s;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}.nbtn.active{background:color-mix(in srgb,var(--role) 10%,transparent);color:var(--role);font-weight:500;}
+.nbtn svg{width:16px;height:16px;flex-shrink:0;}
+.sb-bot{padding:16px 12px;border-top:1px solid var(--border);}
+.av{width:34px;height:34px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.pip{display:inline-flex;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.08em;background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);margin-top:4px;}
+.main{flex:1;min-width:0;}
+.topbar{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+@media(min-width:1024px){.topbar{padding:0 24px;}}
+.tl{display:flex;align-items:center;gap:12px;}.tr{display:flex;align-items:center;gap:8px;}
+.mbtn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;}@media(min-width:1024px){.mbtn{display:none;}}
+.ib{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.themb{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.isun,.imoon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .isun{opacity:1;transform:scale(1);}html.light .imoon{opacity:0;transform:scale(0);}
+html.dark  .isun{opacity:0;transform:scale(0);}html.dark  .imoon{opacity:1;transform:scale(1);}
+.page{display:none;padding:28px 16px 80px;max-width:1100px;margin:0 auto;width:100%;}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}.page.active{display:block;}
+.hero{padding:28px 16px;background:color-mix(in srgb,var(--role) 4%,transparent);border-bottom:1px solid var(--border);margin-bottom:28px;position:relative;overflow:hidden;}
+@media(min-width:1024px){.hero{padding:32px 24px;}}
+.hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;}
+.hero>*{position:relative;z-index:1;}.hero h1{font-size:20px;font-weight:600;}.hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.hrow{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}@media(min-width:640px){.sgrid{grid-template-columns:repeat(4,1fr);gap:12px;}}
+.sc{border:1px solid var(--border);padding:18px 20px;background:var(--card);}
+.sl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.sv{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}.ss{margin-top:4px;font-size:11px;color:var(--muted-fg);}
+.card{border:1px solid var(--border);background:var(--card);}
+.ch{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}.ch h2{font-size:14px;font-weight:600;}
+.cb{padding:20px;}
+.two-col{display:grid;grid-template-columns:1fr;gap:20px;}@media(min-width:768px){.two-col{grid-template-columns:2fr 1fr;}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:none;transition:opacity .15s;}
+.brl{background:var(--role);color:#fff;}.brl:hover{opacity:.88;}
+.bol{border:1px solid var(--border);color:var(--fg);background:none;}.bol:hover{background:var(--muted);}
+.bsm{padding:6px 12px;font-size:12px;}.bgh{color:var(--muted-fg);padding:6px 8px;font-size:12px;}.bgh:hover{color:var(--fg);}
+.bdk{background:hsl(0 70% 50%);color:#fff;}.bdk:hover{opacity:.88;}
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;font-size:11px;font-weight:500;}
+.bgr{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.byw{background:color-mix(in srgb,hsl(45 90% 50%) 14%,transparent);color:hsl(45 70% 30%);}
+html.dark .byw{color:hsl(45 90% 60%);}
+.brd{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.bpu{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.bbl{background:color-mix(in srgb,hsl(220 70% 48%) 12%,transparent);color:hsl(220 70% 48%);}
+html.dark .bbl{color:hsl(220 70% 65%);}
+.bgy{background:var(--muted);color:var(--muted-fg);}
+.bok{background:color-mix(in srgb,hsl(14 62% 38%) 12%,transparent);color:hsl(14 62% 38%);}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th,.tbl td{padding:12px 16px;text-align:left;font-size:13px;}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.tbl td{border-bottom:1px solid var(--border);}.tbl tr:last-child td{border-bottom:none;}.tbl tr:hover td{background:var(--muted);}
+.ttl{font-weight:500;}
+.prog{height:4px;background:var(--border);}.pf{height:100%;background:var(--role);}
+.empty{text-align:center;padding:48px 20px;color:var(--muted-fg);}
+.empty h3{font-size:15px;font-weight:500;color:var(--fg);margin-top:12px;}
+.esc-item{padding:16px 20px;border:1px solid var(--border);margin-bottom:8px;background:var(--card);}
+.esc-item:last-child{margin-bottom:0;}
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--fg);color:var(--bg);padding:12px 20px;font-size:13px;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}.ovl.show{display:block;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sb" id="sb">
+  <div class="sb-top">
+    <div class="brand"><div class="brand-logo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><span>Novelux</span></div>
+    <button onclick="closeSb()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sb-nav">
+    <span class="nlbl">Overview</span>
+    <button class="nbtn active" onclick="gp('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Dashboard</button>
+    <span class="nlbl">Editorial</span>
+    <button class="nbtn" id="nb-esc" onclick="gp('escalations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Escalations {% if escalation_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ escalation_count }}</span>{% endif %}</button>
+    <button class="nbtn" onclick="gp('flags',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>Flagged Content</button>
+    <button class="nbtn" onclick="gp('decisions',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>Decisions Log</button>
+    <span class="nlbl">Team</span>
+    <button class="nbtn" onclick="gp('team',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>AE Team</button>
+    <button class="nbtn" onclick="gp('authors',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Authors</button>
+    <span class="nlbl">Account</span>
+    <button class="nbtn" onclick="gp('profile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Profile</button>
+  </nav>
+  <div class="sb-bot">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);">
+      <div class="av">{{ editor.username|first|upper }}</div>
+      <div><p style="font-size:13px;font-weight:500;">{{ editor.get_full_name|default:editor.username }}</p><div class="pip">SE · Senior Editor</div></div>
+    </div>
+    <a href="/logout/" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>Sign out</a>
+  </div>
+</aside>
+<div class="ovl" id="ovl" onclick="closeSb()"></div>
+
+<div class="main">
+  <header class="topbar">
+    <div class="tl">
+      <button class="mbtn" onclick="openSb()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span style="font-size:15px;font-weight:600;" id="ptitle">Dashboard</span>
+    </div>
+    <div class="tr">
+      <button class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{% if escalation_count %}<span class="dot"></span>{% endif %}</button>
+      <button class="themb" id="thb">
+        <svg class="isun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="imoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="bdg bpu" style="font-size:10px;">SE</span>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="hero">
+      <div class="hrow">
+        <div>
+          <h1>{{ editor.get_full_name|default:editor.username }} 👋</h1>
+          <p>{% if escalation_count %}<strong>{{ escalation_count }}</strong> escalation{{ escalation_count|pluralize }} awaiting your decision.{% else %}No pending escalations.{% endif %} {{ ae_team_count|default:"0" }} AE{{ ae_team_count|pluralize }} in your team.</p>
+        </div>
+        <button class="btn brl bsm" onclick="gp('escalations',document.getElementById('nb-esc'))">View Escalations →</button>
+      </div>
+    </div>
+    <div class="sgrid">
+      <div class="sc"><div class="sl">Escalations</div><div class="sv">{{ escalation_count|default:"0" }}</div><div class="ss">Awaiting SE decision</div></div>
+      <div class="sc"><div class="sl">AEs in Team</div><div class="sv">{{ ae_team_count|default:"0" }}</div></div>
+      <div class="sc"><div class="sl">Cleared (7d)</div><div class="sv">{{ cleared_this_week|default:"0" }}</div></div>
+      <div class="sc"><div class="sl">Policy Actions</div><div class="sv">{{ policy_actions_month|default:"0" }}</div><div class="ss">This month</div></div>
+    </div>
+
+    <div class="two-col">
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        {% if escalations %}
+        <div class="card">
+          <div class="ch"><h2>Pending Escalations</h2><span class="bdg brd">{{ escalation_count }}</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Chapter</th><th>AE</th><th>Flag</th><th>Waiting</th><th></th></tr></thead>
+              <tbody>
+              {% for r in escalations %}
+                <tr>
+                  <td class="ttl">{{ r.chapter.title }}<span style="font-size:11px;color:var(--muted-fg);display:block;">{{ r.chapter.story.title }}</span></td>
+                  <td style="color:var(--muted-fg)">{{ r.assigned_ae.username|default:"—" }}</td>
+                  <td>{% for f in r.flags.all %}<span class="bdg {% if f.flag_type == 'mature' %}brd{% elif f.flag_type == 'violence' %}byw{% elif f.flag_type == 'plagiarism' %}bok{% else %}bpu{% endif %}" style="margin-right:4px;">{{ f.get_flag_type_display }}</span>{% empty %}<span class="bdg bgy">—</span>{% endfor %}</td>
+                  <td style="color:var(--muted-fg);font-size:12px;">{{ r.submitted_at|timesince }}</td>
+                  <td style="white-space:nowrap;">
+                    <button class="btn brl bsm" onclick="seApprove({{ r.id }})" style="margin-right:4px;">Approve</button>
+                    <button class="btn bol bsm" onclick="seRevision({{ r.id }})">Revision</button>
+                    <button class="btn bdk bsm" onclick="seRemove({{ r.id }})">Remove</button>
+                    <button class="btn bol bsm" onclick="seEscalateCE({{ r.id }})">→ CE</button>
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <div class="ch"><h2>Recent Decisions</h2></div>
+          <div class="cb">
+            {% if recent_se_decisions %}
+              {% for r in recent_se_decisions %}
+              <div style="display:flex;gap:12px;{% if not forloop.last %}margin-bottom:14px;{% endif %}">
+                <div style="width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;background:{% if r.status == 'se_approved' %}hsl(142 60% 40%){% elif r.status == 'removed' %}hsl(0 70% 50%){% else %}hsl(45 90% 50%){% endif %};"></div>
+                <div>
+                  <p style="font-size:13px;font-weight:500;">{% if r.status == 'se_approved' %}Approved{% elif r.status == 'removed' %}Removed{% elif r.status == 'se_revision' %}Major revision{% elif r.status == 'se_escalated' %}Escalated to CE{% else %}{{ r.status }}{% endif %} — {{ r.chapter.title }}</p>
+                  <p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">{{ r.updated_at|timesince }} ago · {{ r.author.username }}{% if r.assigned_ae %} · via {{ r.assigned_ae.username }}{% endif %}</p>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <p style="font-size:13px;color:var(--muted-fg);">No decisions yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="card">
+          <div class="ch"><h2>AE Team</h2></div>
+          <div class="cb" style="display:flex;flex-direction:column;gap:14px;">
+            {% for ae in ae_team %}
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:hsl(220 70% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">{{ ae.username|first|upper }}</div>
+                  <span style="font-size:13px;font-weight:500;">{{ ae.get_full_name|default:ae.username }}</span>
+                </div>
+                <span class="bdg bgr" style="font-size:10px;">Active</span>
+              </div>
+              <div style="font-size:11px;color:var(--muted-fg);margin-bottom:5px;">{{ ae.queue_cnt|default:"0" }} in queue</div>
+              <div class="prog"><div class="pf" style="width:{% if ae.queue_cnt %}{% widthratio ae.queue_cnt 20 100 %}{% else %}0{% endif %}%;max-width:100%;"></div></div>
+            </div>
+            {% empty %}
+            <p style="font-size:13px;color:var(--muted-fg);">No AEs assigned to you yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESCALATIONS -->
+  <div class="page" id="page-escalations">
+    <div class="hero"><div class="hrow"><div><h1>Escalations</h1><p>Chapters escalated from your AEs for senior review.</p></div><span class="bdg brd" style="font-size:12px;padding:4px 12px;">{{ escalation_count|default:"0" }} open</span></div></div>
+    {% if escalations %}
+      {% for r in escalations %}
+      <div class="esc-item">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+          <div>
+            <p style="font-size:14px;font-weight:600;">{{ r.chapter.title }}</p>
+            <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;">
+              {{ r.chapter.story.title }} · {{ r.author.username }} · escalated by <strong>{{ r.assigned_ae.username|default:"AE" }}</strong> · {{ r.submitted_at|timesince }} ago
+              {% for f in r.flags.all %}<span class="bdg {% if f.flag_type == 'mature' %}brd{% elif f.flag_type == 'violence' %}byw{% else %}bpu{% endif %}" style="margin-left:6px;">{{ f.get_flag_type_display }}</span>{% endfor %}
+            </p>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn brl bsm" onclick="seApprove({{ r.id }})">Approve</button>
+            <button class="btn bol bsm" onclick="seRevision({{ r.id }})">Major Revision</button>
+            <button class="btn bdk bsm" onclick="seRemove({{ r.id }})">Remove</button>
+            <button class="btn bol bsm" onclick="seEscalateCE({{ r.id }})">Escalate to CE</button>
+          </div>
+        </div>
+        {% for n in r.notes.all %}
+        <div style="font-size:13px;color:var(--muted-fg);border-left:3px solid var(--role);padding-left:12px;font-style:italic;margin-top:8px;">"{{ n.content }}" — {{ n.author.username }}</div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty"><h3>No open escalations</h3><p>Chapters escalated by your AEs will appear here.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- FLAGS -->
+  <div class="page" id="page-flags">
+    <div class="hero"><div><h1>Flagged Content</h1><p>All flags raised across your team.</p></div></div>
+    {% if all_flags %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>Author</th><th>Flag</th><th>Raised by</th><th>Age</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for f in all_flags %}
+            <tr>
+              <td class="ttl">{{ f.review.chapter.title }}</td>
+              <td style="color:var(--muted-fg)">{{ f.review.author.username }}</td>
+              <td><span class="bdg {% if f.flag_type == 'mature' %}brd{% elif f.flag_type == 'violence' %}byw{% elif f.flag_type == 'plagiarism' %}bok{% else %}bpu{% endif %}">{{ f.get_flag_type_display }}</span></td>
+              <td style="color:var(--muted-fg)">{{ f.flagged_by.username }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ f.created_at|timesince }}</td>
+              <td><span class="bdg {% if f.resolved %}bgr{% else %}byw{% endif %}">{% if f.resolved %}Resolved{% else %}Open{% endif %}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No flags raised</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- DECISIONS LOG -->
+  <div class="page" id="page-decisions">
+    <div class="hero"><div><h1>Decisions Log</h1><p>All SE-level decisions on escalated content.</p></div></div>
+    {% if recent_se_decisions %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>Author</th><th>Decision</th><th>AE</th><th>Date</th></tr></thead>
+          <tbody>
+          {% for r in recent_se_decisions %}
+            <tr>
+              <td class="ttl">{{ r.chapter.title }}</td>
+              <td style="color:var(--muted-fg)">{{ r.author.username }}</td>
+              <td><span class="bdg {% if r.status == 'se_approved' %}bgr{% elif r.status == 'removed' %}brd{% elif r.status == 'se_revision' %}byw{% elif r.status == 'se_escalated' %}bpu{% else %}bgy{% endif %}">
+                {% if r.status == 'se_approved' %}Approved{% elif r.status == 'removed' %}Removed{% elif r.status == 'se_revision' %}Major Revision{% elif r.status == 'se_escalated' %}→ CE{% else %}{{ r.status }}{% endif %}
+              </span></td>
+              <td style="color:var(--muted-fg)">{{ r.assigned_ae.username|default:"—" }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ r.updated_at|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No decisions yet</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- AE TEAM -->
+  <div class="page" id="page-team">
+    <div class="hero"><div><h1>AE Team</h1><p>Assistant Editors reporting to you.</p></div></div>
+    {% if ae_team %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Editor</th><th>Queue</th><th>Authors</th><th>Email</th></tr></thead>
+          <tbody>
+          {% for ae in ae_team %}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:hsl(220 70% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">{{ ae.username|first|upper }}</div>
+                  <span class="ttl">{{ ae.get_full_name|default:ae.username }}</span>
+                </div>
+              </td>
+              <td>{{ ae.queue_cnt|default:"0" }}</td>
+              <td>{{ ae.assigned_authors.count }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ ae.email }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No AEs assigned</h3><p>Contact your Chief Editor to have AEs assigned to you.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- AUTHORS -->
+  <div class="page" id="page-authors">
+    <div class="hero"><div><h1>Authors</h1><p>Authors under your editorial remit.</p></div></div>
+    {% if author_overview %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Author</th><th>Chapters</th><th>Flags</th><th>Editor</th></tr></thead>
+          <tbody>
+          {% for a in author_overview %}
+            <tr>
+              <td class="ttl">{{ a.get_full_name|default:a.username }}</td>
+              <td>{{ a.chapter_count|default:"0" }}</td>
+              <td>{% if a.flag_count %}<span class="bdg brd">{{ a.flag_count }}</span>{% else %}—{% endif %}</td>
+              <td style="color:var(--muted-fg)">{% if a.editor_link %}{{ a.editor_link.assigned_ae.username|default:"Unassigned" }}{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No authors yet</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- PROFILE -->
+  <div class="page" id="page-profile">
+    <div class="hero"><div><h1>My Profile</h1></div></div>
+    <div class="card">
+      <div class="ch"><h2>Editor Information</h2></div>
+      <div class="cb">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;">{{ editor.username|first|upper }}</div>
+          <div><p style="font-size:16px;font-weight:600;">{{ editor.get_full_name|default:editor.username }}</p><p style="font-size:12px;color:var(--muted-fg);">{{ editor.email }}</p><div class="pip" style="margin-top:6px;">SENIOR EDITOR</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">AEs Supervised</p><p style="font-size:14px;font-weight:500;">{{ ae_team_count|default:"0" }}</p></div>
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Open Escalations</p><p style="font-size:14px;font-weight:500;">{{ escalation_count|default:"0" }}</p></div>
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Cleared (7d)</p><p style="font-size:14px;font-weight:500;">{{ cleared_this_week|default:"0" }}</p></div>
+          {% if supervisor_ce %}<div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Reports To (CE)</p><p style="font-size:14px;font-weight:500;">{{ supervisor_ce.get_full_name|default:supervisor_ce.username }}</p></div>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+<div class="toast" id="toast"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="tmsg"></span></div>
+<script>
+const NUX={token:document.querySelector('meta[name="nux-token"]')?.content||'',apiBase:document.querySelector('meta[name="nux-api"]')?.content||'/api',
+async call(p,o={}){const r=await fetch(this.apiBase+p,{headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token,...(o.headers||{})},...o});if(!r.ok)throw new Error(p+'→'+r.status);return r.json();},
+post(p,b){return this.call(p,{method:'POST',body:JSON.stringify(b)});},
+};
+document.getElementById('thb').onclick=()=>{const d=document.documentElement.classList.toggle('dark');document.documentElement.classList.toggle('light',!d);localStorage.setItem('nux_theme',d?'dark':'light');};
+function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ovl').classList.add('show');}
+function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ovl').classList.remove('show');}
+const ptitles={dashboard:'Dashboard',escalations:'Escalations',flags:'Flagged Content',decisions:'Decisions Log',team:'AE Team',authors:'Authors',profile:'Profile'};
+function gp(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('ptitle').textContent=ptitles[id]||id;closeSb();}
+let _tt;
+function toast(m){clearTimeout(_tt);document.getElementById('tmsg').textContent=m;document.getElementById('toast').classList.add('show');_tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);}
+async function seApprove(id){try{await NUX.post(`/editorial/reviews/${id}/se-approve/`,{});toast('Approved ✓');setTimeout(()=>location.reload(),1200);}catch(e){toast('Error: '+e.message);}}
+async function seRevision(id){const msg=prompt('Revision instructions for author:');try{await NUX.post(`/editorial/reviews/${id}/se-revision/`,{message:msg||''});toast('Major revision requested.');setTimeout(()=>location.reload(),1000);}catch(e){toast('Error: '+e.message);}}
+async function seRemove(id){if(!confirm('Remove this content? This action will unpublish the chapter.'))return;const reason=prompt('Reason for removal:');try{await NUX.post(`/editorial/reviews/${id}/remove/`,{reason:reason||''});toast('Content removed.');setTimeout(()=>location.reload(),1200);}catch(e){toast('Error: '+e.message);}}
+async function seEscalateCE(id){const reasoning=prompt('Reasoning for CE escalation:');try{await NUX.post(`/editorial/reviews/${id}/escalate-to-ce/`,{reasoning:reasoning||''});toast('Escalated to Chief Editor.');setTimeout(()=>location.reload(),1200);}catch(e){toast('Error: '+e.message);}}
+</script>
+</body></html> {% endcomment %}
+
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.classList.toggle('light',t!=='dark');})();</script>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api"   content="{{ api_url|default:'/api' }}">
+<title>Senior Editor – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);--card:hsl(0 0% 99%);--sw:220px;--role:hsl(270 60% 48%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);--card:hsl(240 5% 9%);--role:hsl(270 60% 65%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}input,select,textarea{font-family:inherit;font-size:inherit;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:var(--sw);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .3s;overflow-y:auto;}
+.sb.open{transform:translateX(0);}@media(min-width:1024px){.sb{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sb-top{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sb-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nlbl{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}.nlbl:first-child{margin-top:0;}
+.nbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;border-radius:2px;transition:background .12s,color .12s;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}.nbtn.active{background:color-mix(in srgb,var(--role) 10%,transparent);color:var(--role);font-weight:500;}
+.nbtn svg{width:16px;height:16px;flex-shrink:0;}
+.sb-bot{padding:16px 12px;border-top:1px solid var(--border);}
+.av{width:34px;height:34px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.pip{display:inline-flex;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.08em;background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);margin-top:4px;}
+.main{flex:1;min-width:0;}
+.topbar{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+@media(min-width:1024px){.topbar{padding:0 24px;}}
+.tl{display:flex;align-items:center;gap:12px;}.tr{display:flex;align-items:center;gap:8px;}
+.mbtn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;}@media(min-width:1024px){.mbtn{display:none;}}
+.ib{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.themb{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.isun,.imoon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .isun{opacity:1;transform:scale(1);}html.light .imoon{opacity:0;transform:scale(0);}
+html.dark  .isun{opacity:0;transform:scale(0);}html.dark  .imoon{opacity:1;transform:scale(1);}
+.page{display:none;padding:28px 16px 80px;max-width:1100px;margin:0 auto;width:100%;}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}.page.active{display:block;}
+.hero{padding:28px 16px;background:color-mix(in srgb,var(--role) 4%,transparent);border-bottom:1px solid var(--border);margin-bottom:28px;position:relative;overflow:hidden;}
+@media(min-width:1024px){.hero{padding:32px 24px;}}
+.hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;}
+.hero>*{position:relative;z-index:1;}.hero h1{font-size:20px;font-weight:600;}.hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.hrow{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}@media(min-width:640px){.sgrid{grid-template-columns:repeat(4,1fr);gap:12px;}}
+.sc{border:1px solid var(--border);padding:18px 20px;background:var(--card);}
+.sl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.sv{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}.ss{margin-top:4px;font-size:11px;color:var(--muted-fg);}
+.card{border:1px solid var(--border);background:var(--card);}
+.ch{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}.ch h2{font-size:14px;font-weight:600;}
+.cb{padding:20px;}
+.two-col{display:grid;grid-template-columns:1fr;gap:20px;}@media(min-width:768px){.two-col{grid-template-columns:2fr 1fr;}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:none;transition:opacity .15s;}
+.brl{background:var(--role);color:#fff;}.brl:hover{opacity:.88;}
+.bol{border:1px solid var(--border);color:var(--fg);background:none;}.bol:hover{background:var(--muted);}
+.bsm{padding:6px 12px;font-size:12px;}
+.bdk{background:hsl(0 70% 50%);color:#fff;}.bdk:hover{opacity:.88;}
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;font-size:11px;font-weight:500;}
+.bgr{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.byw{background:color-mix(in srgb,hsl(45 90% 50%) 14%,transparent);color:hsl(45 70% 30%);}
+html.dark .byw{color:hsl(45 90% 60%);}
+.brd{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.bpu{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.bbl{background:color-mix(in srgb,hsl(220 70% 48%) 12%,transparent);color:hsl(220 70% 48%);}
+html.dark .bbl{color:hsl(220 70% 65%);}
+.bgy{background:var(--muted);color:var(--muted-fg);}
+.bok{background:color-mix(in srgb,hsl(14 62% 38%) 12%,transparent);color:hsl(14 62% 38%);}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th,.tbl td{padding:12px 16px;text-align:left;font-size:13px;}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.tbl td{border-bottom:1px solid var(--border);}.tbl tr:last-child td{border-bottom:none;}.tbl tr:hover td{background:var(--muted);}
+.ttl{font-weight:500;}
+.prog{height:4px;background:var(--border);}.pf{height:100%;background:var(--role);}
+.empty{text-align:center;padding:48px 20px;color:var(--muted-fg);}
+.empty h3{font-size:15px;font-weight:500;color:var(--fg);margin-top:12px;}
+.chapter-item{padding:16px 20px;border-bottom:1px solid var(--border);}
+.chapter-item:last-child{border-bottom:none;}
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--fg);color:var(--bg);padding:12px 20px;font-size:13px;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}.ovl.show{display:block;}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg);border:1px solid var(--border);padding:28px;max-width:480px;width:90%;position:relative;}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:12px;}
+.modal textarea{width:100%;border:1px solid var(--border);background:var(--muted);color:var(--fg);padding:10px 12px;font-size:13px;resize:vertical;min-height:90px;margin-bottom:14px;}
+.modal .mrow{display:flex;gap:8px;justify-content:flex-end;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sb" id="sb">
+  <div class="sb-top">
+    <div class="brand"><div class="brand-logo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><span>Novelux</span></div>
+    <button onclick="closeSb()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sb-nav">
+    <span class="nlbl">Overview</span>
+    <button class="nbtn active" onclick="gp('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Dashboard</button>
+    <span class="nlbl">Editorial</span>
+    <button class="nbtn" id="nb-queue" onclick="gp('queue',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/></svg>Review Queue <span class="bdg brd" style="margin-left:auto;font-size:10px;min-width:20px;justify-content:center;">{{ queue_count|default:"0" }}</span></button>
+    <button class="nbtn" onclick="gp('flags',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>Flagged{% if flagged_count %} <span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ flagged_count }}</span>{% endif %}</button>
+    <button class="nbtn" onclick="gp('decisions',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>Decisions Log</button>
+    <span class="nlbl">Authors</span>
+    <button class="nbtn" onclick="gp('authors',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>My Authors</button>
+    <span class="nlbl">Account</span>
+    <button class="nbtn" onclick="gp('profile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Profile</button>
+  </nav>
+  <div class="sb-bot">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);">
+      <div class="av">{{ editor.username|first|upper }}</div>
+      <div><p style="font-size:13px;font-weight:500;">{{ editor.get_full_name|default:editor.username }}</p><div class="pip">SE · Senior Editor</div></div>
+    </div>
+    <a href="/logout/" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>Sign out</a>
+  </div>
+</aside>
+<div class="ovl" id="ovl" onclick="closeSb()"></div>
+
+<div class="main">
+  <header class="topbar">
+    <div class="tl">
+      <button class="mbtn" onclick="openSb()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span style="font-size:15px;font-weight:600;" id="ptitle">Dashboard</span>
+    </div>
+    <div class="tr">
+      <button class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{% if queue_count %}<span class="dot"></span>{% endif %}</button>
+      <button class="themb" id="thb">
+        <svg class="isun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="imoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="bdg bpu" style="font-size:10px;">SE</span>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="hero">
+      <div class="hrow">
+        <div>
+          <h1>{{ editor.get_full_name|default:editor.username }} 👋</h1>
+          <p>{% if queue_count %}<strong>{{ queue_count }}</strong> chapter{{ queue_count|pluralize }} in your review queue.{% else %}Review queue is clear.{% endif %} {{ author_count|default:"0" }} author{{ author_count|pluralize }} on your roster.</p>
+        </div>
+        <button class="btn brl bsm" onclick="gp('queue',document.getElementById('nb-queue'))">Go to Queue →</button>
+      </div>
+    </div>
+    <div class="sgrid">
+      <div class="sc"><div class="sl">In Queue</div><div class="sv">{{ queue_count|default:"0" }}</div><div class="ss">Pending review</div></div>
+      <div class="sc"><div class="sl">Approved (7d)</div><div class="sv">{{ approved_week|default:"0" }}</div><div class="ss">Sent to CE</div></div>
+      <div class="sc"><div class="sl">My Authors</div><div class="sv">{{ author_count|default:"0" }}</div></div>
+      <div class="sc"><div class="sl">Flagged</div><div class="sv">{{ flagged_count|default:"0" }}</div><div class="ss">Open flags</div></div>
+    </div>
+
+    <div class="two-col">
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- pending_review queue snapshot -->
+        {% if queue_items %}
+        <div class="card">
+          <div class="ch"><h2>Pending Review</h2><span class="bdg brd">{{ queue_count }}</span></div>
+          <div style="overflow-x:auto;">
+            <table class="tbl">
+              <thead><tr><th>Chapter</th><th>Story</th><th>Author</th><th>Words</th><th>Waiting</th><th></th></tr></thead>
+              <tbody>
+              {% for ch in queue_items|slice:":5" %}
+                <tr>
+                  <td class="ttl">{{ ch.title }}</td>
+                  <td style="color:var(--muted-fg)">{{ ch.story.title }}</td>
+                  <td style="color:var(--muted-fg)">{{ ch.story.author.username }}</td>
+                  <td style="color:var(--muted-fg)">{{ ch.word_count|default:"—" }}</td>
+                  <td style="color:var(--muted-fg);font-size:12px;">{{ ch.created_at|timesince }}</td>
+                  <td><button class="btn brl bsm" onclick="openReview({{ ch.id }},'{{ ch.title|escapejs }}')">Review</button></td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- recent decisions -->
+        <div class="card">
+          <div class="ch"><h2>Recent Decisions</h2></div>
+          <div class="cb">
+            {% if recent_decisions %}
+              {% for ch in recent_decisions %}
+              <div style="display:flex;gap:12px;{% if not forloop.last %}margin-bottom:14px;{% endif %}">
+                <div style="width:8px;height:8px;border-radius:50%;margin-top:4px;flex-shrink:0;background:{% if ch.status == 'se_approved' %}hsl(142 60% 40%){% elif ch.status == 'rejected' %}hsl(0 70% 50%){% else %}hsl(45 90% 50%){% endif %};"></div>
+                <div>
+                  <p style="font-size:13px;font-weight:500;">
+                    {% if ch.status == 'se_approved' %}Approved → CE
+                    {% elif ch.status == 'rejected' %}Rejected
+                    {% elif ch.status == 'se_revision' %}Revision requested
+                    {% else %}{{ ch.status }}{% endif %} — {{ ch.title }}
+                  </p>
+                  <p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">{{ ch.reviewed_at|timesince }} ago · {{ ch.story.title }} · {{ ch.story.author.username }}</p>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <p style="font-size:13px;color:var(--muted-fg);">No decisions yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- sidebar: authors and invite code -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="card">
+          <div class="ch"><h2>Your Invite Code</h2></div>
+          <div class="cb">
+            <p style="font-size:12px;color:var(--muted-fg);margin-bottom:12px;">Share with authors you recruit directly. They enter this code to link to you.</p>
+            <div style="padding:14px 16px;background:var(--muted);border:1px solid var(--border);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <span class="codeVal" style="font-size:20px;font-weight:700;letter-spacing:.2em;color:var(--role);font-family:monospace;">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</span>
+              <button onclick="copyCode()" class="btn bol bsm">Copy</button>
+            </div>
+            <p style="font-size:11px;color:var(--muted-fg);">Permanent and unique to your account.</p>
+          </div>
+        </div>
+
+        {% if supervisor_ce %}
+        <div class="card">
+          <div class="ch"><h2>Reports To</h2></div>
+          <div class="cb">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:36px;height:36px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;">{{ supervisor_ce.username|first|upper }}</div>
+              <div>
+                <p style="font-size:13px;font-weight:500;">{{ supervisor_ce.get_full_name|default:supervisor_ce.username }}</p>
+                <p style="font-size:11px;color:var(--muted-fg);">Chief Editor</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- REVIEW QUEUE -->
+  <div class="page" id="page-queue">
+    <div class="hero">
+      <div class="hrow">
+        <div><h1>Review Queue</h1><p>{{ queue_count|default:"0" }} chapter{{ queue_count|pluralize }} awaiting your review. These are new authors who have hit the upload threshold.</p></div>
+      </div>
+    </div>
+    {% if queue_items %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>Story</th><th>Author</th><th>Words</th><th>In Queue</th><th></th></tr></thead>
+          <tbody>
+          {% for ch in queue_items %}
+            <tr>
+              <td class="ttl">Ch.{{ ch.chapter_number }} — {{ ch.title }}</td>
+              <td style="color:var(--muted-fg)">{{ ch.story.title }}</td>
+              <td style="color:var(--muted-fg)">{{ ch.story.author.username }}</td>
+              <td style="color:var(--muted-fg)">{{ ch.word_count|default:"—" }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ ch.created_at|timesince }}</td>
+              <td style="white-space:nowrap;">
+                <button class="btn brl bsm" onclick="openReview({{ ch.id }},'{{ ch.title|escapejs }}')" style="margin-right:4px;">Review</button>
+                <button class="btn bol bsm" onclick="flagChapter({{ ch.id }})">Flag</button>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.2;margin:0 auto;"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <h3>Queue is empty</h3><p>No chapters awaiting review right now.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- FLAGGED -->
+  <div class="page" id="page-flags">
+    <div class="hero"><div><h1>Flagged Content</h1><p>Chapters you have flagged for policy, quality, or plagiarism concerns.</p></div></div>
+    {% if flagged_items %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>Story</th><th>Author</th><th>Flag</th><th>Flagged</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for f in flagged_items %}
+            <tr>
+              <td class="ttl">{{ f.chapter.title }}</td>
+              <td style="color:var(--muted-fg)">{{ f.chapter.story.title }}</td>
+              <td style="color:var(--muted-fg)">{{ f.chapter.story.author.username }}</td>
+              <td><span class="bdg {% if f.flag_type == 'mature' %}brd{% elif f.flag_type == 'violence' %}byw{% elif f.flag_type == 'plagiarism' %}bok{% else %}bpu{% endif %}">{{ f.get_flag_type_display }}</span></td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ f.created_at|timesince }} ago</td>
+              <td><span class="bdg {% if f.resolved %}bgr{% else %}byw{% endif %}">{% if f.resolved %}Resolved{% else %}Open{% endif %}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No flags raised</h3><p>Content you flag will appear here.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- DECISIONS LOG -->
+  <div class="page" id="page-decisions">
+    <div class="hero"><div><h1>Decisions Log</h1><p>All SE-level decisions on reviewed chapters.</p></div></div>
+    {% if recent_decisions %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>Story</th><th>Author</th><th>Decision</th><th>Note sent</th><th>Date</th></tr></thead>
+          <tbody>
+          {% for ch in recent_decisions %}
+            <tr>
+              <td class="ttl">{{ ch.title }}</td>
+              <td style="color:var(--muted-fg)">{{ ch.story.title }}</td>
+              <td style="color:var(--muted-fg)">{{ ch.story.author.username }}</td>
+              <td>
+                <span class="bdg {% if ch.status == 'se_approved' %}bgr{% elif ch.status == 'rejected' %}brd{% elif ch.status == 'se_revision' %}byw{% else %}bgy{% endif %}">
+                  {% if ch.status == 'se_approved' %}Approved → CE
+                  {% elif ch.status == 'rejected' %}Rejected
+                  {% elif ch.status == 'se_revision' %}Revision Requested
+                  {% else %}{{ ch.status }}{% endif %}
+                </span>
+              </td>
+              <td style="color:var(--muted-fg);font-size:12px;">{% if ch.se_note %}✓{% else %}—{% endif %}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ ch.reviewed_at|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No decisions yet</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- MY AUTHORS -->
+  <div class="page" id="page-authors">
+    <div class="hero">
+      <div class="hrow">
+        <div><h1>My Authors</h1><p>Authors linked to you directly via your invite code.</p></div>
+      </div>
+    </div>
+    {% if sourced_authors %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Author</th><th>Stories</th><th>Chapters</th><th>Contract</th><th>Linked</th></tr></thead>
+          <tbody>
+          {% for a in sourced_authors %}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">{{ a.username|first|upper }}</div>
+                  <div><span class="ttl">{{ a.get_full_name|default:a.username }}</span><span style="display:block;font-size:11px;color:var(--muted-fg);">{{ a.email }}</span></div>
+                </div>
+              </td>
+              <td style="color:var(--muted-fg);">{{ a.stories.count }}</td>
+              <td style="color:var(--muted-fg);">{{ a.chapter_count|default:"0" }}</td>
+              <td>{% if a.author_profile.has_contract %}<span class="bdg bgr">✓ Signed</span>{% else %}<span class="bdg bgy">None</span>{% endif %}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ a.author_profile.joined_as_author|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.2;margin:0 auto;"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      <h3>No authors linked directly</h3>
+      <p>Share your invite code with writers to add them to your roster.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PROFILE -->
+  <div class="page" id="page-profile">
+    <div class="hero"><div><h1>My Profile</h1></div></div>
+    <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+      <div class="card">
+        <div class="ch"><h2>Editor Information</h2></div>
+        <div class="cb">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;">{{ editor.username|first|upper }}</div>
+            <div>
+              <p style="font-size:16px;font-weight:600;">{{ editor.get_full_name|default:editor.username }}</p>
+              <p style="font-size:12px;color:var(--muted-fg);">{{ editor.email }}</p>
+              <div class="pip" style="margin-top:6px;">SENIOR EDITOR</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">In Queue</p><p style="font-size:14px;font-weight:500;">{{ queue_count|default:"0" }}</p></div>
+            <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">My Authors</p><p style="font-size:14px;font-weight:500;">{{ author_count|default:"0" }}</p></div>
+            <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Approved (7d)</p><p style="font-size:14px;font-weight:500;">{{ approved_week|default:"0" }}</p></div>
+            {% if supervisor_ce %}<div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Reports To (CE)</p><p style="font-size:14px;font-weight:500;">{{ supervisor_ce.get_full_name|default:supervisor_ce.username }}</p></div>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><h2>Invite Code</h2></div>
+        <div class="cb">
+          <p style="font-size:13px;color:var(--muted-fg);margin-bottom:16px;">Share with authors so they can link to you directly.</p>
+          <div style="display:flex;align-items:center;gap:14px;padding:18px 20px;border:1px solid var(--border);background:var(--muted);margin-bottom:14px;">
+            <span class="codeVal" style="font-size:30px;font-weight:700;letter-spacing:.25em;color:var(--role);font-family:monospace;">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</span>
+            <button onclick="copyCode()" class="btn bol bsm">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+
+<!-- Review modal -->
+<div class="modal-bg" id="reviewModal">
+  <div class="modal">
+    <h3 id="modalTitle">Review Chapter</h3>
+    <p style="font-size:12px;color:var(--muted-fg);margin-bottom:16px;">Write feedback for the author (required for revision, optional for approval).</p>
+    <textarea id="seNote" placeholder="Feedback / revision instructions for the author…"></textarea>
+    <div class="mrow">
+      <button class="btn bol bsm" onclick="closeModal()">Cancel</button>
+      <button class="btn bdk bsm" onclick="submitReject()">Reject</button>
+      <button class="btn bol bsm" onclick="submitRevision()">Request Revision</button>
+      <button class="btn brl bsm" onclick="submitApprove()">Approve → CE</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="tmsg"></span></div>
+<script>
+const NUX={token:document.querySelector('meta[name="nux-token"]')?.content||'',apiBase:document.querySelector('meta[name="nux-api"]')?.content||'/api',
+async call(p,o={}){const r=await fetch(this.apiBase+p,{headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token,...(o.headers||{})},...o});if(!r.ok)throw new Error(p+'→'+r.status);return r.json();},
+post(p,b){return this.call(p,{method:'POST',body:JSON.stringify(b)});},
+};
+document.getElementById('thb').onclick=()=>{const d=document.documentElement.classList.toggle('dark');document.documentElement.classList.toggle('light',!d);localStorage.setItem('nux_theme',d?'dark':'light');};
+function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ovl').classList.add('show');}
+function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ovl').classList.remove('show');}
+const ptitles={dashboard:'Dashboard',queue:'Review Queue',flags:'Flagged Content',decisions:'Decisions Log',authors:'My Authors',profile:'Profile'};
+var gp=function(id,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('ptitle').textContent=ptitles[id]||id;closeSb();};
+let _tt;
+function toast(m){clearTimeout(_tt);document.getElementById('tmsg').textContent=m;document.getElementById('toast').classList.add('show');_tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);}
+function copyCode(){const c=document.querySelector('.codeVal')?.textContent?.trim();if(!c||c==='——')return;navigator.clipboard.writeText(c).then(()=>toast('Invite code copied!'));}
+
+let _activeId=null;
+function openReview(id,title){_activeId=id;document.getElementById('modalTitle').textContent='Review: '+title;document.getElementById('seNote').value='';document.getElementById('reviewModal').classList.add('open');}
+function closeModal(){document.getElementById('reviewModal').classList.remove('open');_activeId=null;}
+
+async function submitApprove(){
+  const note=document.getElementById('seNote').value.trim();
+  try{await NUX.post(`/editorial/chapters/${_activeId}/se-approve/`,{se_note:note});toast('Approved — sent to CE ✓');closeModal();setTimeout(()=>location.reload(),1200);}
+  catch(e){toast('Error: '+e.message);}
+}
+async function submitRevision(){
+  const note=document.getElementById('seNote').value.trim();
+  if(!note){toast('Please write revision instructions for the author.');return;}
+  try{await NUX.post(`/editorial/chapters/${_activeId}/se-revision/`,{se_note:note});toast('Revision request sent.');closeModal();setTimeout(()=>location.reload(),1000);}
+  catch(e){toast('Error: '+e.message);}
+}
+async function submitReject(){
+  if(!confirm('Reject this chapter? This cannot be undone easily.'))return;
+  const note=document.getElementById('seNote').value.trim();
+  try{await NUX.post(`/editorial/chapters/${_activeId}/reject/`,{se_note:note});toast('Chapter rejected.');closeModal();setTimeout(()=>location.reload(),1200);}
+  catch(e){toast('Error: '+e.message);}
+}
+async function flagChapter(id){
+  const type=prompt('Flag type (mature / violence / plagiarism / quality / spam / other):');
+  if(!type)return;
+  const desc=prompt('Describe the issue:');
+  try{await NUX.post(`/editorial/chapters/${id}/flag/`,{flag_type:type,description:desc||''});toast('Chapter flagged.');setTimeout(()=>location.reload(),1000);}
+  catch(e){toast('Error: '+e.message);}
+}
+</script>
+</body></html>

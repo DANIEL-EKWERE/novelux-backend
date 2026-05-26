@@ -1,0 +1,1230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.classList.toggle('light',t!=='dark');})();</script>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api"   content="{{ api_url|default:'/api' }}">
+<title>Chief Editor – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);--card:hsl(0 0% 99%);--sw:220px;--role:hsl(14 62% 38%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);--card:hsl(240 5% 9%);--role:hsl(14 62% 55%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}input,select,textarea{font-family:inherit;font-size:inherit;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:var(--sw);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .3s;overflow-y:auto;}
+.sb.open{transform:translateX(0);}@media(min-width:1024px){.sb{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sb-top{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sb-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nlbl{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}.nlbl:first-child{margin-top:0;}
+.nbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;border-radius:2px;transition:background .12s,color .12s;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}.nbtn.active{background:color-mix(in srgb,var(--role) 10%,transparent);color:var(--role);font-weight:500;}
+.nbtn svg{width:16px;height:16px;flex-shrink:0;}
+.sb-bot{padding:16px 12px;border-top:1px solid var(--border);}
+.av{width:34px;height:34px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.pip{display:inline-flex;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.08em;background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);margin-top:4px;}
+.main{flex:1;min-width:0;}
+.topbar{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+@media(min-width:1024px){.topbar{padding:0 24px;}}
+.tl{display:flex;align-items:center;gap:12px;}.tr{display:flex;align-items:center;gap:8px;}
+.mbtn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;}@media(min-width:1024px){.mbtn{display:none;}}
+.ib{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.themb{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);position:relative;}
+.isun,.imoon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .isun{opacity:1;transform:scale(1);}html.light .imoon{opacity:0;transform:scale(0);}
+html.dark  .isun{opacity:0;transform:scale(0);}html.dark  .imoon{opacity:1;transform:scale(1);}
+.page{display:none;padding:28px 16px 80px;max-width:1200px;margin:0 auto;width:100%;}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}.page.active{display:block;}
+.hero{padding:28px 16px;background:color-mix(in srgb,var(--role) 5%,transparent);border-bottom:1px solid var(--border);margin-bottom:28px;position:relative;overflow:hidden;}
+@media(min-width:1024px){.hero{padding:32px 24px;}}
+.hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;}
+.hero>*{position:relative;z-index:1;}.hero h1{font-size:20px;font-weight:600;}.hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.hrow{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.sgrid{grid-template-columns:repeat(3,1fr);gap:12px;}}
+@media(min-width:900px){.sgrid{grid-template-columns:repeat(6,1fr);}}
+.sc{border:1px solid var(--border);padding:16px 20px;background:var(--card);}
+.sl{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.sv{margin-top:6px;font-size:22px;font-weight:600;letter-spacing:-.02em;}.ss{margin-top:3px;font-size:11px;color:var(--muted-fg);}
+.card{border:1px solid var(--border);background:var(--card);}
+.ch{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}.ch h2{font-size:14px;font-weight:600;}
+.cb{padding:20px;}
+.two-col{display:grid;grid-template-columns:1fr;gap:20px;}@media(min-width:768px){.two-col{grid-template-columns:2fr 1fr;}}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;border:none;transition:opacity .15s;}
+.brl{background:var(--role);color:#fff;}.brl:hover{opacity:.88;}
+.bol{border:1px solid var(--border);color:var(--fg);background:none;}.bol:hover{background:var(--muted);}
+.bsm{padding:6px 12px;font-size:12px;}.bgh{color:var(--muted-fg);padding:6px 8px;font-size:12px;}.bgh:hover{color:var(--fg);}
+.bdk{background:hsl(0 70% 50%);color:#fff;}.bdk:hover{opacity:.88;}
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;font-size:11px;font-weight:500;}
+.bgr{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.byw{background:color-mix(in srgb,hsl(45 90% 50%) 14%,transparent);color:hsl(45 70% 30%);}
+html.dark .byw{color:hsl(45 90% 60%);}
+.brd{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.bok{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.bbl{background:color-mix(in srgb,hsl(220 70% 48%) 12%,transparent);color:hsl(220 70% 48%);}
+html.dark .bbl{color:hsl(220 70% 65%);}
+.bpu{background:color-mix(in srgb,hsl(270 60% 48%) 12%,transparent);color:hsl(270 60% 48%);}
+html.dark .bpu{color:hsl(270 60% 65%);}
+.bgy{background:var(--muted);color:var(--muted-fg);}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th,.tbl td{padding:12px 16px;text-align:left;font-size:13px;}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.tbl td{border-bottom:1px solid var(--border);}.tbl tr:last-child td{border-bottom:none;}.tbl tr:hover td{background:var(--muted);}
+.ttl{font-weight:500;}
+.prog{height:4px;background:var(--border);}.pf{height:100%;background:var(--role);}
+.pf-pu{height:100%;background:hsl(270 60% 48%);}
+.esc-card{padding:20px;border:2px solid color-mix(in srgb,var(--role) 35%,transparent);background:color-mix(in srgb,var(--role) 3%,transparent);margin-bottom:12px;}
+.esc-card:last-child{margin-bottom:0;}
+.hier-level{padding:14px 20px;border:1px solid var(--border);margin-bottom:4px;}
+.hier-members{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.mchip{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--muted);font-size:12px;}
+.mdot{width:7px;height:7px;border-radius:50%;}
+.empty{text-align:center;padding:48px 20px;color:var(--muted-fg);}
+.empty h3{font-size:15px;font-weight:500;color:var(--fg);margin-top:12px;}
+.form-lbl{font-size:12px;font-weight:500;display:block;margin-bottom:6px;}
+.form-in,.form-ta,.form-sel{padding:10px 12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:14px;outline:none;width:100%;transition:border-color .15s;}
+.form-in:focus,.form-ta:focus,.form-sel:focus{border-color:var(--role);}
+.form-ta{resize:vertical;line-height:1.6;}
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--fg);color:var(--bg);padding:12px 20px;font-size:13px;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}.ovl.show{display:block;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);}
+@media(max-width:600px){
+  #inviteModal{padding:0;align-items:flex-end;}
+  #inviteModal > div{padding:20px;max-height:92vh;overflow-y:auto;border-bottom:none;width:100%;max-width:100%;}
+}
+details.outline-details summary::-webkit-details-marker{display:none;}
+details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sb" id="sb">
+  <div class="sb-top">
+    <div class="brand"><div class="brand-logo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><span>Novelux</span></div>
+    <button onclick="closeSb()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sb-nav">
+    <span class="nlbl">Overview</span>
+    <button class="nbtn active" onclick="gp('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Dashboard</button>
+    <span class="nlbl">Decisions</span>
+    <button class="nbtn" id="nb-esc" onclick="gp('escalations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Story Queue {% if pending_stories_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ pending_stories_count }}</span>{% endif %}</button>
+    <button class="nbtn" onclick="gp('policies',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/><line x1="15" x2="15" y1="9" y2="21"/></svg>Policy Board {% if pending_policies_count %}<span class="bdg byw" style="margin-left:auto;font-size:10px;">{{ pending_policies_count }}</span>{% endif %}</button>
+    <button class="nbtn" onclick="gp('audit',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>SE Audit Log</button>
+    <span class="nlbl">Organisation</span>
+    <button class="nbtn" onclick="gp('team',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Editorial Team</button>
+    <button class="nbtn" onclick="gp('authors',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Authors</button>
+    <button class="nbtn" onclick="gp('kyc',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/><circle cx="17" cy="17" r="3"/><path d="m19.5 19.5 1.5 1.5"/></svg>KYC Review {% if kyc_pending_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ kyc_pending_count }}</span>{% endif %}</button>
+    <button class="nbtn" onclick="gp('guidelines',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>Role Guidelines</button>
+    <button class="nbtn" onclick="gp('invites',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Invites</button>
+    <span class="nlbl">Account</span>
+    <button class="nbtn" onclick="gp('profile',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Profile</button>
+  </nav>
+  <div class="sb-bot">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);">
+      <div class="av">{{ editor.username|first|upper }}</div>
+      <div><p style="font-size:13px;font-weight:500;">{{ editor.get_full_name|default:editor.username }}</p><div class="pip">CE · Chief Editor</div></div>
+    </div>
+    <a href="/logout/" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);text-decoration:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>Sign out</a>
+  </div>
+</aside>
+<div class="ovl" id="ovl" onclick="closeSb()"></div>
+
+<div class="main">
+  <header class="topbar">
+    <div class="tl">
+      <button class="mbtn" onclick="openSb()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span style="font-size:15px;font-weight:600;" id="ptitle">Dashboard</span>
+    </div>
+    <div class="tr">
+      <button class="ib"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{% if ce_escalation_count %}<span class="dot"></span>{% endif %}</button>
+      <button class="themb" id="thb">
+        <svg class="isun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="imoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="bdg bok" style="font-size:10px;">CE</span>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="hero">
+      <div class="hrow">
+        <div>
+          <h1>{{ editor.get_full_name|default:editor.username }} 👋</h1>
+          <p>Platform-wide editorial overview · {% if pending_stories_count %}<strong>{{ pending_stories_count }}</strong> stor{{ pending_stories_count|pluralize:'y,ies' }} awaiting contract review{% else %}No stories pending contract{% endif %}.</p>
+        </div>
+        <button class="btn brl bsm" onclick="gp('escalations',document.getElementById('nb-esc'))">Story Queue →</button>
+      </div>
+    </div>
+    <div class="sgrid">
+      <div class="sc"><div class="sl">Story Queue</div><div class="sv">{{ pending_stories_count|default:"0" }}</div><div class="ss">Awaiting contract</div></div>
+      <div class="sc"><div class="sl">Approved Books</div><div class="sv">{{ approved_books_count|default:"0" }}</div><div class="ss">{{ approved_books_chapters|default:"0" }} chapters total</div></div>
+      <div class="sc"><div class="sl">Total SEs</div><div class="sv">{{ se_count|default:"0" }}</div></div>
+      <div class="sc"><div class="sl">Awaiting Signature</div><div class="sv">{{ awaiting_sign_count|default:"0" }}</div><div class="ss">Author yet to sign</div></div>
+      <div class="sc"><div class="sl">Policy Updates</div><div class="sv">{{ pending_policies_count|default:"0" }}</div><div class="ss">Pending approval</div></div>
+    </div>
+
+    <div class="two-col">
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        {% if ce_escalations %}
+        <div class="card">
+          <div class="ch"><h2>CE Escalations — Final Decision</h2><span class="bdg brd">{{ ce_escalation_count }}</span></div>
+          <div style="padding:0;">
+            {% for r in ce_escalations|slice:":3" %}
+            <div style="padding:16px 20px;{% if not forloop.last %}border-bottom:1px solid var(--border);{% endif %}">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+                <div>
+                  <p style="font-size:14px;font-weight:600;">{{ r.chapter.title }}</p>
+                  <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;">
+                    {{ r.chapter.story.title }} · {{ r.author.username }} · SE: {{ r.assigned_se.username|default:"—" }} · {{ r.submitted_at|timesince }} ago
+                    {% for f in r.flags.all %}<span class="bdg {% if f.flag_type == 'mature' %}brd{% elif f.flag_type == 'violence' %}byw{% elif f.flag_type == 'plagiarism' %}bok{% else %}bpu{% endif %}" style="margin-left:4px;">{{ f.get_flag_type_display }}</span>{% endfor %}
+                  </p>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button class="btn brl bsm" onclick="ceApprove({{ r.id }})">Approve</button>
+                  <button class="btn bol bsm" onclick="ceRevision({{ r.id }})">Revision</button>
+                  <button class="btn bdk bsm" onclick="ceRemove({{ r.id }})">Remove</button>
+                  <button class="btn bdk bsm" onclick="ceSuspend({{ r.id }})">Suspend Author</button>
+                </div>
+              </div>
+              {% for n in r.notes.all|slice:"-1:" %}
+              <div style="font-size:12px;color:var(--muted-fg);border-left:3px solid var(--role);padding-left:10px;font-style:italic;">"{{ n.content|truncatechars:200 }}" — {{ n.author.username }}</div>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <div class="ch"><h2>SE Performance (this month)</h2></div>
+          <div class="cb" style="display:flex;flex-direction:column;gap:14px;">
+            {% for se in se_team %}
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:28px;height:28px;border-radius:50%;background:hsl(270 60% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">{{ se.username|first|upper }}</div>
+                  <span style="font-size:13px;font-weight:500;">{{ se.get_full_name|default:se.username }}</span>
+                </div>
+                <span class="bdg {% if se.esc_to_ce_count > 3 %}byw{% else %}bgr{% endif %}" style="font-size:10px;">
+                  {% if se.esc_to_ce_count > 3 %}Monitor{% else %}On target{% endif %}
+                </span>
+              </div>
+              <div style="font-size:11px;color:var(--muted-fg);margin-bottom:5px;">{{ se.decision_count }} decisions · {{ se.esc_to_ce_count }} CE escalation{{ se.esc_to_ce_count|pluralize }}</div>
+              <div class="prog"><div class="pf-pu" style="width:{% if se.decision_count %}{% widthratio se.decision_count 50 100 %}{% else %}0{% endif %}%;"></div></div>
+            </div>
+            {% empty %}
+            <p style="font-size:13px;color:var(--muted-fg);">No SEs assigned yet.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        {% if policies_pending %}
+        <div class="card">
+          <div class="ch"><h2>Policies Pending Approval</h2><span class="bdg byw">{{ pending_policies_count }}</span></div>
+          <div class="cb">
+            {% for p in policies_pending %}
+            <div style="padding:14px;border:1px solid var(--border);{% if not forloop.last %}margin-bottom:10px;{% endif %}">
+              <p style="font-size:13px;font-weight:500;">{{ p.title }} v{{ p.version }}</p>
+              <p style="font-size:11px;color:var(--muted-fg);margin-top:4px;">Proposed by {{ p.proposed_by.username|default:"—" }} · {{ p.created_at|timesince }} ago</p>
+              <div style="display:flex;gap:6px;margin-top:10px;">
+                <button class="btn bdk bsm" onclick="rejectPolicy({{ p.id }})">Reject</button>
+                <button class="btn brl bsm" onclick="approvePolicy({{ p.id }})">Approve</button>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+          <div class="ch"><h2>Platform Health</h2></div>
+          <div class="cb" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">SEs</span><span style="font-weight:500;">{{ se_count|default:"0" }}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Chapters cleared (month)</span><span style="font-weight:500;">{{ chapters_cleared_month|default:"0" }}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Content removed (month)</span><span style="font-weight:500;color:hsl(0 70% 45%);">{{ content_removed_month|default:"0" }}</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Active policies</span><span style="font-weight:500;">{{ active_policies|length }}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CE ESCALATIONS -->
+  <div class="page" id="page-escalations">
+    <div class="hero">
+      <div class="hrow">
+        <div><h1>Story Queue</h1><p>Stories approved by Senior Editors and ready for your contract decision.</p></div>
+        <span class="bdg brd" style="font-size:12px;padding:4px 12px;" id="ce-queue-badge">{{ pending_stories_count|default:"0" }} pending</span>
+      </div>
+    </div>
+
+    <div id="ce-story-list">
+    {% if pending_stories %}
+      {% for s in pending_stories %}
+      <div class="esc-card" id="ce-sc-{{ s.id }}">
+        <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;">
+          {% if s.cover_image %}<img src="{{ s.cover_image.url }}" style="width:52px;height:70px;object-fit:cover;border-radius:4px;flex-shrink:0;" alt="">{% else %}<div style="width:52px;height:70px;border-radius:4px;background:var(--muted);flex-shrink:0;"></div>{% endif %}
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+              <div>
+                <p style="font-size:15px;font-weight:600;">{{ s.title }}</p>
+                <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;">
+                  by {{ s.author.get_full_name|default:s.author.username }} ({{ s.author.email }})
+                  · {{ s.chapters.count }} chapters · {{ s.word_count|default:"0" }} words
+                  {% if s.contract_app and s.contract_app.assigned_se %}
+                  · SE: {{ s.contract_app.assigned_se.get_full_name|default:s.contract_app.assigned_se.username }}
+                  {% endif %}
+                </p>
+                {% if s.synopsis %}<p style="font-size:12px;color:var(--muted-fg);margin-top:4px;line-height:1.5;font-style:italic;">{{ s.synopsis }}</p>{% endif %}
+                {% if s.description %}<p style="font-size:12px;color:var(--muted-fg);margin-top:4px;line-height:1.5;">{{ s.description|truncatechars:180 }}</p>{% endif %}
+                {% if s.story_outline %}
+                <details class="outline-details" style="margin-top:8px;">
+                  <summary style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:6px;">
+                    <svg class="outline-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;flex-shrink:0;"><polyline points="6 9 12 15 18 9"/></svg>
+                    Story Outline
+                  </summary>
+                  <div style="margin-top:8px;padding:10px 14px;background:var(--muted);border-left:3px solid var(--role);font-size:12px;color:var(--fg);line-height:1.7;white-space:pre-wrap;">{{ s.story_outline }}</div>
+                </details>
+                {% endif %}
+                {% if s.external_link %}
+                <p style="margin-top:6px;font-size:11px;color:var(--muted-fg);">
+                  Also on: <a href="{{ s.external_link }}" target="_blank" rel="noopener" style="color:var(--role);text-decoration:none;word-break:break-all;">{{ s.external_link }}</a>
+                </p>
+                {% endif %}
+                {% if s.contract_app and s.contract_app.se_note %}
+                <div style="margin-top:8px;padding:8px 12px;background:var(--muted);border-left:3px solid var(--role);font-size:12px;color:var(--muted-fg);font-style:italic;">
+                  <strong style="color:var(--fg);font-style:normal;">SE note:</strong> {{ s.contract_app.se_note }}
+                </div>
+                {% endif %}
+
+                <!-- ── Author Identity (KYC) ── -->
+                {% if s.author_kyc %}
+                <details style="margin-top:10px;">
+                  <summary style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;list-style:none;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Author Identity
+                    {% if s.author_kyc.status == 'approved' %}<span style="background:hsl(142 60% 40%/.15);color:hsl(142 60% 34%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Verified</span>
+                    {% elif s.author_kyc.status == 'pending' %}<span style="background:hsl(38 92% 50%/.15);color:hsl(38 62% 38%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Pending</span>
+                    {% else %}<span style="background:hsl(0 68% 50%/.15);color:hsl(0 68% 44%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Rejected</span>{% endif %}
+                  </summary>
+                  <div style="margin-top:8px;padding:12px 14px;background:var(--muted);border-left:3px solid var(--role);border-radius:0 6px 6px 0;font-size:12px;line-height:1.8;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;">
+                      <div><span style="color:var(--muted-fg);">Full Name</span><br/><strong>{{ s.author_kyc.full_name }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Phone</span><br/><strong>{{ s.author_kyc.phone }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Country</span><br/><strong>{{ s.author_kyc.country }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Contact Address</span><br/><strong>{{ s.author_kyc.contact_address }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">ID Type</span><br/><strong>{{ s.author_kyc.get_id_type_display }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">ID Number</span><br/><strong>{{ s.author_kyc.id_number }}</strong></div>
+                      {% if s.author_kyc.payment_method == 'bank_account' %}
+                      <div><span style="color:var(--muted-fg);">Account Holder</span><br/><strong>{{ s.author_kyc.account_holder }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Bank</span><br/><strong>{{ s.author_kyc.bank_name }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Account Number</span><br/><strong>{{ s.author_kyc.account_number }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Swift Code</span><br/><strong>{{ s.author_kyc.swift_code }}</strong></div>
+                      <div><span style="color:var(--muted-fg);">Bank Country</span><br/><strong>{{ s.author_kyc.bank_country }}</strong></div>
+                      {% else %}
+                      <div><span style="color:var(--muted-fg);">PayPal</span><br/><strong>{{ s.author_kyc.paypal_email }}</strong></div>
+                      {% endif %}
+                    </div>
+                    {% if s.author_kyc.id_document %}
+                    <div style="margin-top:10px;">
+                      <span style="color:var(--muted-fg);">ID Document</span><br/>
+                      <a href="{{ s.author_kyc.id_document.url }}" target="_blank" rel="noopener" style="color:var(--role);font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        View ID Document
+                      </a>
+                    </div>
+                    {% endif %}
+                  </div>
+                </details>
+                {% else %}
+                <div style="margin-top:8px;padding:6px 10px;background:hsl(38 92% 50%/.1);border:1px solid hsl(38 92% 50%/.3);border-radius:5px;font-size:11px;color:hsl(38 62% 38%);">
+                  ⚠️ No KYC submitted — author has not completed identity verification.
+                </div>
+                {% endif %}
+              </div>
+              <span class="bdg bpu" style="font-size:10px;white-space:nowrap;">SE Approved</span>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+              <button class="btn brl bsm" onclick="ceSendContract('{{ s.slug }}','{{ s.title|escapejs }}')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Send Contract
+              </button>
+              <button class="btn bol bsm" onclick="ceSendBack('{{ s.slug }}','{{ s.title|escapejs }}')">Return to SE</button>
+              <button class="btn bdk bsm" onclick="ceRejectStory('{{ s.slug }}','{{ s.title|escapejs }}')">Reject</button>
+              <button class="btn bol bsm" onclick="ceAddNote('{{ s.slug }}','{{ s.title|escapejs }}')">Add Note</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chapter list (expandable) -->
+        <div style="border-top:1px solid var(--border);">
+          <div style="padding:9px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);background:var(--muted);display:flex;justify-content:space-between;cursor:pointer;user-select:none;" onclick="toggleCEChapters('ce-chaps-{{ s.id }}',this)">
+            <span>{{ s.chapters.count }} Chapter{{ s.chapters.count|pluralize }} — click to read</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="ce-chaps-{{ s.id }}" style="display:none;">
+            {% for ch in s.chapters_list %}
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--border);font-size:13px;">
+              <span style="font-size:11px;color:var(--muted-fg);width:26px;flex-shrink:0;">{{ ch.chapter_number }}</span>
+              <span style="flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ ch.title }}</span>
+              <span style="font-size:11px;color:var(--muted-fg);white-space:nowrap;">{{ ch.word_count|default:"—" }} words</span>
+              <span class="bdg {% if ch.status == 'se_approved' %}bgr{% elif ch.status == 'pending_review' or ch.status == 'se_reviewing' %}byw{% elif ch.status == 'rejected' %}brd{% else %}bgy{% endif %}" style="font-size:10px;">{{ ch.status }}</span>
+              <button style="padding:3px 8px;font-size:11px;border:1px solid var(--border);background:none;border-radius:4px;cursor:pointer;" onclick="ceReadChapter({{ ch.id }},'{{ ch.title|escapejs }}')">Read</button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+      <h3>No stories pending</h3>
+      <p>Stories approved by Senior Editors will appear here for your contract decision.</p>
+    </div>
+    {% endif %}
+    </div>
+
+    {% if awaiting_sign_stories %}
+    <div style="margin-top:28px;">
+      <h2 style="font-size:14px;font-weight:600;margin-bottom:14px;">Awaiting Author Signature</h2>
+      <div class="card">
+        <div style="overflow-x:auto;">
+          <table class="tbl">
+            <thead><tr><th>Story</th><th>Author</th><th>Chapters</th><th>CE Signed</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for s in awaiting_sign_stories %}
+              <tr id="ce-await-{{ s.slug }}">
+                <td style="font-weight:500;">{{ s.title }}</td>
+                <td style="color:var(--muted-fg);">{{ s.author.get_full_name|default:s.author.username }}<span style="display:block;font-size:11px;color:var(--muted-fg);">{{ s.author.email }}</span></td>
+                <td style="color:var(--muted-fg);">{{ s.chapters.count }}</td>
+                <td>
+                  {% if s.contract_app and s.contract_app.ce_signed_at %}
+                    <span class="bdg bgr" style="font-size:10px;">Signed {{ s.contract_app.ce_signed_at|timesince }} ago</span>
+                  {% else %}
+                    <span class="bdg byw" style="font-size:10px;">Pending CE sign</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if not s.contract_app or not s.contract_app.ce_signed_at %}
+                  <button class="btn brl bsm" onclick="ceEditorialSign('{{ s.slug }}','{{ s.title|escapejs }}')">
+                    Sign Contract
+                  </button>
+                  {% else %}
+                  <span style="font-size:12px;color:var(--muted-fg);">Waiting for author</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if signed_stories %}
+    <div style="margin-top:28px;">
+      <h2 style="font-size:14px;font-weight:600;margin-bottom:14px;">Contracted Stories</h2>
+      <div class="card">
+        <div style="overflow-x:auto;">
+          <table class="tbl">
+            <thead><tr><th>Story</th><th>Author</th><th>Chapters</th><th>Stage</th></tr></thead>
+            <tbody>
+            {% for s in signed_stories %}
+              <tr>
+                <td style="font-weight:500;">{{ s.title }}</td>
+                <td style="color:var(--muted-fg);">{{ s.author.username }}</td>
+                <td style="color:var(--muted-fg);">{{ s.chapters.count }}</td>
+                <td><span class="bdg bgr">Signed</span></td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- POLICY BOARD -->
+  <div class="page" id="page-policies">
+    <div class="hero"><div class="hrow"><div><h1>Policy Board</h1><p>Approve, reject or amend editorial policy changes.</p></div><button class="btn brl bsm" onclick="toast('Policy drafting — coming soon.')">+ Draft Policy</button></div></div>
+
+    {% if policies_pending %}
+    <div class="card" style="margin-bottom:20px;">
+      <div class="ch"><h2>Pending Your Approval</h2><span class="bdg byw">{{ pending_policies_count }}</span></div>
+      <div style="padding:0;">
+        {% for p in policies_pending %}
+        <div style="padding:18px 20px;{% if not forloop.last %}border-bottom:1px solid var(--border);{% endif %}">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+            <div>
+              <p style="font-size:14px;font-weight:600;">{{ p.title }} <span style="font-size:12px;color:var(--muted-fg);">v{{ p.version }}</span></p>
+              <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;">Proposed by {{ p.proposed_by.username|default:"—" }} · {{ p.created_at|timesince }} ago</p>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn bdk bsm" onclick="rejectPolicy({{ p.id }})">Reject</button>
+              <button class="btn bol bsm" onclick="returnPolicy({{ p.id }})">Return for Revision</button>
+              <button class="btn brl bsm" onclick="approvePolicy({{ p.id }})">✓ Approve & Publish</button>
+            </div>
+          </div>
+          {% if p.notes %}<p style="font-size:12px;color:var(--muted-fg);">{{ p.notes|truncatechars:200 }}</p>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="ch"><h2>Active Policies</h2></div>
+      {% if active_policies %}
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Policy</th><th>Version</th><th>Approved By</th><th>Published</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for p in active_policies %}
+            <tr>
+              <td class="ttl">{{ p.title }}</td>
+              <td style="color:var(--muted-fg)">v{{ p.version }}</td>
+              <td style="color:var(--muted-fg)">{{ p.approved_by.username|default:"—" }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{% if p.published_at %}{{ p.published_at|timesince }} ago{% else %}—{% endif %}</td>
+              <td><span class="bdg bgr">Active</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cb"><p style="font-size:13px;color:var(--muted-fg);">No active policies yet.</p></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- SE AUDIT LOG -->
+  <div class="page" id="page-audit">
+    <div class="hero"><div><h1>SE Audit Log</h1><p>Review and confirm all Senior Editor decisions.</p></div></div>
+    {% if se_decisions %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Chapter</th><th>SE</th><th>Decision</th><th>Author</th><th>Date</th></tr></thead>
+          <tbody>
+          {% for r in se_decisions %}
+            <tr>
+              <td class="ttl">{{ r.chapter.title }}</td>
+              <td style="color:var(--muted-fg)">{{ r.assigned_se.username|default:"—" }}</td>
+              <td><span class="bdg {% if r.status == 'se_approved' %}bgr{% elif r.status == 'removed' %}brd{% elif r.status == 'se_revision' %}byw{% elif r.status == 'se_escalated' %}bpu{% else %}bgy{% endif %}">
+                {% if r.status == 'se_approved' %}Approved{% elif r.status == 'removed' %}Removed{% elif r.status == 'se_revision' %}Major Revision{% elif r.status == 'se_escalated' %}→ CE{% else %}{{ r.status }}{% endif %}
+              </span></td>
+              <td style="color:var(--muted-fg)">{{ r.author.username }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ r.updated_at|timesince }} ago</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No SE decisions recorded yet</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- EDITORIAL TEAM -->
+  <div class="page" id="page-team">
+    <div class="hero"><div class="hrow"><div><h1>Editorial Team</h1><p>Full hierarchy — CE → SE → AE.</p></div><button class="btn brl bsm" onclick="openInviteModal()">+ Invite Editor</button></div></div>
+
+    <!-- Hierarchy visual -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="ch"><h2>Editorial Hierarchy</h2></div>
+      <div class="cb">
+        <div class="hier-level" style="border-left:3px solid var(--role);">
+          <p style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--role);font-weight:600;margin-bottom:8px;">Chief Editor</p>
+          <div class="hier-members"><div class="mchip"><div class="mdot" style="background:var(--role);"></div>{{ editor.get_full_name|default:editor.username }}</div></div>
+        </div>
+        <div class="hier-level" style="border-left:3px solid hsl(270 60% 48%);margin-left:20px;">
+          <p style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:hsl(270 60% 48%);font-weight:600;margin-bottom:8px;">Senior Editors</p>
+          <div class="hier-members">
+            {% for se in se_team %}<div class="mchip"><div class="mdot" style="background:hsl(270 60% 48%);"></div>{{ se.get_full_name|default:se.username }}</div>{% empty %}<span style="font-size:12px;color:var(--muted-fg);">None assigned</span>{% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><h2>Full Directory</h2></div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Queue / Decisions</th></tr></thead>
+          <tbody>
+          {% for e in all_editors %}
+            <tr>
+              <td class="ttl">{{ e.get_full_name|default:e.username }}</td>
+              <td><span class="bdg {% if e.role == 'se' %}bpu{% else %}bbl{% endif %}" style="font-size:10px;">{{ e.role|upper }}</span></td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ e.email }}</td>
+              <td style="color:var(--muted-fg);">{{ e.sourced_authors.count|default:"0" }} author{{ e.sourced_authors.count|pluralize }}</td>
+            </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;color:var(--muted-fg);padding:24px;">No editors yet.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHORS -->
+  <div class="page" id="page-authors">
+    <div class="hero"><div><h1>Authors</h1><p>Platform-wide author overview.</p></div></div>
+
+    {% if unassigned_authors %}
+    <div style="margin-bottom:24px;">
+      <div class="card">
+        <div class="ch">
+          <h2>Unassigned Authors</h2>
+          <span class="bdg byw">{{ unassigned_authors|length }} without SE</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="tbl">
+            <thead><tr><th>Author</th><th>Email</th><th>Assign to SE</th></tr></thead>
+            <tbody>
+            {% for a in unassigned_authors %}
+              <tr id="unassigned-row-{{ a.id }}">
+                <td class="ttl">{{ a.get_full_name|default:a.username }}</td>
+                <td style="color:var(--muted-fg);font-size:12px;">{{ a.email }}</td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <select class="form-sel" id="se-pick-{{ a.id }}" style="padding:6px 10px;font-size:12px;width:auto;">
+                      <option value="">Select SE…</option>
+                      {% for se in my_ses %}
+                      <option value="{{ se.id }}">{{ se.get_full_name|default:se.username }}</option>
+                      {% endfor %}
+                    </select>
+                    <button class="btn brl bsm" onclick="assignAuthorToSE({{ a.id }})">Assign</button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if author_overview %}
+    <div class="card">
+      <div class="ch"><h2>All Authors</h2></div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Author</th><th>Email</th><th>Assigned SE</th></tr></thead>
+          <tbody>
+          {% for a in author_overview %}
+            <tr>
+              <td class="ttl">{{ a.get_full_name|default:a.username }}</td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ a.email }}</td>
+              <td style="color:var(--muted-fg)">{% if a.editor_link and a.editor_link.assigned_se %}{{ a.editor_link.assigned_se.get_full_name|default:a.editor_link.assigned_se.username }}{% else %}<span class="bdg byw">Unassigned</span>{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No authors yet</h3></div>
+    {% endif %}
+  </div>
+
+  <!-- KYC REVIEW -->
+  <div class="page" id="page-kyc">
+    <div class="hero"><div><h1>Author KYC Review</h1><p>Identity and payment verification submissions from authors.</p></div></div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn bol bsm kyc-tab" style="background:var(--muted);" onclick="kycTab('pending',this)">Pending <span class="bdg brd" style="font-size:10px;margin-left:4px;">{{ kyc_pending_count }}</span></button>
+      <button class="btn bol bsm kyc-tab" onclick="kycTab('all',this)">All Submissions</button>
+    </div>
+
+    <!-- Pending tab -->
+    <div id="kyc-pending-tab">
+      {% if kyc_pending %}
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted-fg);font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
+          <th style="padding:8px 12px;text-align:left;">Author</th>
+          <th style="padding:8px 12px;text-align:left;">Full Name</th>
+          <th style="padding:8px 12px;text-align:left;">Country</th>
+          <th style="padding:8px 12px;text-align:left;">ID Type</th>
+          <th style="padding:8px 12px;text-align:left;">Payment</th>
+          <th style="padding:8px 12px;text-align:left;">Submitted</th>
+          <th style="padding:8px 12px;text-align:left;">Actions</th>
+        </tr></thead>
+        <tbody>
+        {% for k in kyc_pending %}
+        <tr style="border-bottom:1px solid var(--border);" id="kyc-row-{{ k.pk }}">
+          <td style="padding:10px 12px;"><strong>{{ k.user.username }}</strong><br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.user.email }}</span></td>
+          <td style="padding:10px 12px;">{{ k.full_name }}</td>
+          <td style="padding:10px 12px;">{{ k.country }}</td>
+          <td style="padding:10px 12px;">{{ k.get_id_type_display }}<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.id_number }}</span></td>
+          <td style="padding:10px 12px;">
+            {% if k.payment_method == 'bank_account' %}
+              Bank — {{ k.bank_name }}<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.account_number }}</span>
+            {% else %}
+              PayPal<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.paypal_email }}</span>
+            {% endif %}
+          </td>
+          <td style="padding:10px 12px;color:var(--muted-fg);">{{ k.submitted_at|date:"M d, Y" }}</td>
+          <td style="padding:10px 12px;">
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              {% if k.id_document %}
+              <a href="{{ k.id_document.url }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--role);">View ID Doc ↗</a>
+              {% endif %}
+              <button class="btn brl bsm" data-kyc-id="{{ k.id }}" onclick="openKycApprove(parseInt(this.dataset.kycId))">Approve</button>
+              <button class="btn bol bsm" style="border-color:hsl(0 68% 50%);color:hsl(0 68% 44%);" data-kyc-id="{{ k.id }}" onclick="openKycReject(parseInt(this.dataset.kycId))">Reject</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><h3>No pending KYC submissions</h3><p>All author identity verifications are up to date.</p></div>
+      {% endif %}
+    </div>
+
+    <!-- All submissions tab -->
+    <div id="kyc-all-tab" style="display:none;">
+      {% if kyc_all %}
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="border-bottom:1px solid var(--border);color:var(--muted-fg);font-size:11px;text-transform:uppercase;letter-spacing:.06em;">
+          <th style="padding:8px 12px;text-align:left;">Author</th>
+          <th style="padding:8px 12px;text-align:left;">Full Name</th>
+          <th style="padding:8px 12px;text-align:left;">Country</th>
+          <th style="padding:8px 12px;text-align:left;">Status</th>
+          <th style="padding:8px 12px;text-align:left;">Submitted</th>
+          <th style="padding:8px 12px;text-align:left;">Notes</th>
+        </tr></thead>
+        <tbody>
+        {% for k in kyc_all %}
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 12px;"><strong>{{ k.user.username }}</strong></td>
+          <td style="padding:10px 12px;">{{ k.full_name }}</td>
+          <td style="padding:10px 12px;">{{ k.country }}</td>
+          <td style="padding:10px 12px;">
+            {% if k.status == 'approved' %}<span class="bdg" style="background:hsl(142 60% 40%/.15);color:hsl(142 60% 34%);">Approved</span>
+            {% elif k.status == 'rejected' %}<span class="bdg brd">Rejected</span>
+            {% else %}<span class="bdg byw">Pending</span>{% endif %}
+          </td>
+          <td style="padding:10px 12px;color:var(--muted-fg);">{{ k.submitted_at|date:"M d, Y" }}</td>
+          <td style="padding:10px 12px;color:var(--muted-fg);font-size:12px;">{{ k.admin_notes|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty"><h3>No KYC submissions yet</h3></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KYC Approve Modal -->
+  <div id="kycApproveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--bg);border:1px solid var(--border);padding:28px;width:100%;max-width:440px;border-radius:4px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Approve KYC Submission</h3>
+      <p style="font-size:13px;color:var(--muted-fg);margin-bottom:14px;">Optional: add a note for the author.</p>
+      <textarea id="kycApproveNote" placeholder="Approval note (optional)…" style="width:100%;padding:10px 12px;font-family:inherit;font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;resize:vertical;min-height:90px;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+        <button class="btn bgh bsm" onclick="closeKycApproveModal()">Cancel</button>
+        <button class="btn brl bsm" onclick="submitKycApprove()">Approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KYC Reject Modal -->
+  <div id="kycRejectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--bg);border:1px solid var(--border);padding:28px;width:100%;max-width:440px;border-radius:4px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Reject KYC Submission</h3>
+      <p style="font-size:13px;color:var(--muted-fg);margin-bottom:14px;">Provide a reason so the author knows what to correct and resubmit.</p>
+      <textarea id="kycRejectNote" placeholder="Reason for rejection…" style="width:100%;padding:10px 12px;font-family:inherit;font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;resize:vertical;min-height:90px;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+        <button class="btn bgh bsm" onclick="closeKycRejectModal()">Cancel</button>
+        <button class="btn bsm" style="background:hsl(0 68% 50%);color:#fff;" onclick="submitKycReject()">Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROLE GUIDELINES -->
+  <div class="page" id="page-guidelines">
+    <div class="hero"><div><h1>Role Guidelines</h1><p>What each editorial role can and cannot do.</p></div></div>
+    <div style="display:grid;grid-template-columns:1fr;gap:16px;">
+
+      <div class="card">
+        <div class="ch"><h2><span class="bdg bpu" style="margin-right:8px;">SE</span> Senior Editor Scope</h2></div>
+        <div class="cb">
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+            <p>✓ All AE capabilities</p>
+            <p>✓ Review and decide on AE-escalated content</p>
+            <p>✓ Remove content that clearly violates policy</p>
+            <p>✓ Issue major revision orders</p>
+            <p>✓ Monitor SE team performance</p>
+            <p>✓ Propose policy changes to CE</p>
+            <p style="color:hsl(0 70% 45%);">✗ Cannot approve policies — CE only</p>
+            <p style="color:hsl(0 70% 45%);">✗ Cannot permanently suspend authors — CE only</p>
+            <p style="color:hsl(0 70% 45%);">✗ Ambiguous / novel cases must be escalated to CE</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch"><h2><span class="bdg bok" style="margin-right:8px;">CE</span> Chief Editor Scope</h2></div>
+        <div class="cb">
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+            <p>✓ All SE capabilities</p>
+            <p>✓ Final authority on all escalated decisions</p>
+            <p>✓ Approve, amend, or reject policy changes</p>
+            <p>✓ Permanently suspend or reinstate author accounts</p>
+            <p>✓ Invite, assign, and manage all editorial staff</p>
+            <p>✓ Set editorial precedent for novel content types</p>
+            <p>✓ Platform-wide editorial health oversight</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="page" id="page-profile">
+    <div class="hero"><div><h1>My Profile</h1><p>Chief Editor account.</p></div></div>
+    <div class="card">
+      <div class="ch"><h2>Editor Information</h2></div>
+      <div class="cb">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+          <div style="width:64px;height:64px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;">{{ editor.username|first|upper }}</div>
+          <div><p style="font-size:16px;font-weight:600;">{{ editor.get_full_name|default:editor.username }}</p><p style="font-size:12px;color:var(--muted-fg);">{{ editor.email }}</p><div class="pip" style="margin-top:6px;">CHIEF EDITOR · FINAL AUTHORITY</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">SEs Overseen</p><p style="font-size:14px;font-weight:500;">{{ se_count|default:"0" }}</p></div>
+
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Open CE Escalations</p><p style="font-size:14px;font-weight:500;">{{ ce_escalation_count|default:"0" }}</p></div>
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Active Policies</p><p style="font-size:14px;font-weight:500;">{{ active_policies|length }}</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- INVITES -->
+  <div class="page" id="page-invites">
+    <div class="hero"><div class="hrow"><div><h1>Editor Invites</h1><p>Manage onboarding invites for AEs and SEs.</p></div><button class="btn brl bsm" onclick="openInviteModal()">+ Send Invite</button></div></div>
+    <div class="card" id="invitesCard">
+      <div class="ch"><h2>Active &amp; Past Invites</h2></div>
+      <div class="cb" id="invitesList">
+        <p style="font-size:13px;color:var(--muted-fg);">Loading invites…</p>
+      </div>
+    </div>
+  </div>
+
+</div></div>
+
+<!-- INVITE MODAL -->
+<div id="inviteModal" style="position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.5);">
+  <div style="background:var(--bg);border:1px solid var(--border);padding:32px;max-width:480px;width:100%;position:relative;">
+    <button onclick="closeInviteModal()" style="position:absolute;top:16px;right:16px;color:var(--muted-fg);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+    <h2 style="font-size:17px;font-weight:600;margin-bottom:4px;">Invite an Editor</h2>
+    <p style="font-size:13px;color:var(--muted-fg);margin-bottom:24px;">An email with a one-time registration link will be sent. The invitee's role is locked to what you select.</p>
+
+    <div id="inviteError" style="display:none;padding:10px 14px;background:color-mix(in srgb,hsl(0 70% 50%) 8%,transparent);border:1px solid color-mix(in srgb,hsl(0 70% 50%) 25%,transparent);color:hsl(0 70% 45%);font-size:13px;margin-bottom:16px;"></div>
+    <div id="inviteSuccess" style="display:none;padding:10px 14px;background:color-mix(in srgb,hsl(142 60% 40%) 8%,transparent);border:1px solid color-mix(in srgb,hsl(142 60% 40%) 25%,transparent);color:hsl(142 60% 35%);font-size:13px;margin-bottom:16px;"></div>
+
+    <div style="margin-bottom:16px;">
+      <label class="form-lbl">Email Address *</label>
+      <input class="form-in" type="email" id="inviteEmail" placeholder="editor@example.com"/>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label class="form-lbl">Role *</label>
+      <select class="form-sel" id="inviteRole" onchange="updateSupervisorLabel()">
+        <option value="">Select role…</option>
+        <option value="se">Senior Editor</option>
+      </select>
+    </div>
+    <div style="margin-bottom:16px;" id="supervisorRow">
+      <label class="form-lbl" id="supervisorLabel">Supervisor (optional)</label>
+      <select class="form-sel" id="inviteSupervisor">
+        <option value="">None / assign later</option>
+        {% for se in se_team %}<option value="{{ se.id }}">{{ se.get_full_name|default:se.username }} (SE)</option>{% endfor %}
+      </select>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="form-lbl">Notes (internal)</label>
+      <textarea class="form-ta" id="inviteNotes" rows="2" placeholder="e.g. Focus genre: Romance · Starting March"></textarea>
+    </div>
+    <button class="btn brl" style="width:100%;justify-content:center;" onclick="submitInvite()" id="inviteSubmitBtn">
+      Send Invite Email
+    </button>
+  </div>
+</div>
+
+<div class="toast"  id="toast"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="tmsg"></span></div>
+<script>
+const NUX={token:document.querySelector('meta[name="nux-token"]')?.content||'',apiBase:document.querySelector('meta[name="nux-api"]')?.content||'/api',
+async call(p,o={}){const r=await fetch(this.apiBase+p,{headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token,...(o.headers||{})},...o});if(!r.ok)throw new Error(p+'→'+r.status);return r.json();},
+post(p,b){return this.call(p,{method:'POST',body:JSON.stringify(b)});},
+get(p){return this.call(p);},
+};
+document.getElementById('thb').onclick=()=>{const d=document.documentElement.classList.toggle('dark');document.documentElement.classList.toggle('light',!d);localStorage.setItem('nux_theme',d?'dark':'light');};
+function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ovl').classList.add('show');}
+function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ovl').classList.remove('show');}
+const ptitles={dashboard:'Dashboard',escalations:'Story Queue',policies:'Policy Board',audit:'SE Audit Log',team:'Editorial Team',invites:'Invites',authors:'Authors',kyc:'KYC Review',guidelines:'Role Guidelines',profile:'Profile'};
+var gp = function(id, btn) {document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('ptitle').textContent=ptitles[id]||id;closeSb();}
+let _tt;
+function toast(m){clearTimeout(_tt);document.getElementById('tmsg').textContent=m;document.getElementById('toast').classList.add('show');_tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);}
+// ── CE Story Queue actions ─────────────────────────────────────────────────
+async function ceSendContract(slug, title) {
+  const contractType = confirm('Send as Exclusive contract?\n\nOK = Exclusive or Non-Exclusive?')
+    ? 'exclusive' : 'non_exclusive';
+  const note = prompt(`Optional note for "${title}" contract:`, '') ?? '';
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/send-contract/', { contract_type: contractType, note });
+    toast('Contract sent to author ✓');
+    removeCEStoryCard(slug); updateCEQueueBadge(-1);
+  } catch(e) { toast('Error: ' + (e.detail||'Failed')); }
+}
+
+async function ceSendBack(slug, title) {
+  const reason = prompt('Return "' + title + '" to SE for revision?\n\nReason:');
+  if (reason === null) return;
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/reject/', { reason, action: 'send_back' });
+    toast('Story returned to SE.');
+    removeCEStoryCard(slug); updateCEQueueBadge(-1);
+  } catch(e) { toast('Error: ' + (e.detail||'Failed')); }
+}
+
+async function ceRejectStory(slug, title) {
+  if (!confirm('Reject "' + title + '"? This removes it from the contract pipeline.')) return;
+  const reason = prompt('Reason for rejection:') ?? '';
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/reject/', { reason, action: 'reject' });
+    toast('Story rejected.');
+    removeCEStoryCard(slug); updateCEQueueBadge(-1);
+  } catch(e) { toast('Error: ' + (e.detail||'Failed')); }
+}
+
+async function ceAddNote(slug, title) {
+  const note = prompt('Add/edit internal note for "' + title + '":');
+  if (note === null) return;
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/note/', { note });
+    toast('Note saved.');
+  } catch(e) { toast('Error: ' + (e.detail||'Failed')); }
+}
+
+async function ceReadChapter(id, title) {
+  document.getElementById('ceModalTitle').textContent = title;
+  document.getElementById('ceModalBody').innerHTML = '<p style="color:var(--muted-fg)">Loading…</p>';
+  document.getElementById('ceReadModal').classList.add('open');
+  try {
+    const data = await NUX.get('/editorial/reviews/' + id + '/');
+    const c = data.chapter_content || data.content || '(No content)';
+    document.getElementById('ceModalBody').innerHTML = '<div style="line-height:1.8;">' + c + '</div>';
+  } catch(e) {
+    document.getElementById('ceModalBody').innerHTML = '<p style="color:var(--muted-fg)">Failed to load content.</p>';
+  }
+}
+
+function toggleCEChapters(id, head) {
+  const el = document.getElementById(id);
+  const icon = head.querySelector('svg');
+  const open = el.style.display === 'block';
+  el.style.display = open ? 'none' : 'block';
+  icon.style.transform = open ? '' : 'rotate(180deg)';
+}
+
+function removeCEStoryCard(slug) {
+  const cards = document.querySelectorAll('#ce-story-list .esc-card');
+  cards.forEach(c => { if (c.querySelector('[onclick*="' + slug + '"]')) c.remove(); });
+  const list = document.getElementById('ce-story-list');
+  if (list && !list.querySelector('.esc-card')) {
+    list.innerHTML = '<div class="empty"><h3>Queue is empty</h3><p>All stories processed.</p></div>';
+  }
+}
+
+let _ceCount = {{ pending_stories_count|default:0 }};
+function updateCEQueueBadge(delta) {
+  _ceCount = Math.max(0, _ceCount + delta);
+  const b = document.getElementById('ce-queue-badge');
+  if (b) b.textContent = _ceCount + ' pending';
+}
+
+// legacy stubs (keep so old template refs don't throw)
+async function ceApprove(id){ toast('Use the story-level Send Contract button.'); }
+async function ceApproveGate(id){ toast('Use the story-level Send Contract button.'); }
+async function ceRevision(id){ toast('Use the Return to SE button on the story.'); }
+async function ceRemove(id){ toast('Use the Reject button on the story.'); }
+async function ceSuspend(id){ toast('Manage authors from the Authors tab.'); }
+async function approvePolicy(id){try{await NUX.post(`/editorial/policies/${id}/approve/`,{});toast('Policy approved and published.');setTimeout(()=>location.reload(),1200);}catch(e){toast('Error: '+e.message);}}
+async function rejectPolicy(id){const note=prompt('Reason for rejection:');try{await NUX.post(`/editorial/policies/${id}/reject/`,{note:note||''});toast('Policy rejected.');setTimeout(()=>location.reload(),1000);}catch(e){toast('Error: '+e.message);}}
+async function returnPolicy(id){const note=prompt('What needs to be revised?');try{await NUX.post(`/editorial/policies/${id}/reject/`,{note:'Returned for revision: '+(note||'')});toast('Policy returned for revision.');setTimeout(()=>location.reload(),1000);}catch(e){toast('Error: '+e.message);}}
+
+// ── Invite modal ─────────────────────────────────────────────────────────────
+function openInviteModal() {
+  document.getElementById('inviteModal').style.display = 'flex';
+  document.getElementById('inviteError').style.display   = 'none';
+  document.getElementById('inviteSuccess').style.display = 'none';
+  document.getElementById('inviteEmail').value    = '';
+  document.getElementById('inviteRole').value     = '';
+  document.getElementById('inviteNotes').value    = '';
+  document.getElementById('inviteSupervisor').value = '';
+}
+function closeInviteModal() {
+  document.getElementById('inviteModal').style.display = 'none';
+}
+function updateSupervisorLabel() {
+  const role = document.getElementById('inviteRole').value;
+  const row  = document.getElementById('supervisorRow');
+  const lbl  = document.getElementById('supervisorLabel');
+  if (role === 'se') {
+    lbl.textContent = 'Reporting CE (you)';
+    row.style.display = 'none';
+  } else {
+    lbl.textContent = 'Supervisor (optional)';
+    row.style.display = 'block';
+  }
+}
+async function submitInvite() {
+  const email        = document.getElementById('inviteEmail').value.trim();
+  const role         = document.getElementById('inviteRole').value;
+  const supervisor   = document.getElementById('inviteSupervisor')?.value || '';
+  const notes        = document.getElementById('inviteNotes').value.trim();
+  const errEl        = document.getElementById('inviteError');
+  const successEl    = document.getElementById('inviteSuccess');
+  const btn          = document.getElementById('inviteSubmitBtn');
+
+  errEl.style.display     = 'none';
+  successEl.style.display = 'none';
+
+  if (!email) { errEl.textContent = 'Email is required.'; errEl.style.display='block'; return; }
+  if (!role)  { errEl.textContent = 'Please select a role.'; errEl.style.display='block'; return; }
+
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch('/editorial/invite/create/', {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken':  getCookie('csrftoken'),
+      },
+      body: JSON.stringify({
+        email,
+        role,
+        supervisor_id: supervisor || null,
+        notes,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      successEl.textContent   = data.message || 'Invite sent!';
+      successEl.style.display = 'block';
+      loadInvites();
+      setTimeout(closeInviteModal, 2000);
+    } else {
+      errEl.textContent   = data.error || 'Something went wrong.';
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent   = 'Network error — please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Send Invite Email';
+  }
+}
+
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : null;
+}
+
+async function loadInvites() {
+  const listEl = document.getElementById('invitesList');
+  if (!listEl) return;
+  try {
+    const data = await NUX.get('/editorial/invites/');
+    if (!data.length) {
+      listEl.innerHTML = '<p style="font-size:13px;color:var(--muted-fg);">No invites yet. Click <strong>+ Send Invite</strong> to onboard an editor.</p>';
+      return;
+    }
+    const statusColor = {pending:'byw',accepted:'bgr',expired:'bgy',revoked:'brd'};
+    const roleColor   = {ae:'bbl',se:'bpu'};
+    listEl.innerHTML = `
+      <table class="tbl" style="width:100%">
+        <thead><tr><th>Email</th><th>Role</th><th>Supervisor</th><th>Status</th><th>Sent</th><th></th></tr></thead>
+        <tbody>
+          ${data.map(inv => `
+            <tr>
+              <td class="ttl">${inv.email}</td>
+              <td><span class="bdg ${roleColor[inv.role]||'bgy'}" style="font-size:10px;">${inv.role.toUpperCase()}</span></td>
+              <td style="color:var(--muted-fg);font-size:12px;">${inv.supervisor_name||'—'}</td>
+              <td><span class="bdg ${statusColor[inv.status]||'bgy'}">${inv.status}</span></td>
+              <td style="color:var(--muted-fg);font-size:12px;">${new Date(inv.created_at).toLocaleDateString()}</td>
+              <td>
+                ${inv.status==='pending' ? `
+                  <button class="btn bol bsm" onclick="resendInvite(${inv.id})" style="margin-right:4px;">Resend</button>
+                  <button class="btn bdk bsm" onclick="revokeInvite(${inv.id})">Revoke</button>
+                ` : ''}
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    listEl.innerHTML = '<p style="font-size:13px;color:var(--muted-fg);">Could not load invites.</p>';
+  }
+}
+
+async function revokeInvite(id) {
+  if (!confirm('Revoke this invite? The link will stop working.')) return;
+  try { await NUX.post(`/editorial/invites/${id}/revoke/`, {}); toast('Invite revoked.'); loadInvites(); }
+  catch(e) { toast('Error: '+e.message); }
+}
+async function resendInvite(id) {
+  try { await NUX.post(`/editorial/invites/${id}/resend/`, {}); toast('Invite resent!'); }
+  catch(e) { toast('Error: '+e.message); }
+}
+
+// ── CE Editorial Signing ──────────────────────────────────────────────────────
+async function ceEditorialSign(slug, title) {
+  if (!confirm('Sign the contract for "' + title + '" on behalf of the platform?\n\nThis confirms Novelux\'s editorial endorsement of this contract.')) return;
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/ce-sign/', {});
+    toast('Contract signed by CE ✓');
+    const row = document.querySelector('#ce-await-' + slug + ' td:nth-child(4)');
+    if (row) row.innerHTML = '<span class="bdg bgr" style="font-size:10px;">Signed just now</span>';
+    const btn = document.querySelector('#ce-await-' + slug + ' td:nth-child(5)');
+    if (btn) btn.innerHTML = '<span style="font-size:12px;color:var(--muted-fg);">Waiting for author</span>';
+  } catch(e) { toast('Error: failed to sign contract.'); }
+}
+
+// ── Assign Unassigned Author to SE ───────────────────────────────────────────
+async function assignAuthorToSE(authorId) {
+  const sel = document.getElementById('se-pick-' + authorId);
+  const seId = sel ? sel.value : '';
+  if (!seId) { toast('Please select an SE first.'); return; }
+  try {
+    const data = await NUX.post('/editorial/assign-author/', { author_id: authorId, se_id: parseInt(seId) });
+    toast('Author assigned to ' + data.se + ' ✓');
+    const row = document.getElementById('unassigned-row-' + authorId);
+    if (row) row.remove();
+  } catch(e) { toast('Error: could not assign author.'); }
+}
+
+// Load invites when navigating to the page
+{% comment %} const _origGp = gp;
+function gp(id, btn) {
+  _origGp(id, btn);
+  if (id === 'invites') loadInvites();
+} {% endcomment %}
+const _origGp = gp;
+gp = function(id, btn) {
+  _origGp(id, btn);
+  if (id === 'invites') loadInvites();
+};
+
+// ── KYC Review ────────────────────────────────────────────────────────────────
+function kycTab(tab, btn) {
+  document.querySelectorAll('.kyc-tab').forEach(b => b.style.background = '');
+  btn.style.background = 'var(--muted)';
+  document.getElementById('kyc-pending-tab').style.display = tab === 'pending' ? '' : 'none';
+  document.getElementById('kyc-all-tab').style.display     = tab === 'all'     ? '' : 'none';
+}
+
+let _kycApproveId = null;
+function openKycApprove(id) {
+  _kycApproveId = id;
+  document.getElementById('kycApproveNote').value = '';
+  document.getElementById('kycApproveModal').style.display = 'flex';
+}
+function closeKycApproveModal() {
+  document.getElementById('kycApproveModal').style.display = 'none';
+  _kycApproveId = null;
+}
+async function submitKycApprove() {
+  const note = document.getElementById('kycApproveNote').value.trim();
+  const kycId = _kycApproveId;
+  closeKycApproveModal();
+  await reviewKyc(kycId, 'approve', note);
+}
+
+let _kycRejectId = null;
+function openKycReject(id) {
+  _kycRejectId = id;
+  document.getElementById('kycRejectNote').value = '';
+  const m = document.getElementById('kycRejectModal');
+  m.style.display = 'flex';
+}
+function closeKycRejectModal() {
+  document.getElementById('kycRejectModal').style.display = 'none';
+  _kycRejectId = null;
+}
+
+async function reviewKyc(id, action, note='') {
+  const token = document.querySelector('meta[name="nux-token"]')?.content || '';
+  try {
+    const r = await fetch(`/api/editorial/kyc/${id}/review/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ action, note }),
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      alert(action === 'approve' ? 'KYC approved.' : 'KYC rejected.');
+      window.location.reload();
+    } else {
+      alert(data.detail || data.error || 'Action failed.');
+    }
+  } catch(e) {
+    alert('Network error.');
+  }
+}
+
+async function submitKycReject() {
+  const note = document.getElementById('kycRejectNote').value.trim();
+  if (!note) { alert('Please provide a rejection reason.'); return; }
+  const kycId = _kycRejectId;
+  closeKycRejectModal();
+  await reviewKyc(kycId, 'reject', note);
+}
+
+</script>
+
+<!-- CE Chapter Read Modal -->
+<div id="ceReadModal" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .2s;" class="">
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;width:100%;max-width:700px;max-height:90vh;display:flex;flex-direction:column;transform:translateY(16px);transition:transform .2s;">
+    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <h3 style="font-size:15px;font-weight:600;" id="ceModalTitle">Chapter</h3>
+      <button onclick="document.getElementById('ceReadModal').classList.remove('open');document.getElementById('ceReadModal').style.opacity='0';document.getElementById('ceReadModal').style.pointerEvents='none';" style="background:none;border:none;font-size:22px;line-height:1;color:var(--muted-fg);cursor:pointer;">×</button>
+    </div>
+    <div style="padding:20px;overflow-y:auto;flex:1;font-size:14px;line-height:1.8;" id="ceModalBody"></div>
+    <div style="padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+      <button onclick="document.getElementById('ceReadModal').classList.remove('open');document.getElementById('ceReadModal').style.opacity='0';document.getElementById('ceReadModal').style.pointerEvents='none';" class="btn bol bsm">Close</button>
+    </div>
+  </div>
+</div>
+<style>
+#ceReadModal.open{opacity:1!important;pointer-events:all!important;}
+#ceReadModal.open > div{transform:translateY(0)!important;}
+</style>
+
+</body></html>

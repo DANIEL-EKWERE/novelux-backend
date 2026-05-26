@@ -1,0 +1,302 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Content Guidelines – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--primary:hsl(14 62% 38%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);scroll-behavior:smooth;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+svg{display:inline-block;vertical-align:middle;}
+nav{position:fixed;top:0;z-index:50;width:100%;background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:0 24px;}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;}
+.nav-brand{display:flex;align-items:center;gap:8px;}
+.nav-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.nav-brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:color-mix(in srgb,var(--fg) 70%,transparent);}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+.page-wrap{max-width:1100px;margin:0 auto;padding:88px 24px 80px;display:flex;flex-direction:column;gap:32px;}
+@media(min-width:900px){.page-wrap{display:grid;grid-template-columns:220px 1fr;gap:48px;}}
+.toc{display:none;}@media(min-width:900px){.toc{display:block;position:sticky;top:72px;align-self:start;}}
+.toc-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);margin-bottom:12px;}
+.toc-list{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.toc-list a{font-size:13px;color:var(--muted-fg);padding:5px 8px;display:block;transition:color .15s;border-left:2px solid transparent;}
+.toc-list a:hover,.toc-list a.active{color:var(--primary);border-left-color:var(--primary);}
+.content h1{font-size:clamp(2rem,4vw,3rem);font-weight:500;letter-spacing:-.04em;line-height:1.1;margin-bottom:8px;}
+.legal-meta{font-size:12px;color:var(--muted-fg);margin-bottom:40px;}
+.section{margin-bottom:48px;scroll-margin-top:80px;}
+.section h2{font-size:18px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.section h3{font-size:14px;font-weight:600;margin:20px 0 8px;}
+.section p{font-size:14px;line-height:1.8;color:var(--muted-fg);margin-bottom:12px;}
+.section ul{padding-left:20px;margin-bottom:12px;}
+.section li{font-size:14px;line-height:1.8;color:var(--muted-fg);margin-bottom:6px;}
+.section a{color:var(--primary);text-decoration:underline;}
+.allowed{border:1px solid color-mix(in srgb,hsl(142 60% 40%) 30%,transparent);padding:16px 20px;margin-bottom:16px;background:color-mix(in srgb,hsl(142 60% 40%) 5%,transparent);}
+.allowed h3{color:hsl(142 60% 35%);font-size:13px;margin:0 0 8px;}
+html.dark .allowed h3{color:hsl(142 60% 55%);}
+.forbidden{border:1px solid color-mix(in srgb,hsl(0 70% 50%) 30%,transparent);padding:16px 20px;margin-bottom:16px;background:color-mix(in srgb,hsl(0 70% 50%) 5%,transparent);}
+.forbidden h3{color:hsl(0 70% 45%);font-size:13px;margin:0 0 8px;}
+.warning-box{padding:16px 20px;background:color-mix(in srgb,hsl(45 90% 50%) 8%,transparent);border:1px solid color-mix(in srgb,hsl(45 90% 50%) 30%,transparent);margin-bottom:16px;font-size:13px;line-height:1.7;}
+.enforcement-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px;}
+@media(min-width:640px){.enforcement-grid{grid-template-columns:1fr 1fr;}}
+.enforcement-card{border:1px solid var(--border);padding:18px;}
+.enforcement-card h3{font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px;}
+.enforcement-card p{font-size:12px;color:var(--muted-fg);line-height:1.6;margin:0;}
+footer{border-top:1px solid var(--border);}
+.footer-inner{max-width:1200px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+@media(min-width:768px){.footer-inner{flex-direction:row;justify-content:space-between;}}
+.footer-brand{display:flex;align-items:center;gap:8px;}
+.footer-logo-sm{width:18px;height:18px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.footer-brand span{font-size:12px;font-weight:700;}
+.footer-links{display:flex;align-items:center;gap:24px;font-size:12px;color:var(--muted-fg);flex-wrap:wrap;justify-content:center;}
+.footer-links a:hover{color:var(--fg);}
+
+    /* Mobile TOC */
+    .toc-mobile{display:block;margin-bottom:24px;}
+    @media(min-width:900px){.toc-mobile{display:none;}}
+    .toc-mobile-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:1px solid var(--border);font-size:13px;font-weight:500;background:var(--muted);color:var(--fg);cursor:pointer;font-family:inherit;}
+    .toc-mobile-list{border:1px solid var(--border);border-top:none;display:none;flex-direction:column;background:var(--bg);}
+    .toc-mobile-list.open{display:flex;}
+    .toc-mobile-list a{padding:10px 16px;font-size:13px;color:var(--muted-fg);border-bottom:1px solid var(--border);transition:color .15s;}
+    .toc-mobile-list a:last-child{border-bottom:none;}
+    .toc-mobile-list a:hover{color:var(--primary);}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </a>
+    <button class="theme-toggle" id="themeToggle">
+      <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="page-wrap">
+  <aside class="toc">
+    <p class="toc-label">On this page</p>
+    <ul class="toc-list">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#allowed">What's Allowed</a></li>
+      <li><a href="#restricted">Restricted Content</a></li>
+      <li><a href="#prohibited">Strictly Prohibited</a></li>
+      <li><a href="#formatting">Formatting Rules</a></li>
+      <li><a href="#covers">Cover Images</a></li>
+      <li><a href="#enforcement">Enforcement</a></li>
+      <li><a href="#appeals">Appeals</a></li>
+    </ul>
+  </aside>
+
+  <main class="content">
+    <h1>Content Guidelines</h1>
+    <p class="legal-meta">For Authors · Last updated: April 18, 2026</p>
+    <div class="toc-mobile">
+      <button class="toc-mobile-toggle" onclick="toggleMobileToc(this)">
+        <span>On this page</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="toc-mobile-list" id="mobileTocList">
+        <a href="#overview" onclick="closeMobileToc()">Overview</a><a href="#allowed" onclick="closeMobileToc()">What's Allowed</a><a href="#restricted" onclick="closeMobileToc()">Restricted Content</a><a href="#prohibited" onclick="closeMobileToc()">Strictly Prohibited</a><a href="#formatting" onclick="closeMobileToc()">Formatting Rules</a><a href="#covers" onclick="closeMobileToc()">Cover Images</a><a href="#enforcement" onclick="closeMobileToc()">Enforcement</a><a href="#appeals" onclick="closeMobileToc()">Appeals</a>
+      </div>
+    </div>
+
+
+    <div class="section" id="overview">
+      <h2>Overview</h2>
+      <p>Novelux is home to millions of readers across all ages and backgrounds. These guidelines exist to ensure a safe, enjoyable experience for everyone on the platform. All content — manuscripts, chapter titles, cover images, author bios, and comments — must comply with these rules.</p>
+      <p>Violating these guidelines may result in content removal, account suspension, or permanent termination, depending on severity.</p>
+    </div>
+
+    <div class="section" id="allowed">
+      <h2>What's Allowed</h2>
+      <div class="allowed">
+        <h3>✓ Fully permitted</h3>
+        <ul>
+          <li>Romance (including passion and emotional intimacy — see Restricted for explicit content rules)</li>
+          <li>Fantasy, sci-fi, and speculative fiction — including dark themes handled thoughtfully</li>
+          <li>Conflict, moral ambiguity, villain protagonists, and complex ethical scenarios</li>
+          <li>War, crime, and thriller content with literary purpose</li>
+          <li>LGBTQ+ stories and representation</li>
+          <li>Cultural, religious, and historical themes explored respectfully</li>
+          <li>Mental health topics, trauma, and healing narratives</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section" id="restricted">
+      <h2>Restricted Content (Mature Label Required)</h2>
+      <div class="warning-box">⚠️ Restricted content must be tagged "Mature (18+)" at the story level. Failure to label mature content appropriately may result in removal without notice.</div>
+      <ul>
+        <li>Explicit sexual content between consenting adults (must be tagged Mature)</li>
+        <li>Graphic violence beyond standard action/thriller conventions</li>
+        <li>Strong language used extensively throughout</li>
+        <li>Content depicting substance use in a non-glorifying context</li>
+      </ul>
+      <p>Even with a Mature label, content involving minors in sexual situations is strictly and absolutely prohibited — there are no exceptions.</p>
+    </div>
+
+    <div class="section" id="prohibited">
+      <h2>Strictly Prohibited</h2>
+      <div class="forbidden">
+        <h3>✗ Zero tolerance — results in immediate permanent ban</h3>
+        <ul>
+          <li>Sexual content involving anyone under 18, regardless of fictional framing</li>
+          <li>Content that glorifies, encourages, or instructs real-world violence, terrorism, or mass harm</li>
+          <li>Targeted harassment of real individuals</li>
+          <li>Content designed to incite hate based on race, ethnicity, religion, gender, disability, or sexual orientation</li>
+          <li>Doxxing — publishing private, personally identifiable information about real people</li>
+          <li>Plagiarism — submitting another author's work as your own</li>
+          <li>Spam — submitting low-quality, auto-generated, or duplicate content</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section" id="formatting">
+      <h2>Manuscript Formatting Rules</h2>
+      <p>Properly formatted manuscripts load faster, display better, and are reviewed more quickly by our editorial team. Follow these rules:</p>
+      <ul>
+        <li><strong>Chapter titles</strong> must begin with the word "Chapter" followed by an Arabic numeral (e.g. "Chapter 1", "Chapter 12").</li>
+        <li>Chapters must be in correct sequential order at time of submission.</li>
+        <li>Minimum chapter length: 500 words. Recommended: 1,500–4,000 words per chapter.</li>
+        <li>Do not use excessive blank lines, all-caps paragraphs, or decorative characters between sections — use a standard scene break (e.g. "***" or "—").</li>
+        <li>Dialogue must be properly punctuated. Our editorial team will flag common punctuation errors before publishing.</li>
+        <li>Submit in plain text or the supported document format (.docx, .txt). Do not submit PDFs.</li>
+      </ul>
+    </div>
+
+    <div class="section" id="covers">
+      <h2>Cover Image Rules</h2>
+      <ul>
+        <li>Recommended dimensions: 600×900px (2:3 aspect ratio).</li>
+        <li>File formats: JPG or PNG. Max size: 5MB.</li>
+        <li>Covers must not contain explicit nudity or graphic violence.</li>
+        <li>Covers must not use copyrighted images without a valid licence.</li>
+        <li>Text on covers should be minimal and legible at thumbnail size.</li>
+        <li>AI-generated cover art is permitted provided you have the rights to use it.</li>
+      </ul>
+    </div>
+
+    <div class="section" id="enforcement">
+      <h2>Enforcement</h2>
+      <div class="enforcement-grid">
+        <div class="enforcement-card">
+          <h3>Content Removal</h3>
+          <p>Violating content is removed without notice. Authors are notified via email with the specific reason.</p>
+        </div>
+        <div class="enforcement-card">
+          <h3>Warning</h3>
+          <p>Minor first violations receive a formal warning. A second violation of the same type escalates to suspension.</p>
+        </div>
+        <div class="enforcement-card">
+          <h3>Suspension</h3>
+          <p>Accounts may be suspended for 7, 30, or 90 days depending on severity and history.</p>
+        </div>
+        <div class="enforcement-card">
+          <h3>Permanent Ban</h3>
+          <p>Zero-tolerance violations result in immediate, permanent account termination and potential legal referral.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section" id="appeals">
+      <h2>Appeals</h2>
+      <p>If you believe your content was removed or your account was actioned in error, you may appeal within 14 days of the enforcement action. Submit your appeal to <a href="mailto:appeals@novelux.com">appeals@novelux.com</a> with:</p>
+      <ul>
+        <li>Your author username</li>
+        <li>The story or chapter title affected</li>
+        <li>Your explanation of why the action was in error</li>
+      </ul>
+      <p>Appeals are reviewed within 5–7 business days. Our decision after review is final.</p>
+    </div>
+  </main>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo-sm"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </div>
+    <div class="footer-links">
+      <a href="/privacy/">Privacy Policy</a>
+      <a href="/terms/">Terms of Service</a>
+      <a href="/cookies/">Cookie Policy</a>
+      <a href="/content-guidelines/">Content Guidelines</a>
+      <a href="/faq/">Help Center</a>
+      <span>© <span id="year"></span> Novelux</span>
+    </div>
+  </div>
+</footer>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+const html = document.documentElement;
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const d = html.classList.contains('dark');
+  html.classList.toggle('dark', !d); html.classList.toggle('light', d);
+});
+html.classList.add('light');
+const sections = document.querySelectorAll('.section');
+const links = document.querySelectorAll('.toc-list a');
+window.addEventListener('scroll', () => {
+  let cur = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) cur = s.id; });
+  links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + cur));
+});
+
+  function toggleMobileToc(btn) {
+    const list = document.getElementById('mobileTocList');
+    list.classList.toggle('open');
+    const svg = btn.querySelector('svg');
+    if(svg) svg.style.transform = list.classList.contains('open') ? 'rotate(180deg)' : '';
+  }
+  function closeMobileToc() {
+    const list = document.getElementById('mobileTocList');
+    if(list) list.classList.remove('open');
+  }
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+</html>

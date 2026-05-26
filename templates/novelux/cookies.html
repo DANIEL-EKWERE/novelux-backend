@@ -1,0 +1,188 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cookie Policy – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--primary:hsl(14 62% 38%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);scroll-behavior:smooth;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}button{cursor:pointer;font-family:inherit;border:none;background:none;}
+svg{display:inline-block;vertical-align:middle;}
+nav{position:fixed;top:0;z-index:50;width:100%;background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:0 24px;}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:56px;}
+.nav-brand{display:flex;align-items:center;gap:8px;}
+.nav-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.nav-brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:color-mix(in srgb,var(--fg) 70%,transparent);}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+.legal-layout{max-width:900px;margin:0 auto;padding:88px 24px 80px;}
+.legal-content h1{font-size:clamp(2rem,4vw,3rem);font-weight:500;letter-spacing:-.04em;line-height:1.1;margin-bottom:8px;}
+.legal-meta{font-size:12px;color:var(--muted-fg);margin-bottom:40px;}
+.legal-section{margin-bottom:48px;scroll-margin-top:80px;}
+.legal-section h2{font-size:18px;font-weight:600;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.legal-section p{font-size:14px;line-height:1.8;color:var(--muted-fg);margin-bottom:12px;}
+.legal-section ul{padding-left:20px;margin-bottom:12px;}
+.legal-section li{font-size:14px;line-height:1.8;color:var(--muted-fg);margin-bottom:6px;}
+.legal-section a{color:var(--primary);text-decoration:underline;}
+.cookie-table{width:100%;border-collapse:collapse;margin-top:16px;}
+.cookie-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);padding:10px 16px;border-bottom:1px solid var(--border);}
+.cookie-table td{padding:12px 16px;font-size:13px;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.cookie-table td:first-child{font-weight:500;color:var(--fg);}
+.cookie-table tr:last-child td{border-bottom:none;}
+.highlight-box{padding:16px 20px;background:color-mix(in srgb,var(--primary) 6%,transparent);border:1px solid color-mix(in srgb,var(--primary) 20%,transparent);margin-bottom:20px;font-size:13px;line-height:1.7;color:var(--fg);}
+footer{border-top:1px solid var(--border);}
+.footer-inner{max-width:1200px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:16px;align-items:center;}
+@media(min-width:768px){.footer-inner{flex-direction:row;justify-content:space-between;}}
+.footer-brand{display:flex;align-items:center;gap:8px;}
+.footer-logo-sm{width:18px;height:18px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.footer-brand span{font-size:12px;font-weight:700;}
+.footer-links{display:flex;align-items:center;gap:24px;font-size:12px;color:var(--muted-fg);}
+.footer-links a:hover{color:var(--fg);}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </a>
+    <button class="theme-toggle" id="themeToggle">
+      <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="legal-layout">
+  <div class="legal-content">
+    <h1>Cookie Policy</h1>
+    <p class="legal-meta">Last updated: April 18, 2026</p>
+    <div class="highlight-box">This policy explains what cookies are, which ones Novelux uses, and how you can control them.</div>
+
+    <div class="legal-section">
+      <h2>What Are Cookies?</h2>
+      <p>Cookies are small text files stored on your device when you visit a website. They help the site remember your preferences, keep you logged in, and understand how you interact with content.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Cookies We Use</h2>
+      <div style="overflow-x:auto;">
+        <table class="cookie-table">
+          <thead><tr><th>Cookie</th><th>Type</th><th>Purpose</th><th>Duration</th></tr></thead>
+          <tbody>
+            <tr><td>nlx_session</td><td>Essential</td><td>Keeps you logged in during your session</td><td>Session</td></tr>
+            <tr><td>nlx_auth</td><td>Essential</td><td>Persistent authentication token</td><td>30 days</td></tr>
+            <tr><td>nlx_prefs</td><td>Functional</td><td>Stores reading preferences (dark mode, font size)</td><td>1 year</td></tr>
+            <tr><td>nlx_read_pos</td><td>Functional</td><td>Saves reading position in chapters</td><td>6 months</td></tr>
+            <tr><td>nlx_analytics</td><td>Analytics</td><td>Aggregated usage data to improve the platform</td><td>90 days</td></tr>
+            <tr><td>nlx_ab</td><td>Analytics</td><td>A/B test variant assignment</td><td>30 days</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="legal-section">
+      <h2>Essential Cookies</h2>
+      <p>These cookies are necessary for the platform to function. Without them, you cannot log in or use core features. They cannot be disabled.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Functional Cookies</h2>
+      <p>These cookies remember your preferences so you don't have to reset them on every visit — things like dark mode, font size, and your reading position in a chapter. You can disable them, but your preferences won't be saved.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Analytics Cookies</h2>
+      <p>We use anonymised analytics to understand how readers navigate the platform, which features are popular, and where improvements are needed. This data is aggregated and never tied to your personal identity.</p>
+      <p>You can opt out of analytics cookies at any time in your account settings under Privacy Preferences.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Third-Party Cookies</h2>
+      <p>We may use third-party services (such as payment processors) that set their own cookies. We do not control these cookies — please refer to the respective third party's cookie policy for details.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Managing Cookies</h2>
+      <p>You can control cookies through your browser settings. Most browsers allow you to:</p>
+      <ul>
+        <li>View which cookies are stored</li>
+        <li>Delete cookies at any time</li>
+        <li>Block all or certain types of cookies</li>
+      </ul>
+      <p>Note that blocking essential cookies will prevent you from logging in or using the platform properly.</p>
+    </div>
+
+    <div class="legal-section">
+      <h2>Contact</h2>
+      <p>Questions about our use of cookies? Email <a href="mailto:privacy@novelux.com">privacy@novelux.com</a> or visit our <a href="/faq/">Help Center</a>.</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo-sm"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </div>
+    <div class="footer-links">
+      <a href="/privacy/">Privacy Policy</a>
+      <a href="/terms/">Terms of Service</a>
+      <a href="/cookies/">Cookie Policy</a>
+      <a href="/faq/">Help Center</a>
+      <span>© <span id="year"></span> Novelux</span>
+    </div>
+  </div>
+</footer>
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+const html = document.documentElement;
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const d = html.classList.contains('dark');
+  html.classList.toggle('dark', !d); html.classList.toggle('light', d);
+});
+html.classList.add('light');
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+</html>

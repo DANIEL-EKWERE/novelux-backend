@@ -1,0 +1,1001 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Join as an Author – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ── VARIABLES ── */
+:root {
+  --bg: hsl(0 0% 100%);
+  --fg: hsl(0 0% 9%);
+  --primary: hsl(14 62% 38%);
+  --primary-fg: hsl(0 0% 100%);
+  --muted: hsl(0 0% 96%);
+  --muted-fg: hsl(0 0% 45%);
+  --border: hsl(0 0% 90%);
+  --card: hsl(0 0% 99%);
+  --danger: hsl(0 68% 50%);
+  --success: hsl(142 60% 40%);
+}
+html.dark {
+  --bg: hsl(240 6% 6%);
+  --fg: hsl(0 0% 90%);
+  --primary: hsl(14 62% 38%);
+  --primary-fg: hsl(0 0% 100%);
+  --muted: hsl(240 4% 14%);
+  --muted-fg: hsl(0 0% 50%);
+  --border: hsl(240 4% 26%);
+  --card: hsl(240 5% 9%);
+}
+
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); height: 100%; }
+body {
+  font-family: 'Geist', -apple-system, system-ui, sans-serif;
+  font-size: 14px; background: var(--bg); color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh; overflow-x: hidden;
+  transition: background .2s, color .2s;
+}
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+input, textarea, select { font-family: inherit; font-size: inherit; }
+svg { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+
+/* ── DIAGONAL STRIPE ── */
+.stripe-bg { position: relative; overflow: hidden; }
+.stripe-bg::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg, transparent, transparent 8px,
+    color-mix(in srgb, var(--fg) 3%, transparent) 8px,
+    color-mix(in srgb, var(--fg) 3%, transparent) 9px
+  );
+  pointer-events: none; z-index: 0;
+}
+.stripe-bg > * { position: relative; z-index: 1; }
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  height: 56px;
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  transition: background .2s;
+}
+.nav-brand { display: flex; align-items: center; gap: 8px; }
+.nav-logo {
+  width: 22px; height: 22px; border-radius: 22%;
+  background: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-brand span { font-size: 14px; font-weight: 700; letter-spacing: .04em; }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.theme-toggle {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; color: var(--muted-fg); transition: color .15s;
+}
+.theme-toggle:hover { color: var(--fg); }
+.icon-sun, .icon-moon { position: absolute; width: 16px; height: 16px; transition: opacity .2s, transform .2s; }
+html.light .icon-sun  { opacity: 1; transform: rotate(0) scale(1); }
+html.light .icon-moon { opacity: 0; transform: rotate(90deg) scale(0); }
+html.dark  .icon-sun  { opacity: 0; transform: rotate(-90deg) scale(0); }
+html.dark  .icon-moon { opacity: 1; transform: rotate(0) scale(1); }
+.back-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--muted-fg); transition: color .15s;
+  padding: 6px 0;
+}
+.back-btn:hover { color: var(--fg); }
+
+/* ── LAYOUT SHELL ── */
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  padding-top: 56px;
+}
+@media (min-width: 900px) {
+  .auth-shell { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── LEFT PANEL (branding) ── */
+.left-panel {
+  display: none;
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg));
+  border-right: 1px solid var(--border);
+  padding: 48px 40px;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky; top: 56px; height: calc(100vh - 56px);
+}
+@media (min-width: 900px) { .left-panel { display: flex; } }
+.left-panel::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg, transparent, transparent 8px,
+    color-mix(in srgb, var(--primary) 4%, transparent) 8px,
+    color-mix(in srgb, var(--primary) 4%, transparent) 9px
+  );
+  pointer-events: none;
+}
+.left-panel > * { position: relative; z-index: 1; }
+.panel-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 28px; border: 1px solid var(--border);
+  font-size: 11px; color: var(--muted-fg);
+  text-transform: uppercase; letter-spacing: .12em;
+  width: fit-content;
+}
+.panel-headline {
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+  font-weight: 500; letter-spacing: -.04em; line-height: 1.1;
+}
+.panel-headline .accent { color: var(--primary); }
+.panel-stats {
+  display: flex; flex-direction: column; gap: 16px;
+}
+.panel-stat {
+  border: 1px solid var(--border); padding: 16px 20px;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.panel-stat .val {
+  font-size: 22px; font-weight: 600; letter-spacing: -.02em;
+}
+.panel-stat .lbl {
+  font-size: 11px; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--muted-fg); margin-top: 2px;
+}
+.panel-quote {
+  border-left: 2px solid var(--primary);
+  padding: 12px 16px;
+  font-size: 13px; line-height: 1.65; color: var(--muted-fg);
+  font-style: italic;
+}
+.panel-quote strong { color: var(--fg); font-style: normal; display: block; margin-top: 8px; font-size: 12px; }
+
+/* ── RIGHT PANEL (form area) ── */
+.right-panel {
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 40px 24px 80px;
+  overflow-y: auto;
+}
+.right-panel-inner { width: 100%; max-width: 420px; }
+
+/* ── STEP INDICATOR ── */
+.step-indicator {
+  display: flex; align-items: center; gap: 0; margin-bottom: 32px;
+}
+.step-dot {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 500; color: var(--muted-fg);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.step-dot .dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  transition: all .3s;
+}
+.step-dot.active .dot {
+  border-color: var(--primary); color: var(--primary);
+}
+.step-dot.done .dot {
+  border-color: var(--primary);
+  background: var(--primary); color: var(--primary-fg);
+}
+.step-dot.done { color: var(--fg); }
+.step-dot.active { color: var(--primary); }
+.step-line {
+  flex: 1; height: 1px; background: var(--border); margin: 0 8px;
+  transition: background .3s;
+}
+.step-line.done { background: var(--primary); }
+
+/* ── FORM CARD ── */
+.form-card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 32px;
+  display: none;
+  animation: fadeUp .3s ease both;
+}
+.form-card.active { display: block; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.form-card-title {
+  font-size: 22px; font-weight: 600; letter-spacing: -.03em; margin-bottom: 4px;
+}
+.form-card-sub {
+  font-size: 13px; color: var(--muted-fg); line-height: 1.55; margin-bottom: 28px;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.form-group:last-of-type { margin-bottom: 0; }
+.form-label { font-size: 12px; font-weight: 600; letter-spacing: .02em; }
+.form-label .req { color: var(--primary); }
+.form-input {
+  width: 100%; padding: 11px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg); color: var(--fg);
+  font-size: 14px; outline: none;
+  transition: border-color .15s;
+}
+.form-input:focus { border-color: var(--primary); }
+.form-input::placeholder { color: var(--muted-fg); }
+.form-input.error { border-color: var(--danger); }
+.input-error { font-size: 11px; color: var(--danger); margin-top: 2px; display: none; }
+.input-error.show { display: block; }
+
+/* Password toggle */
+.input-wrap { position: relative; }
+.input-wrap .form-input { padding-right: 40px; }
+.pw-toggle {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--muted-fg); transition: color .15s; padding: 4px;
+}
+.pw-toggle:hover { color: var(--fg); }
+
+/* Divider */
+.or-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0; font-size: 12px; color: var(--muted-fg);
+}
+.or-divider::before, .or-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Tabs (sign in / sign up) */
+.auth-tabs { display: flex; gap: 0; border: 1px solid var(--border); margin-bottom: 28px; }
+.auth-tab {
+  flex: 1; padding: 10px; font-size: 13px; font-weight: 500;
+  color: var(--muted-fg); border: none; background: none;
+  cursor: pointer; transition: all .15s; font-family: inherit;
+}
+.auth-tab.active {
+  background: var(--primary); color: var(--primary-fg);
+}
+
+/* Buttons */
+.btn-full {
+  width: 100%; padding: 12px; font-size: 14px; font-weight: 600;
+  cursor: pointer; font-family: inherit; border: none;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: opacity .15s;
+}
+.btn-primary { background: var(--primary); color: var(--primary-fg); }
+.btn-primary:hover { opacity: .88; }
+.btn-outline-full {
+  width: 100%; padding: 11px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border); background: none; color: var(--fg);
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transition: background .15s;
+}
+.btn-outline-full:hover { background: var(--muted); }
+.form-foot {
+  margin-top: 20px; text-align: center;
+  font-size: 12px; color: var(--muted-fg);
+}
+.form-foot a { color: var(--primary); }
+
+/* ── BRIEFING PAGE ── */
+.briefing-hero {
+  background: color-mix(in srgb, var(--primary) 5%, var(--bg));
+  border: 1px solid var(--border);
+  padding: 28px;
+  margin-bottom: 20px;
+  position: relative; overflow: hidden;
+}
+.briefing-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg, transparent, transparent 8px,
+    color-mix(in srgb, var(--primary) 4%, transparent) 8px,
+    color-mix(in srgb, var(--primary) 4%, transparent) 9px
+  );
+  pointer-events: none;
+}
+.briefing-hero > * { position: relative; z-index: 1; }
+.briefing-hero h2 {
+  font-size: 20px; font-weight: 600; letter-spacing: -.03em; margin-bottom: 6px;
+}
+.briefing-hero p { font-size: 13px; color: var(--muted-fg); line-height: 1.6; }
+
+.briefing-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 20px;
+}
+.briefing-card {
+  border: 1px solid var(--border);
+  padding: 16px; background: var(--card);
+}
+.briefing-card .b-icon {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary); margin-bottom: 10px;
+}
+.briefing-card h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.briefing-card p  { font-size: 12px; color: var(--muted-fg); line-height: 1.5; }
+
+.eligibility-list {
+  border: 1px solid var(--border);
+  padding: 18px 20px; margin-bottom: 20px;
+  background: var(--card);
+}
+.eligibility-list h4 {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted-fg); margin-bottom: 12px;
+}
+.eligibility-list ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.eligibility-list li {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; line-height: 1.5;
+}
+.eligibility-list li .chk {
+  width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--success);
+}
+
+/* ── TERMS PAGE ── */
+.terms-box {
+  border: 1px solid var(--border);
+  height: 300px; overflow-y: auto;
+  padding: 20px; margin-bottom: 16px;
+  background: var(--bg); font-size: 13px; line-height: 1.75;
+  color: var(--muted-fg);
+}
+.terms-box h3 { font-size: 13px; font-weight: 600; color: var(--fg); margin: 16px 0 6px; }
+.terms-box h3:first-child { margin-top: 0; }
+.terms-box p { margin-bottom: 10px; }
+.terms-box ul { padding-left: 18px; margin-bottom: 10px; }
+.terms-box li { margin-bottom: 4px; }
+.terms-scroll-hint {
+  font-size: 11px; color: var(--muted-fg); margin-bottom: 16px;
+  display: flex; align-items: center; gap: 6px;
+}
+.terms-scroll-hint.hidden { display: none; }
+
+.checkbox-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  margin-bottom: 10px; cursor: pointer;
+  transition: background .12s;
+}
+.checkbox-row:hover { background: var(--muted); }
+.custom-check {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.custom-check.checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.checkbox-row p { font-size: 13px; line-height: 1.55; }
+.checkbox-row a { color: var(--primary); text-decoration: underline; }
+.terms-lock-notice {
+  padding: 12px 14px; background: var(--muted);
+  border: 1px solid var(--border);
+  font-size: 12px; color: var(--muted-fg);
+  display: flex; gap: 8px; align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+/* ── SUCCESS FLASH ── */
+.success-screen {
+  text-align: center; padding: 40px 0;
+  display: none;
+}
+.success-screen.show { display: block; }
+.success-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--success); margin: 0 auto 20px;
+}
+.success-screen h2 { font-size: 22px; font-weight: 600; letter-spacing: -.03em; }
+.success-screen p { margin-top: 8px; font-size: 14px; color: var(--muted-fg); line-height: 1.6; }
+.progress-bar-wrap { margin: 24px 0; height: 3px; background: var(--border); }
+.progress-bar-fill { height: 100%; background: var(--primary); width: 0; transition: width 3s linear; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+
+<!-- Django context -->
+<meta name="nux-api" content="{{ api_base|default:'/api' }}">
+<meta name="nux-token" content="{{ access_token|default:'' }}">
+<meta name="nux-google-client-id" content="{{ GOOGLE_CLIENT_ID|default:'' }}">
+{% if GOOGLE_CLIENT_ID %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-brand">
+    <div class="nav-logo"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+    <span>Novelux</span>
+  </a>
+  <div class="nav-right">
+    <button class="theme-toggle" id="themeToggle">
+      <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- SHELL -->
+<div class="auth-shell">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div>
+      <span class="panel-tag">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Author Program
+      </span>
+      <h1 class="panel-headline" style="margin-top:20px;">
+        Turn your stories<br/>into <span class="accent">steady income.</span>
+      </h1>
+      <p style="margin-top:16px;font-size:14px;line-height:1.7;color:var(--muted-fg);max-width:340px;">
+        Join thousands of authors publishing on Novelux. Upload once, earn from every reader — no gatekeeping.
+      </p>
+    </div>
+    <div class="panel-stats">
+      <div class="panel-stat">
+        <div class="val">$1,200</div>
+        <div class="lbl">Avg. author monthly earnings</div>
+      </div>
+      <div class="panel-stat">
+        <div class="val">72 hrs</div>
+        <div class="lbl">Avg. editorial review time</div>
+      </div>
+      <div class="panel-stat">
+        <div class="val">50 / 50</div>
+        <div class="lbl">Revenue split — fair, always</div>
+      </div>
+    </div>
+    <div class="panel-quote">
+      "I work a regular job and write on weekends. Last month I withdrew $1,200. Novelux changed what writing means for me."
+      <strong>— Adaeze M., Romance Author · Lagos</strong>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="right-panel-inner">
+
+      <!-- STEP INDICATOR -->
+      <div class="step-indicator" id="stepIndicator">
+        <div class="step-dot active" id="sdot1">
+          <div class="dot">1</div>
+          <span>Account</span>
+        </div>
+        <div class="step-line" id="sline1"></div>
+        <div class="step-dot" id="sdot2">
+          <div class="dot">2</div>
+          <span>About</span>
+        </div>
+        <div class="step-line" id="sline2"></div>
+        <div class="step-dot" id="sdot3">
+          <div class="dot">3</div>
+          <span>Terms</span>
+        </div>
+      </div>
+
+      <!-- ══ STEP 1: AUTH ══ -->
+      <div class="form-card active" id="step1">
+        <h2 class="form-card-title">Welcome, Author.</h2>
+        <p class="form-card-sub">Sign in to your existing Novelux account or create a new one to get started.</p>
+
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tabSignup" onclick="switchTab('signup')">Create account</button>
+          <button class="auth-tab" id="tabSignin" onclick="switchTab('signin')">Sign in</button>
+        </div>
+
+        <!-- SIGN UP FORM -->
+        <div id="signupForm">
+          <div class="form-group">
+            <label class="form-label">Display name <span class="req">*</span></label>
+            <input class="form-input" id="su-name" type="text" placeholder="e.g. Adaeze M." autocomplete="name"/>
+            <span class="input-error" id="err-su-name">Please enter your name</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email address <span class="req">*</span></label>
+            <input class="form-input" id="su-email" type="email" placeholder="you@email.com" autocomplete="email"/>
+            <span class="input-error" id="err-su-email">Please enter a valid email</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="form-input" id="su-pw" type="password" placeholder="Min. 8 characters" autocomplete="new-password"/>
+              <button class="pw-toggle" onclick="togglePw('su-pw', this)" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <span class="input-error" id="err-su-pw">Password must be at least 8 characters</span>
+          </div>
+          <div style="margin-top:20px;">
+            <button class="btn-full btn-primary" onclick="submitAuth('signup')">
+              Create Novelux account
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </button>
+          </div>
+          <div class="or-divider">or continue with</div>
+          <button class="btn-outline-full" onclick="oauthContinue()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+          </button>
+        </div>
+
+        <!-- SIGN IN FORM -->
+        <div id="signinForm" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">Email address <span class="req">*</span></label>
+            <input class="form-input" id="si-email" type="email" placeholder="you@email.com" autocomplete="email"/>
+            <span class="input-error" id="err-si-email">Please enter a valid email</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password <span class="req">*</span></label>
+            <div class="input-wrap">
+              <input class="form-input" id="si-pw" type="password" placeholder="Your password" autocomplete="current-password"/>
+              <button class="pw-toggle" onclick="togglePw('si-pw', this)" type="button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <span class="input-error" id="err-si-pw">Please enter your password</span>
+          </div>
+          <div style="text-align:right;margin-top:-8px;margin-bottom:16px;">
+            <a href="{% url 'novelux:index' %}" style="font-size:12px;color:var(--primary);">Forgot password?</a>
+          </div>
+          <button class="btn-full btn-primary" onclick="submitAuth('signin')">
+            Sign in to Novelux
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+          <div class="or-divider">or continue with</div>
+          <button class="btn-outline-full" onclick="oauthContinue()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+          </button>
+        </div>
+
+        <div class="form-foot" style="margin-top:24px;">
+          Already an author? <a href="/dashboard/">Go to dashboard →</a>
+        </div>
+      </div>
+
+      <!-- ══ STEP 2: AUTHOR BRIEFING ══ -->
+      <div class="form-card" id="step2">
+        <h2 class="form-card-title">Before you start writing</h2>
+        <p class="form-card-sub">Here's what it means to be a Novelux author. Read through — it takes 2 minutes.</p>
+
+        <div class="briefing-hero">
+          <h2>You're joining <span style="color:var(--primary)">12,000+ authors</span> on Novelux.</h2>
+          <p style="margin-top:8px;">Every author starts the same way — with one story and one chapter. Here's how the platform works for you.</p>
+        </div>
+
+        <div class="briefing-grid">
+          <div class="briefing-card">
+            <div class="b-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <h4>Upload & publish</h4>
+            <p>Submit your full manuscript. Our editors review within 72 hours.</p>
+          </div>
+          <div class="briefing-card">
+            <div class="b-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h4>Earn 50/50</h4>
+            <p>Ad revenue from your story is split equally between you and Novelux.</p>
+          </div>
+          <div class="briefing-card">
+            <div class="b-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+            </div>
+            <h4>Track everything</h4>
+            <p>Real-time analytics — reads, completions, earnings per chapter.</p>
+          </div>
+          <div class="briefing-card">
+            <div class="b-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            </div>
+            <h4>Withdraw weekly</h4>
+            <p>Cash out anytime via PayPal, bank transfer, or stablecoin.</p>
+          </div>
+        </div>
+
+        <div class="eligibility-list">
+          <h4>Eligibility checklist</h4>
+          <ul>
+            <li>
+              <div class="chk"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              You are at least 18 years old
+            </li>
+            <li>
+              <div class="chk"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              The manuscript is your original work
+            </li>
+            <li>
+              <div class="chk"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              You have a complete manuscript ready to upload
+            </li>
+            <li>
+              <div class="chk"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              You agree to follow our Content Guidelines
+            </li>
+            <li>
+              <div class="chk"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+              You have a valid payment method for withdrawals
+            </li>
+          </ul>
+        </div>
+
+        <button class="btn-full btn-primary" onclick="goToStep(3)">
+          I'm eligible — continue
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+        <div class="form-foot"><button onclick="goToStep(1)" style="color:var(--muted-fg);font-size:12px;font-family:inherit;cursor:pointer;border:none;background:none;">← Back</button></div>
+      </div>
+
+      <!-- ══ STEP 3: TERMS ══ -->
+      <div class="form-card" id="step3">
+        <h2 class="form-card-title">Author Terms of Service</h2>
+        <p class="form-card-sub">Read the terms carefully. You must accept all three agreements to activate your author account.</p>
+
+        <!-- Scrollable terms box -->
+        <div class="terms-scroll-hint" id="scrollHint">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          Scroll to read before accepting
+        </div>
+        <div class="terms-box" id="termsBox" onscroll="checkScroll()">
+          <h3>1. Authorship & Originality</h3>
+          <p>By joining the Novelux author program, you confirm that all manuscripts you submit are your original work, written entirely by you or under a valid co-authorship arrangement. You warrant that your work does not infringe any copyright, trademark, or other intellectual property rights of any third party. Plagiarism of any kind will result in immediate account termination and potential legal action.</p>
+
+          <h3>2. Content Standards</h3>
+          <p>All content submitted to Novelux must comply with our <a href="/content-guidelines/" target="_blank" style="color:var(--primary)">Content Guidelines</a>. Prohibited content includes but is not limited to: sexual content involving minors, targeted hate speech, content designed to incite violence, and doxxing of real individuals. Violations may result in content removal, account suspension, or permanent termination without compensation.</p>
+
+          <h3>3. Royalties & Payments</h3>
+          <p>Authors receive 50% of net advertising revenue generated by their stories (the "Royalty Share" model), unless a different arrangement is specified in a separately signed contract. Payments are processed weekly. You are solely responsible for reporting and paying applicable taxes on all earnings. Novelux reserves the right to withhold payments if fraudulent activity or policy violations are suspected.</p>
+
+          <h3>4. Intellectual Property Licence</h3>
+          <p>You retain full ownership of your original works. By submitting content to Novelux, you grant us a non-exclusive, royalty-free, worldwide, sublicensable licence to host, reproduce, distribute, display, and promote your content on and through the Novelux platform for the duration of your author agreement. This licence ends when your content is removed from the platform, unless otherwise agreed in a separate contract.</p>
+
+          <h3>5. Manuscript Formatting</h3>
+          <p>All submitted manuscripts must follow the formatting guidelines provided in the Author Portal. Chapter titles must begin with the word "Chapter" followed by an Arabic numeral in correct sequential order. Novelux reserves the right to reject manuscripts that do not meet formatting standards without prejudice.</p>
+
+          <h3>6. Exclusivity</h3>
+          <p>Standard author accounts are non-exclusive. You may publish the same story on other platforms unless you sign an exclusive contract with Novelux. If you hold an exclusive contract, publishing the same chapters elsewhere constitutes a breach and may result in clawback of payments made.</p>
+
+          <h3>7. Account Conduct</h3>
+          <p>You agree not to engage in fraudulent read inflation, spam, manipulation of platform ranking systems, or any other activity designed to unfairly benefit your account. Novelux uses automated and manual systems to detect abuse. Confirmed abuse results in immediate suspension and forfeiture of any pending payments.</p>
+
+          <h3>8. Termination</h3>
+          <p>Either party may terminate the author relationship at any time. Upon termination, your access to the author dashboard is revoked. Published content subject to an active contract will remain on the platform for the contract duration. Pending earnings at the time of termination will be paid in accordance with the standard withdrawal schedule.</p>
+
+          <h3>9. Amendments</h3>
+          <p>Novelux may update these Author Terms from time to time. You will be notified of material changes via email at least 14 days before they take effect. Continued use of your author account after changes take effect constitutes acceptance of the updated terms.</p>
+
+          <p style="margin-top:16px;font-size:12px;color:var(--muted-fg);">Effective date: April 18, 2026</p>
+        </div>
+
+        <!-- Checkboxes -->
+        <div class="terms-lock-notice" id="termsLockNotice">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Please scroll through and read the full terms before accepting.
+        </div>
+
+        <div id="checkboxes" style="opacity:.4;pointer-events:none;transition:opacity .3s;">
+          <div class="checkbox-row" onclick="toggleCheck('check1')">
+            <div class="custom-check" id="check1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <p>I have read and agree to the <a href="/terms/" target="_blank">Novelux Terms of Service</a> and <a href="/privacy/" target="_blank">Privacy Policy</a>.</p>
+          </div>
+          <div class="checkbox-row" onclick="toggleCheck('check2')">
+            <div class="custom-check" id="check2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <p>I agree to the <strong>Author Terms of Service</strong> above, including the royalty, content, and exclusivity terms.</p>
+          </div>
+          <div class="checkbox-row" onclick="toggleCheck('check3')">
+            <div class="custom-check" id="check3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+            <p>I confirm my submitted manuscripts are my original work and I have the right to publish them on Novelux.</p>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button class="btn-full btn-primary" id="acceptBtn" onclick="acceptTerms()" disabled
+            style="opacity:.4;cursor:not-allowed;">
+            Accept &amp; activate author account
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>
+        </div>
+        <div class="form-foot"><button onclick="goToStep(2)" style="color:var(--muted-fg);font-size:12px;font-family:inherit;cursor:pointer;border:none;background:none;">← Back</button></div>
+      </div>
+
+      <!-- ══ SUCCESS ══ -->
+      <div class="success-screen" id="successScreen">
+        <div class="success-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <h2>Author account activated!</h2>
+        <p>Welcome to Novelux. Your dashboard is ready.<br/>Redirecting you now…</p>
+        <div class="progress-bar-wrap" style="margin-top:28px;">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <p style="font-size:12px;color:var(--muted-fg);margin-top:8px;">Taking you to your dashboard in 3 seconds</p>
+        <a href="/dashboard/" style="display:inline-flex;align-items:center;gap:8px;margin-top:20px;font-size:13px;font-weight:500;color:var(--primary);">
+          Go now →
+        </a>
+      </div>
+
+    </div><!-- /right-panel-inner -->
+  </div><!-- /right-panel -->
+
+</div><!-- /auth-shell -->
+
+<script>
+  // Theme
+  const html = document.documentElement;
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const d = html.classList.contains('dark');
+    html.classList.toggle('dark', !d);
+    html.classList.toggle('light', d);
+  });
+  html.classList.add('light');
+
+  // ── TAB SWITCH ──
+  function switchTab(tab) {
+    const isSignup = tab === 'signup';
+    document.getElementById('tabSignup').classList.toggle('active', isSignup);
+    document.getElementById('tabSignin').classList.toggle('active', !isSignup);
+    document.getElementById('signupForm').style.display = isSignup ? '' : 'none';
+    document.getElementById('signinForm').style.display = isSignup ? 'none' : '';
+  }
+
+  // ── PASSWORD TOGGLE ──
+  function togglePw(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    const isText = inp.type === 'text';
+    inp.type = isText ? 'password' : 'text';
+    btn.innerHTML = isText
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>';
+  }
+
+  // ── STEP NAVIGATION ──
+  let currentStep = 1;
+
+  function updateStepIndicator(step) {
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById('sdot' + i);
+      const dotInner = dot.querySelector('.dot');
+      dot.className = 'step-dot';
+      if (i < step) { dot.classList.add('done'); dotInner.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'; }
+      else if (i === step) { dot.classList.add('active'); dotInner.textContent = i; }
+      else { dotInner.textContent = i; }
+    }
+    for (let i = 1; i <= 2; i++) {
+      const line = document.getElementById('sline' + i);
+      line.className = 'step-line' + (i < step ? ' done' : '');
+    }
+  }
+
+  function goToStep(step) {
+    document.getElementById('step' + currentStep).classList.remove('active');
+    document.getElementById('step' + currentStep).style.display = 'none';
+    currentStep = step;
+    const card = document.getElementById('step' + step);
+    card.style.display = 'none';
+    card.classList.add('active');
+    // Trigger animation
+    requestAnimationFrame(() => { card.style.display = 'block'; });
+    updateStepIndicator(step);
+    window.scrollTo(0, 0);
+  }
+
+  // ── AUTH SUBMIT (simulated) ──
+
+  const API = document.querySelector('meta[name="nux-api"]')?.content || '/api';
+  let _nuxToken = document.querySelector('meta[name="nux-token"]')?.content || '';
+  const GOOGLE_CLIENT_ID = document.querySelector('meta[name="nux-google-client-id"]')?.content || '';
+
+  function _showAuthError(msg) {
+    let el = document.getElementById('authError');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'authError';
+      el.style.cssText = 'background:color-mix(in srgb,hsl(0 68% 50%) 10%,transparent);border:1px solid color-mix(in srgb,hsl(0 68% 50%) 30%,transparent);color:hsl(0 68% 50%);padding:10px 14px;font-size:13px;margin-bottom:16px;';
+      document.getElementById('step1').prepend(el);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  async function submitAuth(type) {
+    let valid = true;
+    if (type === 'signup') {
+      const name  = document.getElementById('su-name');
+      const email = document.getElementById('su-email');
+      const pw    = document.getElementById('su-pw');
+      const errName  = document.getElementById('err-su-name');
+      const errEmail = document.getElementById('err-su-email');
+      const errPw    = document.getElementById('err-su-pw');
+      if (!name.value.trim())    { name.classList.add('error');  errName.classList.add('show');  valid = false; } else { name.classList.remove('error');  errName.classList.remove('show'); }
+      if (!email.value.includes('@')) { email.classList.add('error'); errEmail.classList.add('show'); valid = false; } else { email.classList.remove('error'); errEmail.classList.remove('show'); }
+      if (pw.value.length < 8)   { pw.classList.add('error');   errPw.classList.add('show');   valid = false; } else { pw.classList.remove('error');   errPw.classList.remove('show'); }
+      if (!valid) return;
+
+      const btn = document.querySelector('#signupForm .btn-full');
+      if (btn) { btn.disabled = true; btn.textContent = 'Creating account…'; }
+      try {
+        const res  = await fetch('/auth/register-web/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: name.value.trim(), email: email.value.trim(), password: pw.value, role: 'author' }),
+        });
+        const data = await res.json();
+        if (!res.ok) { _showAuthError(data.error || 'Registration failed'); if (btn) { btn.disabled=false; btn.textContent='Create Novelux account'; } return; }
+        _nuxToken = '';  // cookie set server-side
+        localStorage.setItem('nux_username', data.username || name.value.trim());
+      } catch(e) { _showAuthError('Network error. Please try again.'); if (btn) { btn.disabled=false; btn.textContent='Create Novelux account'; } return; }
+
+    } else {
+      // Sign in
+      const email = document.getElementById('si-email');
+      const pw    = document.getElementById('si-pw');
+      const errEmail = document.getElementById('err-si-email');
+      const errPw    = document.getElementById('err-si-pw');
+      if (!email.value.includes('@')) { email.classList.add('error'); errEmail.classList.add('show'); valid = false; } else { email.classList.remove('error'); errEmail.classList.remove('show'); }
+      if (!pw.value) { pw.classList.add('error'); errPw.classList.add('show'); valid = false; } else { pw.classList.remove('error'); errPw.classList.remove('show'); }
+      if (!valid) return;
+
+      const btn = document.querySelector('#signinForm .btn-full');
+      if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+      try {
+        const res  = await fetch('/auth/login-web/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.value.trim(), password: pw.value, next: '/dashboard/' }),
+        });
+        const data = await res.json();
+        if (!res.ok) { _showAuthError(data.error || 'Sign in failed'); if (btn) { btn.disabled=false; btn.textContent='Sign in'; } return; }
+        localStorage.setItem('nux_username', data.username || '');
+      } catch(e) { _showAuthError('Network error. Please try again.'); if (btn) { btn.disabled=false; btn.textContent='Sign in'; } return; }
+    }
+    goToStep(2);
+  }
+
+  async function oauthContinue() {
+    if (!window.google || !GOOGLE_CLIENT_ID) { goToStep(2); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'email profile openid',
+      callback: async (tokenResponse) => {
+        if (tokenResponse.error) { _showAuthError('Google sign-in cancelled.'); return; }
+        try {
+          const userRes  = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': 'Bearer ' + tokenResponse.access_token }
+          });
+          const userInfo = await userRes.json();
+          const res = await fetch('/auth/google-web/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_token: tokenResponse.id_token || '', email: userInfo.email, name: userInfo.name, photo_url: userInfo.picture }),
+          });
+          const data = await res.json();
+          if (!res.ok) { _showAuthError(data.error || 'Google sign-in failed'); return; }
+          localStorage.setItem('nux_username', data.username || '');
+          goToStep(2);
+        } catch(e) { _showAuthError('Google error: ' + e.message); }
+      },
+    });
+    client.requestAccessToken({ prompt: 'select_account' });
+  }
+
+  // ── TERMS SCROLL CHECK ──
+  let termsRead = false;
+  function checkScroll() {
+    if (termsRead) return;
+    const box = document.getElementById('termsBox');
+    const scrolled = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+    if (scrolled) {
+      termsRead = true;
+      document.getElementById('scrollHint').classList.add('hidden');
+      document.getElementById('termsLockNotice').style.display = 'none';
+      const checkboxes = document.getElementById('checkboxes');
+      checkboxes.style.opacity = '1';
+      checkboxes.style.pointerEvents = 'auto';
+    }
+  }
+
+  // ── CHECKBOX TOGGLE ──
+  const checked = { check1: false, check2: false, check3: false };
+  function toggleCheck(id) {
+    checked[id] = !checked[id];
+    const el = document.getElementById(id);
+    el.classList.toggle('checked', checked[id]);
+    // Enable accept button only when all 3 checked
+    const allChecked = checked.check1 && checked.check2 && checked.check3;
+    const btn = document.getElementById('acceptBtn');
+    btn.disabled = !allChecked;
+    btn.style.opacity = allChecked ? '1' : '.4';
+    btn.style.cursor = allChecked ? 'pointer' : 'not-allowed';
+  }
+
+  // ── ACCEPT TERMS → SUCCESS ──
+  function acceptTerms() {
+    // Hide step 3, show success
+    document.getElementById('step3').classList.remove('active');
+    document.getElementById('step3').style.display = 'none';
+    document.getElementById('stepIndicator').style.display = 'none';
+    const success = document.getElementById('successScreen');
+    success.classList.add('show');
+    // Animate progress bar
+    requestAnimationFrame(() => {
+      document.getElementById('progressFill').style.width = '100%';
+    });
+    // Redirect after 3s
+    setTimeout(() => {
+      window.location.href = '/dashboard/';
+    }, 3100);
+  }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+</html>

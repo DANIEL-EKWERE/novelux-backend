@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="nux-token"   content="{{ access_token }}">
+<meta name="nux-api"     content="/api">
+<title>Sign Your Contract — {{ story.title }} · Novelux</title>
+<style>
+:root {
+  --bg:         hsl(36 20% 97%);
+  --fg:         hsl(0 0% 9%);
+  --primary:    hsl(14 62% 38%);
+  --primary-fg: hsl(0 0% 100%);
+  --muted:      hsl(36 15% 92%);
+  --muted-fg:   hsl(0 0% 42%);
+  --border:     hsl(36 12% 85%);
+  --card:       hsl(0 0% 100%);
+  --danger:     hsl(0 70% 50%);
+  --success:    hsl(142 60% 36%);
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); min-height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px; color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { text-decoration: none; color: inherit; }
+
+/* ── Layout ── */
+.page-wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+/* ── Nav strip ── */
+.topnav {
+  display: flex; align-items: center; gap: 12px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: .04em; }
+.brand-box {
+  width: 26px; height: 26px;
+  background: var(--primary); border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.back-link {
+  margin-left: auto;
+  font-size: 12px; color: var(--muted-fg);
+  display: flex; align-items: center; gap: 4px;
+  transition: color .15s;
+}
+.back-link:hover { color: var(--fg); }
+
+/* ── Hero banner ── */
+.hero {
+  background: var(--primary);
+  border-radius: 12px;
+  padding: 32px 28px;
+  color: #fff;
+  margin-top: 32px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent, transparent 12px,
+    rgba(255,255,255,.04) 12px, rgba(255,255,255,.04) 13px
+  );
+}
+.hero > * { position: relative; z-index: 1; }
+.hero-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  background: rgba(255,255,255,.18); border-radius: 4px;
+  margin-bottom: 14px;
+}
+.hero h1 { font-size: 22px; font-weight: 700; line-height: 1.3; margin-bottom: 6px; }
+.hero p  { font-size: 13px; opacity: .82; line-height: 1.6; }
+
+/* ── Story info card ── */
+.story-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+  display: flex; gap: 14px; align-items: center;
+}
+.story-thumb {
+  width: 52px; height: 70px;
+  border-radius: 5px;
+  background: var(--muted);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.story-info h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.story-meta { font-size: 12px; color: var(--muted-fg); line-height: 1.6; }
+.contract-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border-radius: 4px;
+  margin-top: 6px;
+}
+
+/* ── Section card ── */
+.section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  margin-top: 16px;
+}
+.section-title {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--muted-fg);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* ── Contract terms scroll box ── */
+.terms-box {
+  height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 16px;
+  font-size: 13px; line-height: 1.75;
+  color: var(--muted-fg);
+  background: var(--muted);
+  margin-bottom: 14px;
+  scroll-behavior: smooth;
+}
+.terms-box::-webkit-scrollbar { width: 5px; }
+.terms-box::-webkit-scrollbar-track { background: transparent; }
+.terms-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.terms-box h3 { font-size: 12px; font-weight: 700; color: var(--fg); margin: 14px 0 6px; }
+.terms-box h3:first-child { margin-top: 0; }
+.terms-box p  { margin-bottom: 8px; }
+
+/* ── Signature canvas ── */
+.sig-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+  height: 160px;
+  cursor: crosshair;
+  margin-bottom: 10px;
+}
+.sig-wrap canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.sig-guide {
+  position: absolute; bottom: 16px; left: 0; right: 0;
+  border-bottom: 1px dashed var(--border);
+  pointer-events: none;
+}
+.sig-label {
+  position: absolute; bottom: 4px; left: 14px;
+  font-size: 10px; color: var(--border);
+  pointer-events: none;
+  font-style: italic;
+}
+.sig-actions { display: flex; justify-content: flex-end; }
+.btn-ghost-sm {
+  font-size: 11px; color: var(--muted-fg);
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.btn-ghost-sm:hover { color: var(--fg); border-color: var(--fg); }
+
+/* ── Checkbox consent ── */
+.consent-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  margin-bottom: 10px;
+  user-select: none;
+}
+.consent-row:hover { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.consent-row input[type=checkbox] {
+  width: 16px; height: 16px;
+  accent-color: var(--primary);
+  flex-shrink: 0; margin-top: 1px;
+  cursor: pointer;
+}
+.consent-row.checked { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.consent-text { font-size: 13px; line-height: 1.55; color: var(--fg); }
+.consent-text strong { color: var(--primary); }
+
+/* ── Upload area ── */
+.upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.upload-area:hover, .upload-area.drag { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.upload-area input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.upload-icon { font-size: 28px; margin-bottom: 8px; }
+.upload-area p { font-size: 13px; color: var(--muted-fg); }
+.upload-area p strong { color: var(--fg); }
+.file-preview {
+  display: none;
+  align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.file-preview.show { display: flex; }
+.file-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-remove { color: var(--muted-fg); cursor: pointer; padding: 2px 6px; }
+.file-remove:hover { color: var(--danger); }
+
+/* ── Submit button ── */
+.submit-btn {
+  width: 100%;
+  padding: 14px 24px;
+  background: var(--primary); color: var(--primary-fg);
+  font-size: 14px; font-weight: 600;
+  border: none; border-radius: 8px;
+  cursor: pointer;
+  transition: opacity .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 20px;
+}
+.submit-btn:hover:not(:disabled) { opacity: .88; }
+.submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Status messages ── */
+.alert {
+  padding: 12px 16px;
+  border-radius: 7px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: none;
+  line-height: 1.5;
+}
+.alert.show { display: block; }
+.alert-error   { background: hsl(0 70% 97%); border: 1px solid hsl(0 70% 88%); color: hsl(0 60% 40%); }
+.alert-success { background: hsl(142 60% 96%); border: 1px solid hsl(142 60% 80%); color: hsl(142 60% 28%); }
+
+/* ── Already signed state ── */
+.signed-banner {
+  background: hsl(142 60% 96%);
+  border: 1px solid hsl(142 60% 80%);
+  border-radius: 10px;
+  padding: 28px;
+  text-align: center;
+  margin-top: 20px;
+  display: none;
+}
+.signed-banner.show { display: block; }
+.signed-banner h2 { font-size: 18px; color: var(--success); margin-bottom: 8px; }
+.signed-banner p  { font-size: 13px; color: var(--muted-fg); }
+
+/* ── Progress steps ── */
+.steps {
+  display: flex; gap: 0;
+  margin-top: 28px;
+  counter-reset: step;
+}
+.step {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  position: relative;
+  font-size: 11px; text-align: center; color: var(--muted-fg);
+}
+.step::before {
+  content: counter(step);
+  counter-increment: step;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--muted);
+  border: 2px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  margin-bottom: 6px; z-index: 1;
+}
+.step.active::before  { background: var(--primary); border-color: var(--primary); color: #fff; }
+.step.done::before    { background: var(--success); border-color: var(--success); color: #fff; content: '✓'; }
+.step:not(:last-child)::after {
+  content: '';
+  position: absolute; top: 12px; left: calc(50% + 12px);
+  right: calc(-50% + 12px);
+  height: 2px; background: var(--border); z-index: 0;
+}
+.step.done:not(:last-child)::after { background: var(--success); }
+
+/* ── Divider ── */
+.divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+/* ── Responsive ── */
+@media(max-width:480px){
+  .hero { padding: 24px 18px; }
+  .section { padding: 18px; }
+  .page-wrap { padding: 24px 12px 60px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Top nav -->
+<nav class="topnav">
+  <div class="brand">
+    <div class="brand-box">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+    </div>
+    Novelux
+  </div>
+  <a href="/dashboard/" class="back-link">
+    ← Back to Dashboard
+  </a>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- Progress steps -->
+  <div class="steps">
+    <div class="step done" id="step1">Review</div>
+    <div class="step active" id="step2">Consent</div>
+    <div class="step" id="step3">Sign</div>
+    <div class="step" id="step4">Done</div>
+  </div>
+
+  {% if not contract_ready %}
+  <!-- Contract not yet sent by CE — show a holding state -->
+  <div style="text-align:center;padding:48px 24px;">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="hsl(270 60% 48%)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:16px;opacity:.7;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <h2 style="font-size:18px;font-weight:600;letter-spacing:-.02em;margin-bottom:8px;">Contract not sent yet</h2>
+    <p style="font-size:13px;color:var(--muted-fg);line-height:1.7;max-width:340px;margin:0 auto 24px;">
+      Your story <strong>{{ story.title }}</strong> is under review by the Chief Editor.
+      Once they send your contract, a link will appear in your dashboard and you'll receive an email.
+    </p>
+    <a href="/dashboard/" style="display:inline-block;padding:10px 20px;background:var(--primary);color:#fff;font-size:13px;font-weight:600;">← Back to Dashboard</a>
+  </div>
+  {% else %}
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">📝 Contract Offer</div>
+    <h1>Your contract is ready</h1>
+    <p>
+      Congratulations! The Chief Editor has approved
+      <strong>{{ story.title }}</strong> for a
+      <strong>{{ contract_type_label }}</strong> contract with Novelux.
+      Review the terms below, sign, and submit to activate your contract.
+    </p>
+  </div>
+
+  <!-- Story info -->
+  <div class="story-card">
+    {% if story.cover_image %}
+      <img src="{{ story.cover_image.url }}" class="story-thumb" alt="Cover">
+    {% else %}
+      <div class="story-thumb"></div>
+    {% endif %}
+    <div class="story-info">
+      <h2>{{ story.title }}</h2>
+      <div class="story-meta">
+        {{ story.total_chapters }} chapter{{ story.total_chapters|pluralize }} ·
+        {{ story.word_count|default:"0" }} words
+        {% if ce_note %}· Note: {{ ce_note }}{% endif %}
+      </div>
+      <div class="contract-badge">{{ contract_type_label }}</div>
+    </div>
+  </div>
+
+  <!-- Already signed -->
+  <div class="signed-banner {% if already_signed %}show{% endif %}" id="signedBanner">
+    <h2>✅ Contract Already Signed</h2>
+    <p>You have already accepted this contract. Your chapters are live. Thank you!</p>
+    <a href="/dashboard/" style="display:inline-block;margin-top:16px;font-size:13px;color:var(--primary);font-weight:600;">← Go to Dashboard</a>
+  </div>
+
+  {% if not already_signed %}
+  <!-- 1. Contract terms -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Contract Terms
+    </div>
+    <div class="terms-box" id="termsBox">
+      <h3>1. Parties</h3>
+      <p>This agreement is between <strong>Novelux</strong> ("Platform") and the author identified by the account associated with this invitation ("Author").</p>
+
+      <h3>2. Grant of Rights</h3>
+      <p>{% if contract_type == 'exclusive' %}The Author grants Novelux an <strong>exclusive</strong> licence to publish, distribute, and monetise the Work on the Novelux platform and its affiliated channels. The Author may not publish the Work on any other platform during the term of this agreement without prior written consent.{% else %}The Author grants Novelux a <strong>non-exclusive</strong> licence to publish, distribute, and monetise the Work on the Novelux platform. The Author retains the right to publish the Work elsewhere.{% endif %}</p>
+
+      <h3>3. Royalties & Revenue Share</h3>
+      <p>The Author shall receive royalties based on the Platform's current published rate schedule. Revenue from coin unlocks, subscriptions, and tips attributed to the Work will be distributed monthly to the Author's earnings balance, subject to a minimum payout threshold.</p>
+
+      <h3>4. Content Standards</h3>
+      <p>The Author agrees to maintain the Work in accordance with Novelux's Content Guidelines and Community Standards. The Platform reserves the right to request revisions or remove content that violates these standards.</p>
+
+      <h3>5. Term & Termination</h3>
+      <p>This agreement remains in effect until terminated by either party with 30 days' written notice. Upon termination, previously published chapters remain available unless both parties agree otherwise.</p>
+
+      <h3>6. Ownership</h3>
+      <p>The Author retains full copyright ownership of the Work. This agreement grants only a licence; no transfer of copyright occurs.</p>
+
+      <h3>7. Representations</h3>
+      <p>The Author represents that the Work is original, does not infringe any third-party intellectual property rights, and has not been previously licensed in a manner that would conflict with this agreement.</p>
+
+      <h3>8. Governing Law</h3>
+      <p>This agreement shall be governed by and construed in accordance with applicable law. Any disputes shall be resolved through good-faith negotiation before any formal proceedings.</p>
+    </div>
+    <p style="font-size:11px;color:var(--muted-fg);">Scroll to read all terms before proceeding.</p>
+  </div>
+
+  <!-- 2. Consent checkboxes -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Your Consent
+    </div>
+
+    <label class="consent-row" id="row1">
+      <input type="checkbox" id="consent1" onchange="updateConsent()">
+      <span class="consent-text">I have read and understood the full contract terms above and agree to be bound by them.</span>
+    </label>
+
+    <label class="consent-row" id="row2">
+      <input type="checkbox" id="consent2" onchange="updateConsent()">
+      <span class="consent-text">I confirm that <strong>{{ story.title }}</strong> is my original work and I have the right to enter into this agreement.</span>
+    </label>
+
+    <label class="consent-row" id="row3">
+      <input type="checkbox" id="consent3" onchange="updateConsent()">
+      <span class="consent-text">I understand this is a legally binding <strong>{{ contract_type_label }}</strong> agreement between me and Novelux.</span>
+    </label>
+  </div>
+
+  <!-- 3. Signature -->
+  <div class="section">
+    <div class="section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Your Signature
+    </div>
+
+    <!-- Draw tab / Upload tab -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:7px;overflow:hidden;">
+      <button class="tab-btn active" id="tabDraw" onclick="switchTab('draw')">Draw Signature</button>
+      <button class="tab-btn" id="tabUpload" onclick="switchTab('upload')">Upload Image</button>
+    </div>
+
+    <!-- Draw panel -->
+    <div id="panelDraw">
+      <div class="sig-wrap" id="sigWrap">
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-guide"></div>
+        <div class="sig-label">Sign here</div>
+      </div>
+      <div class="sig-actions">
+        <button class="btn-ghost-sm" onclick="clearSig()">Clear</button>
+      </div>
+    </div>
+
+    <!-- Upload panel -->
+    <div id="panelUpload" style="display:none;">
+      <div class="upload-area" id="uploadArea">
+        <input type="file" id="sigFile" accept="image/*" onchange="handleFileSelect(this)">
+        <div class="upload-icon">🖼️</div>
+        <p><strong>Click to upload</strong> or drag & drop</p>
+        <p style="margin-top:4px;font-size:11px;">PNG, JPG, GIF up to 5MB</p>
+      </div>
+      <div class="file-preview" id="filePreview">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/></svg>
+        <span class="file-name" id="fileName">—</span>
+        <span class="file-remove" onclick="removeFile()">✕</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="alert alert-error"   id="alertError"></div>
+  <div class="alert alert-success" id="alertSuccess"></div>
+
+  <!-- Submit -->
+  <button class="submit-btn" id="submitBtn" disabled onclick="submitContract()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    Accept & Sign Contract
+  </button>
+  <p style="font-size:11px;color:var(--muted-fg);text-align:center;margin-top:10px;">
+    By clicking above you agree to Novelux's <a href="/terms/" style="color:var(--primary);">Terms of Service</a> and this contract.
+  </p>
+  {% endif %}
+
+</div><!-- /page-wrap -->
+
+<style>
+.tab-btn {
+  flex: 1; padding: 9px; font-size: 13px; font-weight: 500;
+  background: none; border: none; cursor: pointer;
+  color: var(--muted-fg); transition: background .15s, color .15s;
+}
+.tab-btn.active { background: var(--primary); color: #fff; }
+</style>
+
+<script>
+const TOKEN = document.querySelector('meta[name="nux-token"]')?.content || '';
+const SLUG  = '{{ story.slug }}';
+
+// ── Consent state ──────────────────────────────────────────────────────────
+function updateConsent() {
+  const all = ['consent1','consent2','consent3'].every(id => document.getElementById(id)?.checked);
+  const hasSig = !sigEmpty() || hasUpload();
+  document.getElementById('submitBtn').disabled = !(all && hasSig);
+  ['row1','row2','row3'].forEach(id => {
+    const row = document.getElementById(id);
+    const cb  = row?.querySelector('input');
+    if(row && cb) row.classList.toggle('checked', cb.checked);
+  });
+}
+
+// ── Signature canvas ───────────────────────────────────────────────────────
+const canvas  = document.getElementById('sigCanvas');
+const ctx     = canvas?.getContext('2d');
+let drawing   = false;
+let hasSigned = false;
+
+function resizeCanvas() {
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  canvas.width  = wrap.offsetWidth;
+  canvas.height = wrap.offsetHeight;
+}
+
+function sigEmpty() { return !hasSigned; }
+
+function clearSig() {
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSigned = false;
+  updateConsent();
+}
+
+function getPos(e) {
+  const r = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - r.left) * (canvas.width / r.width),
+           y: (src.clientY - r.top)  * (canvas.height / r.height) };
+}
+
+function startDraw(e) {
+  e.preventDefault();
+  drawing = true;
+  const {x,y} = getPos(e);
+  ctx.beginPath(); ctx.moveTo(x,y);
+}
+function draw(e) {
+  if (!drawing) return;
+  e.preventDefault();
+  const {x,y} = getPos(e);
+  ctx.lineTo(x,y);
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth   = 2;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.stroke();
+  hasSigned = true;
+  updateConsent();
+}
+function stopDraw() { drawing = false; }
+
+if (canvas) {
+  resizeCanvas();
+  canvas.addEventListener('mousedown',  startDraw);
+  canvas.addEventListener('mousemove',  draw);
+  canvas.addEventListener('mouseup',    stopDraw);
+  canvas.addEventListener('mouseleave', stopDraw);
+  canvas.addEventListener('touchstart', startDraw, {passive:false});
+  canvas.addEventListener('touchmove',  draw,      {passive:false});
+  canvas.addEventListener('touchend',   stopDraw);
+  window.addEventListener('resize', resizeCanvas);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+let activeTab = 'draw';
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('panelDraw').style.display   = tab === 'draw'   ? '' : 'none';
+  document.getElementById('panelUpload').style.display = tab === 'upload' ? '' : 'none';
+  document.getElementById('tabDraw').classList.toggle('active',   tab === 'draw');
+  document.getElementById('tabUpload').classList.toggle('active', tab === 'upload');
+  updateConsent();
+}
+
+// ── File upload ────────────────────────────────────────────────────────────
+let uploadedFile = null;
+
+function hasUpload() { return activeTab === 'upload' && uploadedFile !== null; }
+
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showAlert('error', 'File too large. Maximum 5MB.');
+    input.value = '';
+    return;
+  }
+  uploadedFile = file;
+  document.getElementById('fileName').textContent    = file.name;
+  document.getElementById('filePreview').classList.add('show');
+  updateConsent();
+}
+
+function removeFile() {
+  uploadedFile = null;
+  document.getElementById('sigFile').value = '';
+  document.getElementById('filePreview').classList.remove('show');
+  updateConsent();
+}
+
+// Drag & drop
+const uploadArea = document.getElementById('uploadArea');
+if (uploadArea) {
+  uploadArea.addEventListener('dragover',  e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file) { document.getElementById('sigFile').files = e.dataTransfer.files; handleFileSelect(document.getElementById('sigFile')); }
+  });
+}
+
+// ── Alerts ─────────────────────────────────────────────────────────────────
+function showAlert(type, msg) {
+  const errEl = document.getElementById('alertError');
+  const okEl  = document.getElementById('alertSuccess');
+  errEl.classList.remove('show'); okEl.classList.remove('show');
+  if (type === 'error') { errEl.textContent = msg; errEl.classList.add('show'); }
+  else                  { okEl.textContent  = msg; okEl.classList.add('show'); }
+}
+
+// ── Submit ─────────────────────────────────────────────────────────────────
+async function submitContract() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .7s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Submitting…';
+
+  try {
+    const formData = new FormData();
+    formData.append('slug', SLUG);
+
+    // Attach signature — canvas blob or uploaded file
+    if (activeTab === 'draw' && hasSigned) {
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      formData.append('signature', blob, 'signature.png');
+    } else if (activeTab === 'upload' && uploadedFile) {
+      formData.append('signature', uploadedFile, uploadedFile.name);
+    }
+
+    const r = await fetch('/api/editorial/contracts/accept/', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN },
+      body:    formData,
+    });
+
+    const data = await r.json();
+    if (!r.ok) {
+      showAlert('error', data.detail || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Accept & Sign Contract';
+      return;
+    }
+
+    // Success
+    showAlert('success', `🎉 Contract signed! ${data.published_chapters || 0} chapter(s) are now live.`);
+    document.getElementById('submitBtn').style.display = 'none';
+    document.getElementById('step2').className = 'step done';
+    document.getElementById('step3').className = 'step done';
+    document.getElementById('step4').className = 'step active';
+
+    // Redirect after 3 seconds
+    setTimeout(() => { window.location.href = '/dashboard/?signed=1'; }, 3000);
+
+  } catch(e) {
+    showAlert('error', 'Network error. Please check your connection and try again.');
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Accept & Sign Contract';
+  }
+}
+
+// spinner keyframe
+const style = document.createElement('style');
+style.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
+</script>
+{% endif %}{# end contract_ready #}
+</body>
+</html>

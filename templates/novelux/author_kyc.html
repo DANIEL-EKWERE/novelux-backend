@@ -1,0 +1,730 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark',t==='dark');
+  h.classList.toggle('light',t!=='dark');
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Author Verification – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: hsl(0 0% 100%);
+  --fg: hsl(0 0% 9%);
+  --primary: hsl(14 62% 38%);
+  --primary-fg: hsl(0 0% 100%);
+  --muted: hsl(0 0% 96%);
+  --muted-fg: hsl(0 0% 45%);
+  --border: hsl(0 0% 90%);
+  --card: hsl(0 0% 99%);
+  --danger: hsl(0 68% 50%);
+  --success: hsl(142 60% 40%);
+  --warning: hsl(38 92% 50%);
+}
+html.dark {
+  --bg: hsl(240 6% 6%);
+  --fg: hsl(0 0% 90%);
+  --primary: hsl(14 65% 50%);
+  --primary-fg: hsl(0 0% 100%);
+  --muted: hsl(240 4% 14%);
+  --muted-fg: hsl(0 0% 50%);
+  --border: hsl(240 4% 26%);
+  --card: hsl(240 5% 9%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);height:100%;}
+body{
+  font-family:'Geist',-apple-system,system-ui,sans-serif;
+  font-size:14px;background:var(--bg);color:var(--fg);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;overflow-x:hidden;
+  transition:background .2s,color .2s;
+}
+
+/* ── Layout ── */
+.page-wrap{
+  min-height:100vh;
+  display:grid;
+  grid-template-rows:auto 1fr;
+}
+header{
+  padding:16px 24px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+}
+.logo{
+  font-size:18px;font-weight:700;color:var(--primary);
+  text-decoration:none;letter-spacing:-.4px;
+}
+.step-indicator{
+  display:flex;align-items:center;gap:8px;
+  margin-left:auto;
+}
+.step{
+  width:28px;height:28px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;
+  background:var(--muted);color:var(--muted-fg);
+  border:2px solid var(--border);
+  transition:all .2s;
+}
+.step.active{background:var(--primary);color:var(--primary-fg);border-color:var(--primary);}
+.step.done{background:var(--success);color:#fff;border-color:var(--success);}
+.step-line{width:32px;height:2px;background:var(--border);}
+.step-line.done{background:var(--success);}
+
+main{
+  padding:32px 16px 64px;
+  display:flex;justify-content:center;
+}
+.container{width:100%;max-width:680px;}
+
+h1{font-size:22px;font-weight:700;margin-bottom:6px;}
+.subtitle{color:var(--muted-fg);font-size:14px;margin-bottom:28px;line-height:1.5;}
+
+/* ── Card ── */
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:28px 28px;
+  margin-bottom:20px;
+}
+.card-title{
+  font-size:15px;font-weight:600;
+  margin-bottom:18px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.card-title svg{width:16px;height:16px;stroke:var(--primary);}
+
+/* ── Form grid ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+@media(max-width:560px){
+  .grid-2,.grid-3{grid-template-columns:1fr;}
+  .card{padding:20px 16px;}
+}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:1/-1;}
+label{font-size:12px;font-weight:500;color:var(--muted-fg);}
+label .req{color:var(--danger);}
+input,select,textarea{
+  height:38px;
+  padding:0 12px;
+  border:1px solid var(--border);
+  border-radius:7px;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:inherit;
+  font-size:14px;
+  outline:none;
+  transition:border .15s;
+  width:100%;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);}
+input[readonly]{background:var(--muted);color:var(--muted-fg);cursor:default;}
+textarea{height:80px;padding:10px 12px;resize:vertical;}
+.select-wrap{position:relative;}
+.select-wrap select{appearance:none;padding-right:32px;}
+.select-wrap::after{
+  content:'';position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  border:5px solid transparent;border-top-color:var(--muted-fg);margin-top:3px;
+  pointer-events:none;
+}
+
+/* ── Phone field ── */
+.phone-wrap{display:flex;gap:8px;}
+.phone-code{
+  width:90px;flex-shrink:0;
+  height:38px;padding:0 8px;
+  border:1px solid var(--border);border-radius:7px;
+  background:var(--bg);color:var(--fg);
+  font-size:13px;font-family:inherit;
+  outline:none;
+  transition:border .15s;
+}
+.phone-code:focus{border-color:var(--primary);}
+.phone-num{flex:1;}
+
+/* ── ID Upload ── */
+.upload-area{
+  border:2px dashed var(--border);
+  border-radius:10px;
+  padding:24px 16px;
+  text-align:center;
+  cursor:pointer;
+  transition:border .2s,background .2s;
+  position:relative;
+}
+.upload-area:hover,.upload-area.drag{border-color:var(--primary);background:hsl(14 62% 38% / .05);}
+.upload-area input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+.upload-icon{
+  width:36px;height:36px;
+  background:var(--muted);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 10px;
+}
+.upload-icon svg{width:18px;height:18px;stroke:var(--muted-fg);}
+.upload-label{font-size:13px;font-weight:500;margin-bottom:4px;}
+.upload-hint{font-size:11px;color:var(--muted-fg);}
+.upload-preview{
+  display:none;
+  margin-top:12px;
+  border-radius:8px;
+  overflow:hidden;
+  max-height:180px;
+}
+.upload-preview img{width:100%;object-fit:contain;max-height:180px;}
+
+/* ── Payment toggle ── */
+.pay-tabs{display:flex;gap:10px;margin-bottom:20px;}
+.pay-tab{
+  flex:1;padding:10px;border-radius:8px;
+  border:2px solid var(--border);
+  background:var(--bg);cursor:pointer;
+  display:flex;align-items:center;gap:10px;
+  font-size:13px;font-weight:500;
+  transition:all .2s;
+  color:var(--muted-fg);
+}
+.pay-tab.active{border-color:var(--primary);color:var(--fg);}
+.pay-tab svg{width:18px;height:18px;stroke:currentColor;flex-shrink:0;}
+.pay-section{display:none;}
+.pay-section.visible{display:contents;}
+
+/* ── Status banner ── */
+.status-banner{
+  border-radius:10px;padding:16px 20px;margin-bottom:24px;
+  display:flex;align-items:flex-start;gap:12px;
+}
+.status-banner.pending{background:hsl(38 92% 50% / .1);border:1px solid hsl(38 92% 50% / .3);}
+.status-banner.rejected{background:hsl(0 68% 50% / .1);border:1px solid hsl(0 68% 50% / .3);}
+.status-banner.approved{background:hsl(142 60% 40% / .1);border:1px solid hsl(142 60% 40% / .3);}
+.status-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.status-banner.pending .status-icon{background:hsl(38 92% 50% / .2);}
+.status-banner.rejected .status-icon{background:hsl(0 68% 50% / .2);}
+.status-banner.approved .status-icon{background:hsl(142 60% 40% / .2);}
+.status-title{font-weight:600;font-size:14px;margin-bottom:3px;}
+.status-msg{font-size:13px;color:var(--muted-fg);line-height:1.5;}
+
+/* ── Step navigation ── */
+.step-nav{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-top:24px;gap:12px;
+}
+.btn{
+  height:40px;padding:0 24px;border-radius:8px;
+  font-family:inherit;font-size:14px;font-weight:500;
+  cursor:pointer;border:none;
+  display:flex;align-items:center;gap:6px;
+  transition:opacity .15s;
+}
+.btn:disabled{opacity:.5;cursor:default;}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-primary:hover:not(:disabled){opacity:.9;}
+.btn-ghost{background:transparent;color:var(--muted-fg);border:1px solid var(--border);}
+.btn-ghost:hover:not(:disabled){background:var(--muted);}
+
+/* ── Error/success messages ── */
+.form-msg{
+  margin-top:14px;padding:10px 14px;border-radius:7px;
+  font-size:13px;display:none;
+}
+.form-msg.error{background:hsl(0 68% 50% / .1);color:hsl(0 68% 44%);border:1px solid hsl(0 68% 50% / .3);}
+.form-msg.success{background:hsl(142 60% 40% / .1);color:hsl(142 60% 34%);border:1px solid hsl(142 60% 40% / .3);}
+
+/* ── Stripe pattern ── */
+.stripe-bg{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;
+}
+.stripe-bg::before{
+  content:'';position:absolute;top:-40%;left:-20%;
+  width:80%;height:200%;
+  background:repeating-linear-gradient(
+    104deg,
+    transparent 0px,
+    transparent 38px,
+    hsl(14 62% 38% / .04) 38px,
+    hsl(14 62% 38% / .04) 40px
+  );
+  transform:rotate(-8deg);
+}
+</style>
+</head>
+<body>
+<div class="stripe-bg"></div>
+<div class="page-wrap">
+  <header>
+    <a href="/" class="logo">Novelux</a>
+    <span style="color:var(--muted-fg);font-size:13px;">| Writer Verification</span>
+    <div class="step-indicator">
+      <div class="step active" id="step-dot-1">1</div>
+      <div class="step-line" id="step-line-1"></div>
+      <div class="step" id="step-dot-2">2</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+
+      {% if existing %}
+        {% if existing.status == 'approved' %}
+        <div class="status-banner approved">
+          <div class="status-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="hsl(142 60% 40%)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div class="status-title" style="color:hsl(142 60% 34%);">Verification Approved</div>
+            <div class="status-msg">Your identity has been verified. You're fully set up as a Novelux author.</div>
+          </div>
+        </div>
+        <div style="text-align:center;padding:24px 0;">
+          <a href="/dashboard/" class="btn btn-primary" style="display:inline-flex;text-decoration:none;">Go to Dashboard</a>
+        </div>
+        {% else %}
+
+        {% if existing.status == 'pending' %}
+        <div class="status-banner pending">
+          <div class="status-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="hsl(38 92% 44%)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div>
+            <div class="status-title" style="color:hsl(38 62% 38%);">Under Review</div>
+            <div class="status-msg">Your verification is being reviewed. This usually takes 1–3 business days. You can continue writing in the meantime.</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if existing.status == 'rejected' %}
+        <div class="status-banner rejected">
+          <div class="status-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="hsl(0 68% 44%)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div>
+            <div class="status-title" style="color:hsl(0 68% 44%);">Verification Rejected</div>
+            <div class="status-msg">{% if existing.admin_notes %}{{ existing.admin_notes }}{% else %}Your submission was rejected. Please update your details and resubmit.{% endif %}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if existing.status != 'pending' %}
+        <!-- Show form for re-submission if rejected -->
+        <h1>Update Verification</h1>
+        <p class="subtitle">Correct the details below and resubmit.</p>
+        {% else %}
+        <div style="text-align:center;padding:16px 0;">
+          <a href="/dashboard/" class="btn btn-ghost" style="display:inline-flex;text-decoration:none;">Back to Dashboard</a>
+        </div>
+        {% endif %}
+        {% endif %}
+      {% endif %}
+
+      {% if not existing or existing.status == 'rejected' %}
+      {% if not existing %}
+      <h1>Author Verification</h1>
+      <p class="subtitle">To protect your copyright and ensure secure revenue settlement, we need to verify your identity. This information is kept strictly confidential.</p>
+      {% endif %}
+
+      <form id="kyc-form" enctype="multipart/form-data" novalidate>
+
+        <!-- ════════════════ STEP 1: PERSONAL ════════════════ -->
+        <div id="step-1">
+
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Personal Information
+            </div>
+
+            <div class="grid-2">
+              <div class="field full">
+                <label>Full Legal Name <span class="req">*</span></label>
+                <input type="text" name="full_name" placeholder="As it appears on your ID document"
+                  value="{% if existing %}{{ existing.full_name }}{% endif %}"/>
+                <span style="font-size:11px;color:var(--muted-fg);margin-top:2px;">Please provide your real name. Do not use a pen name.</span>
+              </div>
+
+              <div class="field">
+                <label>Phone Number <span class="req">*</span></label>
+                <div class="phone-wrap">
+                  <input type="text" class="phone-code" id="phone-code" placeholder="+234"
+                    value="{% if existing %}{% else %}+234{% endif %}"/>
+                  <input type="tel" name="phone" class="phone-num" id="phone-num" placeholder="080 0000 0000"
+                    value="{% if existing %}{{ existing.phone }}{% endif %}"/>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Email Address</label>
+                <input type="email" value="{{ email }}" readonly/>
+              </div>
+
+              <div class="field">
+                <label>Country or Area <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select name="country">
+                    <option value="">Select country…</option>
+                    {% for c in countries %}
+                    <option value="{{ c }}"{% if existing and existing.country == c %} selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="field full">
+                <label>Contact Address <span class="req">*</span></label>
+                <input type="text" name="contact_address" placeholder="Your residential address"
+                  value="{% if existing %}{{ existing.contact_address }}{% endif %}"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              Identity Verification
+            </div>
+
+            <div class="grid-2">
+              <div class="field">
+                <label>ID Type <span class="req">*</span></label>
+                <div class="select-wrap">
+                  <select name="id_type" id="id-type">
+                    <option value="national_id"{% if not existing or existing.id_type == 'national_id' %} selected{% endif %}>National ID Card</option>
+                    <option value="passport"{% if existing and existing.id_type == 'passport' %} selected{% endif %}>Passport</option>
+                    <option value="drivers_license"{% if existing and existing.id_type == 'drivers_license' %} selected{% endif %}>Driver's License</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>ID Number <span class="req">*</span></label>
+                <input type="text" name="id_number" placeholder="Enter your ID number"
+                  value="{% if existing %}{{ existing.id_number }}{% endif %}"/>
+              </div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <label style="display:block;margin-bottom:8px;">
+                ID Document Photo <span class="req">*</span>
+              </label>
+              <p style="font-size:12px;color:var(--muted-fg);margin-bottom:10px;">
+                Please upload a clear photo of your government-issued ID (passport, driver's license, or national ID card).
+                Make sure all details are clearly visible. <strong>Supported formats: JPG, PNG (max 5 MB)</strong>
+              </p>
+              <div class="upload-area" id="upload-area">
+                <input type="file" name="id_document" id="id-doc-input" accept="image/jpeg,image/png" {% if existing and existing.status == 'pending' %}disabled{% endif %}/>
+                <div class="upload-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                </div>
+                <div class="upload-label" id="upload-label">Click or drag your ID photo here</div>
+                <div class="upload-hint">JPG, PNG · Max 5 MB</div>
+                <div class="upload-preview" id="upload-preview">
+                  <img id="upload-img" src="" alt="ID preview"/>
+                </div>
+              </div>
+              {% if existing and existing.id_document %}
+              <p style="font-size:12px;color:var(--success);margin-top:6px;">✓ ID document already on file. Upload a new one only if you need to update it.</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="step-nav">
+            <a href="/dashboard/" class="btn btn-ghost" style="text-decoration:none;">Save for Later</a>
+            <button type="button" class="btn btn-primary" id="next-btn">
+              Continue to Payment
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
+          <div class="form-msg" id="step1-msg"></div>
+
+        </div><!-- end step-1 -->
+
+        <!-- ════════════════ STEP 2: PAYMENT ════════════════ -->
+        <div id="step-2" style="display:none;">
+
+          <div class="card">
+            <div class="card-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              Payment Information
+            </div>
+
+            <div style="margin-bottom:20px;">
+              <label style="display:block;margin-bottom:10px;font-size:12px;font-weight:500;color:var(--muted-fg);">Payment Method <span class="req">*</span></label>
+              <div class="pay-tabs">
+                <button type="button" class="pay-tab active" id="tab-bank" onclick="selectPayMethod('bank_account')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="7" cy="16" r="1"/><line x1="11" y1="16" x2="15" y2="16"/></svg>
+                  Bank Account
+                </button>
+                <button type="button" class="pay-tab" id="tab-paypal" onclick="selectPayMethod('paypal')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+                  PayPal
+                </button>
+              </div>
+              <input type="hidden" name="payment_method" id="payment-method-val" value="bank_account"/>
+            </div>
+
+            <!-- Bank fields -->
+            <div class="pay-section visible" id="bank-fields">
+              <div class="grid-2">
+                <div class="field">
+                  <label>Account Holder Name <span class="req">*</span></label>
+                  <input type="text" name="account_holder" placeholder="Name on the bank account"
+                    value="{% if existing %}{{ existing.account_holder }}{% endif %}"/>
+                </div>
+                <div class="field">
+                  <label>Bank Name <span class="req">*</span></label>
+                  <input type="text" name="bank_name" placeholder="e.g. UBA, GTBank, First Bank"
+                    value="{% if existing %}{{ existing.bank_name }}{% endif %}"/>
+                </div>
+                <div class="field">
+                  <label>Account Number <span class="req">*</span></label>
+                  <input type="text" name="account_number" placeholder="Your account number"
+                    value="{% if existing %}{{ existing.account_number }}{% endif %}"/>
+                </div>
+                <div class="field">
+                  <label>Swift Code (11 characters) <span class="req">*</span></label>
+                  <input type="text" name="swift_code" placeholder="e.g. UNAFNGLA115" maxlength="11"
+                    value="{% if existing %}{{ existing.swift_code }}{% endif %}"/>
+                </div>
+                <div class="field full">
+                  <label>Bank Account Registration Country <span class="req">*</span></label>
+                  <div class="select-wrap">
+                    <select name="bank_country">
+                      <option value="">Select country…</option>
+                      {% for c in countries %}
+                      <option value="{{ c }}"{% if existing and existing.bank_country == c %} selected{% endif %}>{{ c }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PayPal fields -->
+            <div class="pay-section" id="paypal-fields">
+              <div class="field">
+                <label>PayPal Email Address <span class="req">*</span></label>
+                <input type="email" name="paypal_email" placeholder="your@paypal.com"
+                  value="{% if existing %}{{ existing.paypal_email }}{% endif %}"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="background:hsl(14 62% 38% / .04);border-color:hsl(14 62% 38% / .2);">
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;flex-shrink:0;margin-top:1px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div>
+                <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Your information is secure</div>
+                <div style="font-size:12px;color:var(--muted-fg);line-height:1.6;">
+                  All submitted data is encrypted and handled in compliance with our privacy policy.
+                  Your payment details are only used for revenue settlement and are never shared with third parties.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="step-nav">
+            <button type="button" class="btn btn-ghost" id="back-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><polyline points="15 18 9 12 15 6"/></svg>
+              Back
+            </button>
+            <button type="submit" class="btn btn-primary" id="submit-btn">
+              Submit Verification
+            </button>
+          </div>
+
+          <div class="form-msg" id="step2-msg"></div>
+
+        </div><!-- end step-2 -->
+
+      </form>
+      {% endif %}
+
+    </div>
+  </main>
+</div>
+
+<script>
+let currentStep = 1;
+
+function goToStep(n) {
+  document.getElementById('step-1').style.display = n===1 ? '' : 'none';
+  document.getElementById('step-2').style.display = n===2 ? '' : 'none';
+  currentStep = n;
+
+  const dot1 = document.getElementById('step-dot-1');
+  const dot2 = document.getElementById('step-dot-2');
+  const line1 = document.getElementById('step-line-1');
+
+  if (n === 1) {
+    dot1.className = 'step active'; dot2.className = 'step'; line1.className = 'step-line';
+  } else {
+    dot1.className = 'step done'; dot2.className = 'step active'; line1.className = 'step-line done';
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// Next button — validate step 1
+document.getElementById('next-btn').addEventListener('click', function() {
+  const msg = document.getElementById('step1-msg');
+  msg.style.display = 'none';
+
+  const fullName = document.querySelector('[name=full_name]').value.trim();
+  const phoneNum = document.getElementById('phone-num').value.trim();
+  const country  = document.querySelector('[name=country]').value;
+  const address  = document.querySelector('[name=contact_address]').value.trim();
+  const idNum    = document.querySelector('[name=id_number]').value.trim();
+  const docInput = document.getElementById('id-doc-input');
+  const hasExistingDoc = {% if existing and existing.id_document %}true{% else %}false{% endif %};
+
+  if (!fullName)   return showMsg('step1-msg', 'error', 'Full legal name is required.');
+  if (!phoneNum)   return showMsg('step1-msg', 'error', 'Phone number is required.');
+  if (!country)    return showMsg('step1-msg', 'error', 'Please select your country.');
+  if (!address)    return showMsg('step1-msg', 'error', 'Contact address is required.');
+  if (!idNum)      return showMsg('step1-msg', 'error', 'ID number is required.');
+  if (!hasExistingDoc && docInput && !docInput.files.length)
+    return showMsg('step1-msg', 'error', 'Please upload a photo of your government-issued ID.');
+
+  goToStep(2);
+});
+
+// Back button
+document.getElementById('back-btn').addEventListener('click', function() {
+  goToStep(1);
+});
+
+// Phone number — merge code + number before submit
+function getFullPhone() {
+  const code = document.getElementById('phone-code').value.trim();
+  const num  = document.getElementById('phone-num').value.trim();
+  return (code + ' ' + num).trim();
+}
+
+// Payment method toggle
+function selectPayMethod(method) {
+  document.getElementById('payment-method-val').value = method;
+  document.getElementById('bank-fields').className  = 'pay-section' + (method==='bank_account' ? ' visible' : '');
+  document.getElementById('paypal-fields').className = 'pay-section' + (method==='paypal'       ? ' visible' : '');
+  document.getElementById('tab-bank').className   = 'pay-tab' + (method==='bank_account' ? ' active' : '');
+  document.getElementById('tab-paypal').className = 'pay-tab' + (method==='paypal'       ? ' active' : '');
+}
+{% if existing and existing.payment_method == 'paypal' %}
+selectPayMethod('paypal');
+{% endif %}
+
+// File upload preview
+const uploadInput = document.getElementById('id-doc-input');
+const uploadArea  = document.getElementById('upload-area');
+const uploadLabel = document.getElementById('upload-label');
+const uploadPrev  = document.getElementById('upload-preview');
+const uploadImg   = document.getElementById('upload-img');
+
+if (uploadInput) {
+  uploadInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showMsg('step1-msg', 'error', 'File is too large. Maximum size is 5 MB.');
+      this.value = '';
+      return;
+    }
+    uploadLabel.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      uploadImg.src = e.target.result;
+      uploadPrev.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+  uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag');
+    if (e.dataTransfer.files.length) {
+      uploadInput.files = e.dataTransfer.files;
+      uploadInput.dispatchEvent(new Event('change'));
+    }
+  });
+}
+
+// Form submit
+document.getElementById('kyc-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  document.getElementById('step2-msg').style.display = 'none';
+
+  const method = document.getElementById('payment-method-val').value;
+
+  // Validate step 2
+  if (method === 'bank_account') {
+    const fields = ['account_holder','bank_name','account_number','swift_code','bank_country'];
+    for (const f of fields) {
+      if (!document.querySelector(`[name=${f}]`).value.trim()) {
+        btn.disabled = false; btn.textContent = 'Submit Verification';
+        return showMsg('step2-msg', 'error', `${f.replace(/_/g,' ')} is required.`);
+      }
+    }
+  } else {
+    if (!document.querySelector('[name=paypal_email]').value.trim()) {
+      btn.disabled = false; btn.textContent = 'Submit Verification';
+      return showMsg('step2-msg', 'error', 'PayPal email is required.');
+    }
+  }
+
+  const fd = new FormData(this);
+  // Merge phone code + number
+  fd.set('phone', getFullPhone());
+
+  try {
+    const resp = await fetch('/author/kyc/submit/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': getCookie('csrftoken')},
+      body: fd,
+      credentials: 'same-origin',
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showMsg('step2-msg', 'success', 'Verification submitted! Redirecting to your dashboard…');
+      setTimeout(() => { window.location.href = data.next || '/dashboard/'; }, 1800);
+    } else {
+      btn.disabled = false; btn.textContent = 'Submit Verification';
+      showMsg('step2-msg', 'error', data.error || 'Submission failed. Please try again.');
+    }
+  } catch(err) {
+    btn.disabled = false; btn.textContent = 'Submit Verification';
+    showMsg('step2-msg', 'error', 'Network error. Please check your connection and try again.');
+  }
+});
+
+function showMsg(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'form-msg ' + type;
+  el.textContent = text;
+  el.style.display = 'block';
+}
+
+function getCookie(name) {
+  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return v ? v.pop() : '';
+}
+</script>
+</body>
+</html>

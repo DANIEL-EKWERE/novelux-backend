@@ -1,0 +1,301 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  document.documentElement.classList.toggle('dark',t==='dark');
+  document.documentElement.classList.toggle('light',t!=='dark');
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Create your account – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:#fff;
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--danger:hsl(0 68% 50%);
+  --success:hsl(142 60% 40%);
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{
+  font-family:'Geist',-apple-system,sans-serif;font-size:14px;
+  background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;
+  display:flex;align-items:flex-start;justify-content:center;
+  min-height:100vh;padding:48px 24px 40px;
+}
+a{text-decoration:none;color:var(--primary);}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+
+.wrap{width:100%;max-width:440px;}
+
+/* SE context banner */
+.se-ctx{
+  border:1px solid var(--border);padding:16px 20px;margin-bottom:20px;
+  background:var(--muted);position:relative;overflow:hidden;
+}
+.se-ctx::before{
+  content:'';position:absolute;inset:0;
+  background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,
+    color-mix(in srgb,var(--fg) 2.5%,transparent) 8px,
+    color-mix(in srgb,var(--fg) 2.5%,transparent) 9px);
+  pointer-events:none;
+}
+.se-ctx>*{position:relative;z-index:1;}
+.se-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  margin-bottom:10px;
+  background:color-mix(in srgb,hsl(270 60% 48%) 12%,transparent);
+  color:hsl(270 60% 48%);
+}
+.se-ctx h2{font-size:16px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+.se-ctx p{font-size:12px;color:var(--muted-fg);line-height:1.6;}
+.code-chip{
+  display:inline-block;margin-top:10px;padding:4px 10px;
+  font-family:monospace;font-size:13px;font-weight:700;letter-spacing:.12em;
+  background:var(--bg);border:1px solid var(--border);color:var(--fg);
+}
+
+/* Registration card */
+.card{border:1px solid var(--border);padding:28px 24px;}
+@media(max-width:480px){.card{padding:20px 16px;}}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:24px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+h1{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:4px;}
+.sub{font-size:13px;color:var(--muted-fg);margin-bottom:24px;}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:480px){.form-row{grid-template-columns:1fr;}}
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:6px;}
+input{
+  width:100%;padding:10px 12px;font-size:14px;font-family:inherit;
+  border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;
+  transition:border-color .15s;
+}
+input:focus{border-color:var(--primary);}
+input[readonly]{background:var(--muted);color:var(--muted-fg);cursor:not-allowed;}
+input.err{border-color:var(--danger);}
+
+.pw-wrap{position:relative;}
+.pw-wrap input{padding-right:40px;}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted-fg);display:flex;align-items:center;cursor:pointer;}
+.pw-eye:hover{color:var(--fg);}
+
+.err-banner{
+  display:none;
+  background:color-mix(in srgb,var(--danger) 8%,transparent);
+  border:1px solid color-mix(in srgb,var(--danger) 25%,transparent);
+  color:var(--danger);padding:10px 14px;font-size:13px;margin-bottom:16px;
+}
+.err-banner.show{display:block;}
+
+.btn-submit{
+  width:100%;padding:12px 16px;font-size:14px;font-weight:600;
+  background:var(--primary);color:var(--primary-fg);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  transition:opacity .15s;margin-top:4px;
+}
+.btn-submit:hover{opacity:.88;}
+.btn-submit:disabled{opacity:.45;cursor:not-allowed;}
+
+.footer-link{margin-top:16px;text-align:center;font-size:12px;color:var(--muted-fg);}
+.footer-link a{color:var(--primary);font-weight:500;}
+
+.theme-btn{
+  position:fixed;top:16px;right:16px;
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  color:var(--muted-fg);cursor:pointer;border:1px solid var(--border);background:var(--bg);
+}
+.ic-sun,.ic-moon{position:absolute;width:15px;height:15px;transition:opacity .2s,transform .2s;}
+html.light .ic-sun{opacity:1;transform:scale(1);}html.light .ic-moon{opacity:0;transform:scale(0);}
+html.dark  .ic-sun{opacity:0;transform:scale(0);}html.dark  .ic-moon{opacity:1;transform:scale(1);}
+</style>
+</head>
+<body>
+
+<button class="theme-btn" id="themeBtn" style="position:relative;">
+  <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
+
+<div class="wrap">
+
+  {% if editor_code %}
+  <div class="se-ctx">
+    <div class="se-badge">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Editor Invite
+    </div>
+    <h2>You've been invited to Novelux</h2>
+    <p>Your Senior Editor has shared their invite code with you. Create your author account below — you'll be automatically linked once you register.</p>
+    <div class="code-chip">{{ editor_code }}</div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <span>Novelux</span>
+    </div>
+
+    <h1>Create your account</h1>
+    <p class="sub">{% if editor_code %}Join as an author — your editor link is pre-configured.{% else %}Start your journey as a Novelux author.{% endif %}</p>
+
+    <div class="err-banner" id="errBanner"></div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" id="firstName" placeholder="Amara" autocomplete="given-name"/>
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input type="text" id="lastName" placeholder="Osei" autocomplete="family-name"/>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Username <span style="color:var(--danger)">*</span></label>
+      <input type="text" id="username" placeholder="amara_osei" autocomplete="username" required/>
+    </div>
+
+    <div class="form-group">
+      <label>Email <span style="color:var(--danger)">*</span></label>
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email" required/>
+    </div>
+
+    {% if editor_code %}
+    <div class="form-group">
+      <label>Editor Code</label>
+      <input type="text" id="editorCode" value="{{ editor_code }}" readonly/>
+    </div>
+    {% else %}
+    <div class="form-group">
+      <label>Editor Code <span style="color:var(--muted-fg);font-weight:400;">(optional)</span></label>
+      <input type="text" id="editorCode" placeholder="e.g. AX3K9PLM" maxlength="12"
+        style="text-transform:uppercase;letter-spacing:.12em;font-family:monospace;font-size:15px;"
+        oninput="this.value=this.value.toUpperCase()"/>
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+      <label>Password <span style="color:var(--danger)">*</span></label>
+      <div class="pw-wrap">
+        <input type="password" id="pw1" placeholder="At least 8 characters" autocomplete="new-password" required/>
+        <button type="button" class="pw-eye" onclick="togglePw('pw1')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Confirm Password <span style="color:var(--danger)">*</span></label>
+      <div class="pw-wrap">
+        <input type="password" id="pw2" placeholder="Repeat password" autocomplete="new-password" required/>
+        <button type="button" class="pw-eye" onclick="togglePw('pw2')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" onclick="doRegister()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Create Account
+    </button>
+
+    <p class="footer-link">Already have an account? <a href="/login/">Sign in</a></p>
+  </div>
+
+</div>
+
+<script>
+document.getElementById('themeBtn').onclick = () => {
+  const d = document.documentElement.classList.toggle('dark');
+  document.documentElement.classList.toggle('light', !d);
+  localStorage.setItem('nux_theme', d ? 'dark' : 'light');
+};
+
+function togglePw(id) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function showErr(msg) {
+  const el = document.getElementById('errBanner');
+  el.textContent = msg;
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function hideErr() {
+  document.getElementById('errBanner').classList.remove('show');
+}
+
+async function doRegister() {
+  hideErr();
+  const username    = document.getElementById('username').value.trim();
+  const email       = document.getElementById('email').value.trim();
+  const password1   = document.getElementById('pw1').value;
+  const password2   = document.getElementById('pw2').value;
+  const editor_code = (document.getElementById('editorCode')?.value || '').trim().toUpperCase();
+
+  if (!username)          { showErr('Username is required.'); return; }
+  if (!email)             { showErr('Email is required.'); return; }
+  if (!password1)         { showErr('Password is required.'); return; }
+  if (password1.length < 8) { showErr('Password must be at least 8 characters.'); return; }
+  if (password1 !== password2) { showErr('Passwords do not match.'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Creating account…';
+
+  try {
+    const res = await fetch('/auth/register-web/', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        email,
+        password1,
+        password2,
+        role:        'author',
+        editor_code: editor_code || '',
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.href = data.next || '/dashboard/';
+    } else {
+      showErr(data.error || 'Registration failed. Please try again.');
+      btn.disabled    = false;
+      btn.textContent = 'Create Account';
+    }
+  } catch(e) {
+    showErr('Network error — please try again.');
+    btn.disabled    = false;
+    btn.textContent = 'Create Account';
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doRegister();
+});
+</script>
+</body>
+</html>

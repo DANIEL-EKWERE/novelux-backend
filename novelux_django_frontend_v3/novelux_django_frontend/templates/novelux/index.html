@@ -1,0 +1,2163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Novelux – Millions of free novels. One quiet place to read them.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --background: hsl(0 0% 100%);
+      --foreground: hsl(0 0% 9%);
+      --card: hsl(0 0% 100%);
+      --card-foreground: hsl(0 0% 9%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --secondary: hsl(0 0% 96%);
+      --muted: hsl(0 0% 96%);
+      --muted-foreground: hsl(0 0% 45%);
+      --accent: hsl(0 0% 96%);
+      --border: hsl(0 0% 90%);
+      --card-bg: hsl(0 0% 99%);
+    }
+
+    html.dark {
+      --background: hsl(240 6% 6%);
+      --foreground: hsl(0 0% 90%);
+      --card: hsl(240 5% 9%);
+      --card-foreground: hsl(0 0% 90%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --secondary: hsl(240 4% 14%);
+      --muted: hsl(240 4% 14%);
+      --muted-foreground: hsl(0 0% 50%);
+      --accent: hsl(240 4% 14%);
+      --border: hsl(240 4% 26%);
+      --card-bg: hsl(240 5% 9% / 0.3);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background-color: var(--background);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 14px;
+      background-color: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      background: none;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .divider {
+      width: 100%;
+      border-top: 1px solid var(--border);
+    }
+
+    .muted {
+      color: var(--muted-foreground);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 28px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .section-label {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted-foreground);
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 3vw, 2.4rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--foreground);
+    }
+
+    .card-grid-feature {
+      border: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .card-grid-feature h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--foreground);
+    }
+
+    .card-grid-feature p {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--muted-foreground);
+      line-height: 1.55;
+    }
+
+    /* ── DIAGONAL STRIPE PATTERN ── */
+    .stripe-bg {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stripe-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(-45deg,
+          transparent,
+          transparent 8px,
+          color-mix(in srgb, var(--foreground) 3%, transparent) 8px,
+          color-mix(in srgb, var(--foreground) 3%, transparent) 9px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .stripe-bg>* {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.88;
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid rgba(0, 0, 0, 0.3);
+      color: var(--foreground);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    html.dark .btn-outline {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-outline:hover {
+      background: var(--foreground);
+      color: var(--background);
+    }
+
+    .btn-solid {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 500;
+      background: var(--foreground);
+      color: var(--background);
+      transition: opacity 0.15s;
+    }
+
+    .btn-solid:hover {
+      opacity: 0.88;
+    }
+
+    .btn-primary-lg {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      font-size: 15px;
+      font-weight: 500;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary-lg:hover {
+      opacity: 0.88;
+    }
+
+    .btn-primary-lg svg,
+    .btn-primary svg,
+    .btn-outline svg,
+    .btn-solid svg {
+      transition: transform 0.15s;
+    }
+
+    .btn-primary-lg:hover svg,
+    .btn-primary:hover svg {
+      transform: translateX(2px);
+    }
+
+    /* Store Buttons */
+    .store-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      background: var(--foreground);
+      color: var(--background);
+      transition: opacity 0.15s;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .store-btn:hover {
+      opacity: 0.85;
+    }
+
+    .store-btn .store-label {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+
+    .store-btn .store-label small {
+      font-size: 10px;
+      opacity: 0.7;
+      letter-spacing: 0.04em;
+    }
+
+    .store-btn .store-label strong {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0;
+      z-index: 100;
+      width: 100%;
+      background: color-mix(in srgb, var(--background) 95%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo-box {
+      width: 22px;
+      height: 22px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .nav-brand span {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+    }
+
+    .nav-links {
+      display: none;
+      gap: 24px;
+    }
+
+    @media (min-width: 1024px) {
+      .nav-links {
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: color-mix(in srgb, var(--foreground) 70%, transparent);
+      transition: color 0.15s;
+    }
+
+    .nav-links a:hover {
+      color: var(--foreground);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .burger-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--foreground);
+    }
+
+    @media (min-width: 1024px) {
+      .burger-btn {
+        display: none;
+      }
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      color: color-mix(in srgb, var(--foreground) 70%, transparent);
+      transition: color 0.15s;
+    }
+
+    .theme-toggle:hover {
+      color: var(--foreground);
+    }
+
+    .icon-sun,
+    .icon-moon {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    html.light .icon-sun {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+
+    html.light .icon-moon {
+      opacity: 0;
+      transform: rotate(90deg) scale(0);
+    }
+
+    html.dark .icon-sun {
+      opacity: 0;
+      transform: rotate(-90deg) scale(0);
+    }
+
+    html.dark .icon-moon {
+      opacity: 1;
+      transform: rotate(0deg) scale(1);
+    }
+
+    .btn-login {
+      font-size: 13px;
+      height: 32px;
+      padding: 0 12px;
+      color: color-mix(in srgb, var(--foreground) 70%, transparent);
+      transition: color 0.15s;
+    }
+
+    .btn-login:hover {
+      color: var(--foreground);
+    }
+
+    .btn-signup {
+      font-size: 13px;
+      height: 32px;
+      padding: 0 12px;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      transition: opacity 0.15s;
+    }
+
+    .btn-signup:hover {
+      opacity: 0.88;
+    }
+
+    .btn-login,
+    .btn-signup {
+      display: none;
+    }
+
+    @media (min-width: 640px) {
+
+      .btn-login,
+      .btn-signup {
+        display: inline-flex;
+        align-items: center;
+      }
+    }
+
+    /* ── MOBILE DRAWER ── */
+    .mobile-drawer {
+      position: fixed;
+      top: 56px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--background);
+      z-index: 99;
+      padding: 24px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+    }
+
+    .mobile-drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 32px;
+    }
+
+    .drawer-links a {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--foreground);
+      border-bottom: 1px solid var(--border);
+      transition: color 0.15s;
+    }
+
+    .drawer-links a:hover {
+      color: var(--primary);
+    }
+
+    .drawer-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .drawer-actions .btn-primary,
+    .drawer-actions .btn-outline {
+      justify-content: center;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 10;
+      padding: 112px 24px 80px;
+    }
+
+    .hero-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    @media (min-width: 768px) {
+      .hero-inner {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .hero h1 {
+      margin-top: 24px;
+      font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+      font-weight: 500;
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+      color: var(--foreground);
+    }
+
+    .hero h1 .accent {
+      color: var(--primary);
+    }
+
+    .hero p {
+      margin-top: 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-foreground);
+      max-width: 460px;
+    }
+
+    .hero-actions {
+      margin-top: 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .hero-store-btns {
+      margin-top: 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .hero-stats {
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--muted-foreground);
+    }
+
+    .hero-stats strong {
+      color: var(--foreground);
+      font-weight: 600;
+    }
+
+    .hero-collage {
+      display: none;
+    }
+
+    @media (min-width: 768px) {
+      .hero-collage {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        position: relative;
+      }
+    }
+
+    .hero-cover {
+      aspect-ratio: 3/4;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--muted);
+    }
+
+    .hero-cover:nth-child(2) {
+      transform: translateY(24px);
+    }
+
+    .hero-cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* ── GENRES ── */
+    .genres-section {
+      padding: 32px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .genres-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .genres-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--muted-foreground);
+      margin-right: 8px;
+    }
+
+    .genre-btn {
+      padding: 0 12px;
+      height: 32px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      color: color-mix(in srgb, var(--foreground) 80%, transparent);
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .genre-btn:hover {
+      background: var(--accent);
+      color: var(--foreground);
+    }
+
+    /* ── POPULAR ── */
+    .popular-section {
+      padding: 80px 24px;
+    }
+
+    .popular-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 40px;
+    }
+
+    .popular-viewall {
+      display: none;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: var(--muted-foreground);
+      transition: color 0.15s;
+    }
+
+    @media (min-width: 768px) {
+      .popular-viewall {
+        display: inline-flex;
+      }
+    }
+
+    .popular-viewall:hover {
+      color: var(--foreground);
+    }
+
+    .novel-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    @media (min-width: 640px) {
+      .novel-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .novel-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .novel-card {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .novel-cover-wrap {
+      position: relative;
+      aspect-ratio: 3/4;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .novel-cover-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s;
+    }
+
+    .novel-card:hover .novel-cover-wrap img {
+      transform: scale(1.05);
+    }
+
+    .novel-badge {
+      position: absolute;
+      top: 8px;
+      padding: 0 8px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: color-mix(in srgb, var(--background) 90%, transparent);
+      color: var(--foreground);
+      border: 1px solid var(--border);
+    }
+
+    .novel-badge-genre {
+      left: 8px;
+    }
+
+    .novel-badge-rating {
+      right: 8px;
+      gap: 4px;
+    }
+
+    .star-icon {
+      width: 12px;
+      height: 12px;
+      color: var(--primary);
+      fill: var(--primary);
+    }
+
+    .novel-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--foreground);
+      line-height: 1.3;
+      transition: color 0.15s;
+    }
+
+    .novel-card:hover .novel-title {
+      color: var(--primary);
+    }
+
+    .novel-views {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-top: 4px;
+    }
+
+    .novel-blurb {
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--muted-foreground);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ── AUDIOBOOKS ── */
+    .audiobooks-section {
+      padding: 96px 24px;
+      background: var(--card-bg);
+    }
+
+    .two-col {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 48px;
+      align-items: center;
+    }
+
+    @media (min-width: 768px) {
+      .two-col {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .two-col-img {
+      aspect-ratio: 4/3;
+      border: 1px solid var(--border);
+      background: var(--muted);
+      overflow: hidden;
+      order: 2;
+    }
+
+    @media (min-width: 768px) {
+      .two-col-img {
+        order: 1;
+      }
+    }
+
+    .two-col-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .two-col-content {
+      order: 1;
+    }
+
+    @media (min-width: 768px) {
+      .two-col-content {
+        order: 2;
+      }
+    }
+
+    .two-col-content h2 {
+      margin-top: 24px;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--foreground);
+    }
+
+    .two-col-content p {
+      margin-top: 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-foreground);
+      max-width: 460px;
+    }
+
+    .two-col-content .actions {
+      margin-top: 32px;
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ── FOR WRITERS ── */
+    .writers-section {
+      padding: 96px 24px;
+    }
+
+    .writers-inner {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .writers-inner h2 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      color: var(--foreground);
+      margin-top: 16px;
+    }
+
+    .writers-inner>p {
+      margin-top: 24px;
+      font-size: 15px;
+      color: var(--muted-foreground);
+      max-width: 520px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.7;
+    }
+
+    .writers-cards {
+      margin-top: 40px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      text-align: left;
+    }
+
+    @media (min-width: 640px) {
+      .writers-cards {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .writers-cta {
+      margin-top: 40px;
+    }
+
+    /* ── CONTEST ── */
+    .contest-section {
+      padding: 96px 24px;
+      background: var(--card-bg);
+    }
+
+    .contest-prizes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .prize-card {
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+
+    .prize-card.highlight {
+      background: color-mix(in srgb, var(--primary) 10%, transparent);
+      border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+    }
+
+    .prize-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--muted-foreground);
+    }
+
+    .prize-value {
+      margin-top: 8px;
+      font-size: 28px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--foreground);
+    }
+
+    .contest-list {
+      margin-top: 24px;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .contest-list li {
+      display: flex;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted-foreground);
+    }
+
+    .contest-list li span.arrow {
+      color: var(--primary);
+    }
+
+    /* ── TESTIMONIAL (with stripe) ── */
+    .testimonial-section {
+      padding: 96px 24px;
+    }
+
+    .testimonial-inner {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .testimonial-card {
+      border: 1px solid var(--border);
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .testimonial-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(-45deg,
+          transparent,
+          transparent 8px,
+          color-mix(in srgb, var(--foreground) 4%, transparent) 8px,
+          color-mix(in srgb, var(--foreground) 4%, transparent) 9px);
+      pointer-events: none;
+    }
+
+    .testimonial-card>* {
+      position: relative;
+      z-index: 1;
+    }
+
+    .testimonial-quote {
+      font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+      font-weight: 400;
+      line-height: 1.45;
+      color: var(--foreground);
+      letter-spacing: -0.01em;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .testimonial-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .testimonial-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .testimonial-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .testimonial-role {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
+
+    .testimonial-nav {
+      display: flex;
+      gap: 8px;
+      margin-top: 32px;
+    }
+
+    .t-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .t-dot.active {
+      background: var(--primary);
+    }
+
+    /* ── TOP CREATOR ── */
+    .creator-section {
+      padding: 96px 24px;
+    }
+
+    .creator-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .creator-header {
+      max-width: 640px;
+    }
+
+    .creator-header h2 {
+      margin-top: 24px;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--foreground);
+    }
+
+    .creator-header p {
+      margin-top: 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-foreground);
+    }
+
+    .creator-grid {
+      margin-top: 48px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .creator-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .creator-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    /* ── WRITER BENEFITS ── */
+    .benefits-section {
+      padding: 96px 24px;
+      background: var(--card-bg);
+    }
+
+    .benefits-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .benefits-header {
+      max-width: 640px;
+    }
+
+    .benefits-header h2 {
+      margin-top: 24px;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--foreground);
+    }
+
+    .benefits-header p {
+      margin-top: 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-foreground);
+    }
+
+    .benefits-grid {
+      margin-top: 48px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .benefits-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .benefits-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .benefits-grid .card-grid-feature {
+      background: var(--background);
+    }
+
+    /* ── AE BENEFITS ── */
+    .ae-section {
+      padding: 96px 24px;
+    }
+
+    .ae-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 48px;
+      align-items: start;
+    }
+
+    @media (min-width: 768px) {
+      .ae-inner {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .ae-content h2 {
+      margin-top: 24px;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--foreground);
+    }
+
+    .ae-content p {
+      margin-top: 24px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-foreground);
+      max-width: 460px;
+    }
+
+    .ae-content .actions {
+      margin-top: 32px;
+    }
+
+    .ae-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ae-item {
+      border: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      gap: 16px;
+    }
+
+    .ae-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+    }
+
+    .ae-item h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--foreground);
+    }
+
+    .ae-item p {
+      margin-top: 4px;
+      font-size: 13px;
+      color: var(--muted-foreground);
+      line-height: 1.55;
+    }
+
+    /* ── CTA (stripe) ── */
+    .cta-section {
+      padding: 96px 24px;
+      background: color-mix(in srgb, var(--primary) 5%, transparent);
+      border-top: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(-45deg,
+          transparent,
+          transparent 8px,
+          color-mix(in srgb, var(--primary) 5%, transparent) 8px,
+          color-mix(in srgb, var(--primary) 5%, transparent) 9px);
+      pointer-events: none;
+    }
+
+    .cta-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .cta-inner h2 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 500;
+      letter-spacing: -0.035em;
+      line-height: 1.1;
+      color: var(--foreground);
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .cta-inner p {
+      margin-top: 20px;
+      font-size: 15px;
+      color: var(--muted-foreground);
+      max-width: 440px;
+      margin: 20px auto 0;
+    }
+
+    .cta-inner .actions {
+      margin-top: 40px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    @media (min-width: 768px) {
+      .footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-logo-box {
+      width: 18px;
+      height: 18px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .footer-brand span {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--foreground);
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--muted-foreground);
+    }
+
+    .footer-links a:hover {
+      color: var(--foreground);
+    }
+
+    /* ── POPUP DIALOG ── */
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .popup-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .popup-box {
+      background: var(--background);
+      border: 1px solid var(--border);
+      padding: 40px 36px;
+      max-width: 440px;
+      width: 100%;
+      position: relative;
+      transform: translateY(16px);
+      transition: transform 0.25s;
+    }
+
+    .popup-overlay.show .popup-box {
+      transform: translateY(0);
+    }
+
+    .popup-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted-foreground);
+      transition: color 0.15s;
+    }
+
+    .popup-close:hover {
+      color: var(--foreground);
+    }
+
+    .popup-icon {
+      width: 48px;
+      height: 48px;
+      background: color-mix(in srgb, var(--primary) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+
+    .popup-box h3 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .popup-box p {
+      margin-top: 10px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--muted-foreground);
+    }
+
+    .popup-actions {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .popup-actions .btn-primary,
+    .popup-actions .btn-outline {
+      justify-content: center;
+      width: 100%;
+    }
+
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ══ NAV ══ -->
+  <nav>
+    <div class="nav-inner">
+      <a href="{% url 'novelux:index' %}" class="nav-brand">
+        <div class="nav-logo-box">
+          <img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+            onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" />
+        </div>
+        <span>Novelux</span>
+      </a>
+      <div class="nav-links">
+        <a href="#contest">Contest</a>
+        <a href="#authors">Create</a>
+        <a href="#top-creator">Top Creator Program</a>
+        <a href="#writer-benefits">Writer Benefits</a>
+        <a href="#ae-benefits">AE Benefits</a>
+        <a href="/become-author/">Become an Author</a>
+        <a href="/faq/">FAQ</a>
+      </div>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+          <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+        <!-- <button class="btn-login">Log in</button>
+        <button class="btn-signup">Sign up</button> -->
+        <button class="burger-btn" id="burgerBtn" aria-label="Open menu">
+          <svg id="burgerIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" x2="20" y1="6" y2="6" />
+            <line x1="4" x2="20" y1="12" y2="12" />
+            <line x1="4" x2="20" y1="18" y2="18" />
+          </svg>
+          <svg id="closeIcon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══ MOBILE DRAWER ══ -->
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="drawer-links">
+      <a href="#contest" onclick="closeDrawer()">Contest</a>
+      <a href="#authors" onclick="closeDrawer()">Create &amp; Publish</a>
+      <a href="#top-creator" onclick="closeDrawer()">Top Creator Program</a>
+      <a href="#writer-benefits" onclick="closeDrawer()">Writer Benefits</a>
+      <a href="#ae-benefits" onclick="closeDrawer()">AE Benefits</a>
+      <a href="/become-author/">Become an Author</a>
+      <a href="/faq/">Help Center</a>
+
+    </div>
+    <div class="drawer-actions">
+      <a href="{% url 'novelux:index' %}" class="btn-primary">Sign up free</a>
+      <a href="{% url 'novelux:index' %}" class="btn-outline">Log in</a>
+    </div>
+    <div style="margin-top:32px;">
+      <p
+        style="font-size:12px;color:var(--muted-foreground);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.12em;">
+        Download the app</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="store-btn" onclick="closeDrawer();showStorePopup()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 13.94 5 22 8 22c1.25 0 2.5-1.06 4-1.06z" />
+            <path d="M10 2c0 2.5.5 4-2 6" />
+          </svg>
+          <div class="store-label"><small>Download on the</small><strong>App Store</strong></div>
+        </button>
+        <button class="store-btn" onclick="closeDrawer();showStorePopup()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+            <path d="m13 13 6 6" />
+          </svg>
+          <div class="store-label"><small>Get it on</small><strong>Google Play</strong></div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HERO ══ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <span class="tag">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+          </svg>
+          Read offline · Free
+        </span>
+        <h1>Millions of free novels.<br /><span class="accent">One quiet place</span> to read them.</h1>
+        <p>Join Novelux to discover captivating stories from every corner of the world — or pick up the pen and become
+          an author yourself.</p>
+        <div class="hero-actions">
+          <a href="{% url 'novelux:index' %}" class="btn-primary">
+            Start reading free
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+          <a href="/author/onboarding/" class="btn-outline">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            Publish your work
+          </a>
+        </div>
+        <div class="hero-store-btns">
+          <button class="store-btn" onclick="showStorePopup()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 13.94 5 22 8 22c1.25 0 2.5-1.06 4-1.06z" />
+              <path d="M10 2c0 2.5.5 4-2 6" />
+            </svg>
+            <div class="store-label"><small>Download on the</small><strong>App Store</strong></div>
+          </button>
+          <button class="store-btn" onclick="showStorePopup()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+              <path d="m13 13 6 6" />
+            </svg>
+            <div class="store-label"><small>Get it on</small><strong>Google Play</strong></div>
+          </button>
+        </div>
+        <div class="hero-stats">
+          <div><strong>2M+</strong> readers</div>
+          <div><strong>120K+</strong> novels</div>
+          <div><strong>8</strong> languages</div>
+        </div>
+      </div>
+      <div class="hero-collage">
+        <div class="hero-cover"><img src="{% static 'novelux/images/lunas_betrayal.png' %}" alt="Novel cover" loading="lazy" /></div>
+        <div class="hero-cover"><img src="{% static 'novelux/images/sweet_chaos.png' %}" alt="Novel cover" loading="lazy" /></div>
+        <div class="hero-cover"><img src="{% static 'novelux/images/The_Ashborn_Crown.png' %}" alt="Novel cover" loading="lazy" /></div>
+      </div>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- ══ GENRES ══ -->
+  <section class="genres-section">
+    <div class="genres-inner">
+      <span class="genres-label">Genres</span>
+
+      <button class="genre-btn">Romance</button>
+      <button class="genre-btn">Werewolf</button>
+      <button class="genre-btn">Billionaire</button>
+      <button class="genre-btn">Marriage</button>
+      <button class="genre-btn">Fantasy</button>
+      <button class="genre-btn">Mystery</button>
+      <button class="genre-btn">Drama</button>
+      <button class="genre-btn">Mafia</button>
+      <button class="genre-btn">CEO</button>
+      <button class="genre-btn">Male Lead</button>
+      <button class="genre-btn">Female Lead</button>
+      <button class="genre-btn">Rebirth/Revenge</button>
+      <button class="genre-btn">Alot More</button>
+    </div>
+  </section>
+
+  <!-- ══ POPULAR NOVELS ══ -->
+  <section id="popular" class="popular-section">
+    <div class="container">
+      <div class="popular-header">
+        <div>
+          <p class="section-label" style="margin-bottom:12px">Trending now</p>
+          <h2 class="section-title">Popular free novel<br />recommendations</h2>
+        </div>
+        <a href="{% url 'novelux:index' %}" class="popular-viewall">View all <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg></a>
+      </div>
+      <div class="novel-grid">
+        <article class="novel-card">
+          <div class="novel-cover-wrap">
+            <img src="{% static 'novelux/images/Gemini_Generated_Image_xnrhmfxnrhmfxnrh_transcpr.jpg' %}" alt="Married To The President"
+              loading="lazy" />
+            <span class="novel-badge novel-badge-genre">Romance</span>
+            <span class="novel-badge novel-badge-rating"><svg class="star-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>5.0</span>
+          </div>
+          <h3 class="novel-title">Married To The President</h3>
+          <p class="novel-views">517.3K views</p>
+          <p class="novel-blurb">Months into a marriage that never began, a quiet betrayal pulls her into the arms of a
+            stranger she was never meant to meet.</p>
+        </article>
+        <article class="novel-card">
+          <div class="novel-cover-wrap">
+            <img src="{% static 'novelux/images/Gemini_Generated_Image_j3monbj3monbj3mo_transcpr.jpg' %}" alt="Mistaken Marriage Bride"
+              loading="lazy" />
+            <span class="novel-badge novel-badge-genre">Marriage</span>
+            <span class="novel-badge novel-badge-rating"><svg class="star-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>4.9</span>
+          </div>
+          <h3 class="novel-title">Mistaken Marriage Bride</h3>
+          <p class="novel-views">302.1K views</p>
+          <p class="novel-blurb">She was meant for another — but fate has a way of rewriting vows written in haste and
+            signed in someone else's name.</p>
+        </article>
+        <article class="novel-card">
+          <div class="novel-cover-wrap">
+            <img src="{% static 'novelux/images/Gemini_Generated_Image_j3monbj3monbj3mo (2)_transcpr.jpg' %}" alt="The Son-in-law"
+              loading="lazy" />
+            <span class="novel-badge novel-badge-genre">Drama</span>
+            <span class="novel-badge novel-badge-rating"><svg class="star-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>4.8</span>
+          </div>
+          <h3 class="novel-title">The Son-in-law</h3>
+          <p class="novel-views">215.8K views</p>
+          <p class="novel-blurb">Disgraced and dismissed, he hid the empire behind his name — until the day she finally
+            asked why he never fought back.</p>
+        </article>
+        <article class="novel-card">
+          <div class="novel-cover-wrap">
+            <!-- <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted-foreground);font-size:12px;flex-direction:column;gap:8px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <span>Cover pending</span>
+          </div> -->
+            <img src="{% static 'novelux/images/Gemini_Generated_Image_j3monbj3monbj3mo (1)_transcpr.jpg' %}" alt="The Son-in-law"
+              loading="lazy" />
+            <span class="novel-badge novel-badge-genre">Fantasy</span>
+            <span class="novel-badge novel-badge-rating"><svg class="star-icon" xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24">
+                <polygon
+                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>4.7</span>
+          </div>
+          <h3 class="novel-title">The Cursed Alpha's Bride</h3>
+          <p class="novel-views">189.4K views</p>
+          <p class="novel-blurb">Bound by a moonlit pact she never chose, she must decide whether to break the curse —
+            or surrender to the wolf who carries it.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ TESTIMONIALS (STRIPE) ══ -->
+  <section class="testimonial-section">
+    <div class="testimonial-inner">
+      <p class="section-label" style="margin-bottom:20px;">What our authors say</p>
+      <div class="testimonial-card" id="testimonialCard">
+        <p class="testimonial-quote" id="testimonialQuote">"I published my first chapter on a Tuesday. By Friday I had
+          3,000 readers. Novelux genuinely changed my life."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">
+            <div
+              style="width:100%;height:100%;background:linear-gradient(135deg,hsl(14 62% 38%),hsl(14 62% 55%));display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:600;">
+              A</div>
+          </div>
+          <div>
+            <div class="testimonial-name" id="testimonialName">Adaeze M.</div>
+            <div class="testimonial-role" id="testimonialRole">Romance Author, Lagos</div>
+          </div>
+        </div>
+        <div class="testimonial-nav" id="testimonialNav"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- ══ FOR WRITERS ══ -->
+  <section id="authors" class="writers-section">
+    <div class="writers-inner">
+      <span class="tag"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>For Writers</span>
+      <h2>Your story deserves to be read.</h2>
+      <p>Submit your manuscript, build your audience and earn from your very first chapter — no gatekeeping, no minimum
+        thresholds.</p>
+      <div class="writers-cards">
+        <div class="card-grid-feature">
+          <h3>Upload &amp; publish</h3>
+          <p>Submit your full manuscript in minutes. Our editors review within 72 hours.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Earn from day one</h3>
+          <p>50/50 ad-revenue split means every reader directly pays your royalties.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Real-time analytics</h3>
+          <p>Track reads, completions and earnings down to the chapter.</p>
+        </div>
+      </div>
+      <div class="writers-cta"><a href="/author/onboarding/" class="btn-primary">Start your author journey <svg
+            xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg></a></div>
+    </div>
+  </section>
+
+  <!-- ══ CONTEST (STRIPE) ══ -->
+  <section id="contest" class="contest-section stripe-bg">
+    <div class="container" style="display:grid;grid-template-columns:1fr;gap:48px;">
+      <div style="max-width:640px;">
+        <span class="tag"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+            <path d="M4 22h16" />
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z" />
+          </svg>Writing Contest</span>
+        <h2 class="section-title" style="margin-top:16px;">Compete. Win. Get signed.</h2>
+        <p style="margin-top:16px;font-size:15px;line-height:1.7;color:var(--muted-foreground);">Our quarterly writing
+          contest is open to all genres. Top finishers win cash, contracts and global promotion.</p>
+        <ul class="contest-list" style="margin-top:24px;">
+          <li><span class="arrow">→</span>Any genre eligible — Romance, Fantasy, Thriller, Drama</li>
+          <li><span class="arrow">→</span>Minimum 30 chapters to qualify</li>
+          <li><span class="arrow">→</span>Winners announced on the 1st of every quarter</li>
+          <li><span class="arrow">→</span>Contract invitation guaranteed for Top 10</li>
+        </ul>
+        <div style="margin-top:32px;"><a href="{% url 'novelux:index' %}" class="btn-primary">Enter the contest <svg
+              xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg></a></div>
+      </div>
+      <div class="contest-prizes">
+        <div class="prize-card highlight">
+          <div class="prize-label">1st Prize</div>
+          <div class="prize-value">$5,000</div>
+          <p style="margin-top:8px;font-size:12px;color:var(--muted-foreground);">+ Exclusive contract + Global promo
+          </p>
+        </div>
+        <div class="prize-card">
+          <div class="prize-label">2nd Prize</div>
+          <div class="prize-value">$2,500</div>
+          <p style="margin-top:8px;font-size:12px;color:var(--muted-foreground);">+ Non-exclusive contract</p>
+        </div>
+        <div class="prize-card">
+          <div class="prize-label">3rd Prize</div>
+          <div class="prize-value">$1,000</div>
+          <p style="margin-top:8px;font-size:12px;color:var(--muted-foreground);">+ Featured placement</p>
+        </div>
+        <div class="prize-card">
+          <div class="prize-label">Top 10</div>
+          <div class="prize-value">$250</div>
+          <p style="margin-top:8px;font-size:12px;color:var(--muted-foreground);">+ Contract invitation</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ TOP CREATOR ══ -->
+  <section id="top-creator" class="creator-section">
+    <div class="creator-inner">
+      <div class="creator-header">
+        <span class="tag"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m2 4 3 12h14l3-12-6 4-4-4-4 4-6-4z" />
+            <path d="M5 20h14" />
+          </svg>Top Creator Program</span>
+        <h2 class="section-title" style="margin-top:16px;">For the writers our<br />readers can't put down.</h2>
+        <p style="margin-top:16px;font-size:15px;line-height:1.7;color:var(--muted-foreground);">Our highest-performing
+          authors join an invite-only program with guaranteed monthly income, dedicated editor support, and global
+          promotion.</p>
+      </div>
+      <div class="creator-grid">
+        <div class="card-grid-feature">
+          <h3>Guaranteed income</h3>
+          <p>Monthly base payments on top of your reader earnings.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Editorial team</h3>
+          <p>Pair with an editor to sharpen pacing, hooks and structure.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Global reach</h3>
+          <p>Translation and audiobook adaptation in 8 languages.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Priority placement</h3>
+          <p>Permanent slots on home, search and recommendation feeds.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- ══ WRITER BENEFITS ══ -->
+  <section id="writer-benefits" class="benefits-section">
+    <div class="benefits-inner">
+      <div class="benefits-header">
+        <span class="tag"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+            <path d="M7 6h1v4" />
+            <path d="m16.71 13.88.7.71-2.82 2.82" />
+          </svg>Writer Benefits</span>
+        <h2 class="section-title" style="margin-top:16px;">Get rewarded from<br />your very first chapter.</h2>
+        <p style="margin-top:16px;font-size:15px;line-height:1.7;color:var(--muted-foreground);">Every writer on Novelux
+          earns from day one. The more readers stay, the more you take home.</p>
+      </div>
+      <div class="benefits-grid">
+        <div class="card-grid-feature">
+          <h3>Per-chapter payouts</h3>
+          <p>Earn from views, completions and reader tips on every chapter.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Transparent dashboard</h3>
+          <p>See real-time reads, retention and revenue down to the minute.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Fast withdrawals</h3>
+          <p>Cash out weekly via PayPal, bank transfer or stablecoin.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Reader engagement tools</h3>
+          <p>Polls, author notes and direct messages keep your audience close.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Cover &amp; blurb help</h3>
+          <p>Free templates and AI assists to make every cover click.</p>
+        </div>
+        <div class="card-grid-feature">
+          <h3>Anti-piracy protection</h3>
+          <p>We monitor and take down stolen copies of your work for free.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- ══ AE BENEFITS ══ -->
+  <section id="ae-benefits" class="ae-section">
+    <div class="ae-inner">
+      <div class="ae-content">
+        <span class="tag"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z" />
+          </svg>AE Benefits</span>
+        <h2 class="section-title" style="margin-top:16px;">Acquisition Editor<br />perks &amp; partnerships.</h2>
+        <p style="margin-top:16px;font-size:15px;line-height:1.7;color:var(--muted-foreground);max-width:460px;">Are you
+          an Acquisition Editor scouting talent? Bring authors to Novelux and earn lifetime revenue share, plus tools
+          built for editors who run their own roster.</p>
+        <div class="actions" style="margin-top:32px;"><a href="{% url 'novelux:index' %}" class="btn-outline">Apply as an editor <svg
+              xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg></a></div>
+      </div>
+      <div class="ae-items">
+        <div class="ae-item">
+          <div class="ae-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3z" />
+            </svg></div>
+          <div>
+            <h3>Lifetime revenue share</h3>
+            <p>Earn a percentage of every author you sign — for as long as they publish.</p>
+          </div>
+        </div>
+        <div class="ae-item">
+          <div class="ae-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M3 9h18M3 15h18M9 3v18" />
+            </svg></div>
+          <div>
+            <h3>Editor workspace</h3>
+            <p>Manage your roster, contracts and payouts from one dashboard.</p>
+          </div>
+        </div>
+        <div class="ae-item">
+          <div class="ae-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.92 1.18l3-.02a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg></div>
+          <div>
+            <h3>Priority support</h3>
+            <p>Dedicated partner manager and 24-hour response on author issues.</p>
+          </div>
+        </div>
+        <div class="ae-item">
+          <div class="ae-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg></div>
+          <div>
+            <h3>Co-marketing</h3>
+            <p>Joint promotion campaigns when your authors hit the charts.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ CTA (STRIPE) ══ -->
+  <section class="cta-section">
+    <div class="cta-inner">
+      <h2>A library that fits in your pocket.</h2>
+      <p>Free to read. Free to write. No ads in the way of the next chapter.</p>
+      <div class="actions">
+        <a href="{% url 'novelux:index' %}" class="btn-primary-lg">Join Novelux <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg></a>
+      </div>
+      <div style="margin-top:24px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;">
+        <button class="store-btn" onclick="showStorePopup()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+              d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 13.94 5 22 8 22c1.25 0 2.5-1.06 4-1.06z" />
+            <path d="M10 2c0 2.5.5 4-2 6" />
+          </svg>
+          <div class="store-label"><small>Download on the</small><strong>App Store</strong></div>
+        </button>
+        <button class="store-btn" onclick="showStorePopup()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+            <path d="m13 13 6 6" />
+          </svg>
+          <div class="store-label"><small>Get it on</small><strong>Google Play</strong></div>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ══ -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <!-- <div class="footer-logo-box"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div> -->
+        <img src="{% static 'novelux/images/logo.png' %}" style="width: 8%; height: 8%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" />
+        <span>Novelux</span>
+      </div>
+      <div class="footer-links">
+        <a href="/faq/">Help Center</a>
+        <a href="/become-author/">Become an Author</a>
+        <a href="/privacy/">Privacy policy</a>
+        <a href="/terms/">Terms of service</a>
+        <span>© <span id="year"></span> Novelux</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ══ STORE POPUP ══ -->
+  <div class="popup-overlay" id="storePopup">
+    <div class="popup-box">
+      <button class="popup-close" onclick="hideStorePopup()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+      <div class="popup-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path
+            d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 13.94 5 22 8 22c1.25 0 2.5-1.06 4-1.06z" />
+          <path d="M10 2c0 2.5.5 4-2 6" />
+        </svg>
+      </div>
+      <h3>App coming soon!</h3>
+      <p>The Novelux mobile app isn't on the stores just yet — but you can download it directly from our website and
+        install it now.</p>
+      <div class="popup-actions">
+        <a href="{% url 'novelux:index' %}" class="btn-primary" onclick="hideStorePopup()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" x2="12" y1="15" y2="3" />
+          </svg>
+          Download from site
+        </a>
+        <button class="btn-outline" onclick="hideStorePopup()">Maybe later</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const html = document.documentElement;
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const isDark = html.classList.contains('dark');
+      html.classList.toggle('dark', !isDark);
+      html.classList.toggle('light', isDark);
+    });
+    html.classList.add('light');
+
+    // Burger
+    const drawer = document.getElementById('mobileDrawer');
+    const burgerBtn = document.getElementById('burgerBtn');
+    const burgerIcon = document.getElementById('burgerIcon');
+    const closeIcon = document.getElementById('closeIcon');
+    let drawerOpen = false;
+    burgerBtn.addEventListener('click', () => {
+      drawerOpen = !drawerOpen;
+      drawer.classList.toggle('open', drawerOpen);
+      burgerIcon.style.display = drawerOpen ? 'none' : '';
+      closeIcon.style.display = drawerOpen ? '' : 'none';
+    });
+    function closeDrawer() {
+      drawerOpen = false;
+      drawer.classList.remove('open');
+      burgerIcon.style.display = '';
+      closeIcon.style.display = 'none';
+    }
+
+    // Store popup
+    function showStorePopup() { document.getElementById('storePopup').classList.add('show'); }
+    function hideStorePopup() { document.getElementById('storePopup').classList.remove('show'); }
+    document.getElementById('storePopup').addEventListener('click', e => { if (e.target === e.currentTarget) hideStorePopup(); });
+
+    // Testimonials
+    const testimonials = [
+      { quote: '"I published my first chapter on a Tuesday. By Friday I had 3,000 readers. Novelux genuinely changed my life."', name: 'Adaeze M.', role: 'Romance Author, Lagos', initial: 'A', color: 'hsl(14 62% 38%)' },
+      { quote: '"The dashboard is everything. I can see exactly which chapter made readers drop off and fix it. My completion rate went from 30% to 71%."', name: 'Kofi A.', role: 'Fantasy Author, Accra', initial: 'K', color: 'hsl(220 62% 38%)' },
+      { quote: '"I used to get $0 from my writing. Last month I withdrew $1,200. I work a regular job and write novels on weekends."', name: 'Priya S.', role: 'Drama Author, Mumbai', initial: 'P', color: 'hsl(280 62% 38%)' },
+    ];
+    let tIdx = 0;
+    const nav = document.getElementById('testimonialNav');
+    testimonials.forEach((_, i) => {
+      const d = document.createElement('div');
+      d.className = 't-dot' + (i === 0 ? ' active' : '');
+      d.onclick = () => setT(i);
+      nav.appendChild(d);
+    });
+    function setT(i) {
+      tIdx = i;
+      const t = testimonials[i];
+      document.getElementById('testimonialQuote').textContent = t.quote;
+      document.getElementById('testimonialName').textContent = t.name;
+      document.getElementById('testimonialRole').textContent = t.role;
+      document.querySelectorAll('.t-dot').forEach((d, j) => d.classList.toggle('active', j === i));
+    }
+    setInterval(() => setT((tIdx + 1) % testimonials.length), 5000);
+  </script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+
+</html>

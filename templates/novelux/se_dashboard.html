@@ -1,0 +1,785 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');})()</script>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api" content="{{ api_url|default:'/api' }}">
+<title>Senior Editor – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fff;--fg:#171717;--primary:hsl(14 62% 38%);--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--card:#fafafa;--sw:224px;--role:hsl(270 60% 48%);}
+html.dark{--bg:#0f0f11;--fg:#e5e5e5;--muted:#1c1c20;--muted-fg:#888;--border:#2a2a30;--card:#131316;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;cursor:pointer;}
+input,select,textarea{cursor:text;}
+a{color:inherit;text-decoration:none;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:var(--sw);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .25s;overflow-y:auto;}
+.sb.open{transform:translateX(0);}
+@media(min-width:1024px){.sb{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sb-top{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:22px;height:22px;border-radius:6px;background:var(--primary);display:flex;align-items:center;justify-content:center;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sb-nav{padding:12px 10px;flex:1;display:flex;flex-direction:column;gap:1px;}
+.nlbl{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 5px;margin-top:4px;}
+.nbtn{display:flex;align-items:center;gap:10px;padding:8px 10px;font-size:13px;color:var(--muted-fg);width:100%;border:none;background:none;border-radius:6px;transition:background .12s,color .12s;text-align:left;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}
+.nbtn.active{background:color-mix(in srgb,var(--role) 10%,transparent);color:var(--role);font-weight:500;}
+.nbtn svg{width:16px;height:16px;flex-shrink:0;}
+.nb-badge{margin-left:auto;display:inline-flex;padding:1px 6px;font-size:10px;font-weight:600;background:hsl(0 70% 50%);color:#fff;border-radius:10px;}
+.sb-bot{padding:14px 10px;border-top:1px solid var(--border);}
+.av{width:32px;height:32px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;}
+.pip{display:inline-flex;padding:2px 7px;font-size:10px;font-weight:600;letter-spacing:.06em;background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);border-radius:3px;margin-top:3px;}
+.main{flex:1;min-width:0;}
+.topbar{position:sticky;top:0;z-index:30;height:52px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;}
+@media(min-width:1024px){.topbar{padding:0 24px;}}
+.tl{display:flex;align-items:center;gap:10px;}
+.tr{display:flex;align-items:center;gap:6px;}
+.mbtn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:none;}
+@media(min-width:1024px){.mbtn{display:none;}}
+.themb{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--muted-fg);position:relative;}
+.isun,.imoon{position:absolute;width:15px;height:15px;transition:opacity .2s,transform .2s;}
+html.light .isun{opacity:1;transform:scale(1);}html.light .imoon{opacity:0;transform:scale(0);}
+html.dark .isun{opacity:0;transform:scale(0);}html.dark .imoon{opacity:1;transform:scale(1);}
+.page{display:none;padding:28px 16px 80px;max-width:1080px;margin:0 auto;}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}
+.page.active{display:block;}
+.ph{margin-bottom:24px;}
+.ph h1{font-size:20px;font-weight:600;}
+.ph p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.ph-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.sgrid{grid-template-columns:repeat(4,1fr);gap:12px;}}
+.sc{border:1px solid var(--border);padding:16px 18px;background:var(--card);border-radius:8px;}
+.sl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.sv{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}
+.ss{margin-top:3px;font-size:11px;color:var(--muted-fg);}
+.card{border:1px solid var(--border);background:var(--card);border-radius:8px;overflow:hidden;}
+.ch{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.ch h2{font-size:14px;font-weight:600;}
+.cb{padding:18px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;border:none;border-radius:6px;cursor:pointer;transition:opacity .15s,background .12s;}
+.bp{background:var(--role);color:#fff;}.bp:hover{opacity:.88;}
+.bo{border:1px solid var(--border);background:none;color:var(--fg);}.bo:hover{background:var(--muted);}
+.bsm{padding:5px 10px;font-size:12px;}
+.bdk{background:hsl(0 70% 50%);color:#fff;}.bdk:hover{opacity:.88;}
+.byw{background:hsl(45 90% 50%);color:#000;}.byw:hover{opacity:.88;}
+.bdg{display:inline-flex;align-items:center;padding:2px 7px;font-size:11px;font-weight:500;border-radius:4px;}
+.bgr{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+html.dark .bgr{color:hsl(142 60% 60%);}
+.byw2{background:color-mix(in srgb,hsl(45 90% 50%) 14%,transparent);color:hsl(38 70% 30%);}
+html.dark .byw2{color:hsl(45 90% 60%);}
+.brd{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+html.dark .brd{color:hsl(0 70% 65%);}
+.bpu{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.bgy{background:var(--muted);color:var(--muted-fg);}
+/* Story cards in queue */
+.story-card{border:1px solid var(--border);background:var(--card);border-radius:8px;margin-bottom:12px;overflow:hidden;}
+.story-card:last-child{margin-bottom:0;}
+.story-head{padding:16px 18px;display:flex;align-items:flex-start;gap:14px;}
+.story-cover{width:52px;height:70px;object-fit:cover;border-radius:4px;flex-shrink:0;background:var(--muted);}
+.story-meta{flex:1;min-width:0;}
+.story-title{font-size:15px;font-weight:600;margin-bottom:3px;}
+.story-sub{font-size:12px;color:var(--muted-fg);margin-bottom:8px;}
+.story-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.ch-list{border-top:1px solid var(--border);}
+.ch-list-head{padding:10px 18px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);background:var(--muted);display:flex;justify-content:space-between;cursor:pointer;user-select:none;}
+.ch-items{display:none;}
+.ch-items.open{display:block;}
+.ch-row{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px solid var(--border);font-size:13px;}
+.ch-row:hover{background:color-mix(in srgb,var(--muted) 60%,transparent);}
+.ch-num{font-size:11px;color:var(--muted-fg);width:28px;flex-shrink:0;}
+.ch-title{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-wc{font-size:11px;color:var(--muted-fg);white-space:nowrap;}
+.ch-status{font-size:11px;}
+.ch-read-btn{padding:3px 8px;font-size:11px;border:1px solid var(--border);background:none;border-radius:4px;color:var(--fg);}
+.ch-read-btn:hover{background:var(--muted);}
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-bg.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg);border:1px solid var(--border);border-radius:10px;width:100%;max-width:680px;max-height:90vh;display:flex;flex-direction:column;transform:translateY(20px);transition:transform .2s;}
+.modal-bg.open .modal{transform:translateY(0);}
+.modal-top{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.modal-top h3{font-size:15px;font-weight:600;}
+.modal-body{padding:20px;overflow-y:auto;flex:1;font-size:14px;line-height:1.8;color:var(--fg);}
+.modal-body p{margin-bottom:12px;}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+/* Two col */
+.two-col{display:grid;grid-template-columns:1fr;gap:20px;}
+@media(min-width:768px){.two-col{grid-template-columns:2fr 1fr;}}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th,.tbl td{padding:11px 14px;text-align:left;font-size:13px;}
+.tbl th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.tbl td{border-bottom:1px solid var(--border);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--muted);}
+.empty{text-align:center;padding:52px 20px;color:var(--muted-fg);}
+.empty svg{opacity:.35;}
+.empty h3{font-size:15px;font-weight:500;color:var(--fg);margin-top:12px;}
+/* Code box */
+.code-box{display:flex;align-items:center;gap:14px;padding:16px 18px;border:1px solid var(--border);border-radius:6px;background:var(--muted);}
+.code-val{font-size:28px;font-weight:700;letter-spacing:.25em;color:var(--role);font-family:monospace;}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:39;display:none;}
+.ovl.show{display:block;}
+.toast{position:fixed;bottom:24px;right:24px;z-index:300;background:var(--fg);color:var(--bg);padding:11px 18px;font-size:13px;display:flex;align-items:center;gap:8px;border-radius:6px;transform:translateY(80px);opacity:0;transition:all .22s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:var(--border);}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sb" id="sb">
+  <div class="sb-top">
+    <div class="brand">
+      <div class="brand-logo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+      <span>Novelux</span>
+    </div>
+    <button onclick="closeSb()" style="background:none;border:none;color:var(--muted-fg);">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+    </button>
+  </div>
+  <nav class="sb-nav">
+    <span class="nlbl">Overview</span>
+    <button class="nbtn active" id="nb-dashboard" onclick="gp('dashboard',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      Dashboard
+    </button>
+    <span class="nlbl">Editorial</span>
+    <button class="nbtn" id="nb-queue" onclick="gp('queue',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+      Story Queue
+      {% if pending_count %}<span class="nb-badge">{{ pending_count }}</span>{% endif %}
+    </button>
+    <button class="nbtn" id="nb-approved" onclick="gp('approved',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      Approved Stories
+    </button>
+    <span class="nlbl">Authors</span>
+    <button class="nbtn" id="nb-authors" onclick="gp('authors',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      My Authors
+    </button>
+    <button class="nbtn" id="nb-invite" onclick="gp('invite',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+      Invite Authors
+    </button>
+    <span class="nlbl">Account</span>
+    <button class="nbtn" id="nb-profile" onclick="gp('profile',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Profile
+    </button>
+  </nav>
+  <div class="sb-bot">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);border-radius:6px;">
+      <div class="av">{{ editor.username|first|upper }}</div>
+      <div>
+        <p style="font-size:13px;font-weight:500;line-height:1.3;">{{ editor.get_full_name|default:editor.username }}</p>
+        <div class="pip">Senior Editor</div>
+      </div>
+    </div>
+    <a href="/logout/" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:7px 10px;font-size:12px;color:var(--muted-fg);">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+<div class="ovl" id="ovl" onclick="closeSb()"></div>
+
+<!-- MAIN -->
+<div class="main">
+  <header class="topbar">
+    <div class="tl">
+      <button class="mbtn" onclick="openSb()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:600;" id="ptitle">Dashboard</span>
+    </div>
+    <div class="tr">
+      <button class="themb" id="thb">
+        <svg class="isun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="imoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="bdg bpu" style="font-size:10px;padding:3px 8px;">SE</span>
+    </div>
+  </header>
+
+  <!-- ── DASHBOARD ── -->
+  <div class="page active" id="page-dashboard">
+    <div class="ph ph-row">
+      <div>
+        <h1>{{ editor.get_full_name|default:editor.username }} 👋</h1>
+        <p>
+          {% if pending_count %}
+            <strong>{{ pending_count }}</strong> stor{{ pending_count|pluralize:"y,ies" }} in your review queue.
+          {% else %}
+            No stories pending review.
+          {% endif %}
+          {{ author_overview|length }} author{{ author_overview|length|pluralize }} linked.
+        </p>
+      </div>
+      <button class="btn bp bsm" onclick="gp('queue',document.getElementById('nb-queue'))">Story Queue →</button>
+    </div>
+
+    <div class="sgrid">
+      <div class="sc"><div class="sl">Pending Review</div><div class="sv">{{ pending_count|default:"0" }}</div><div class="ss">Stories to review</div></div>
+      <div class="sc"><div class="sl">My Authors</div><div class="sv">{{ author_overview|length }}</div></div>
+      <div class="sc"><div class="sl">Cleared (7d)</div><div class="sv">{{ cleared_this_week|default:"0" }}</div></div>
+      <div class="sc">
+        <div class="sl">Invite Code</div>
+        <div class="sv" style="font-size:16px;letter-spacing:.12em;font-family:monospace;color:var(--role);">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</div>
+        <div class="ss">Share with authors</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        {% if review_stories %}
+        <div class="card" style="margin-bottom:20px;">
+          <div class="ch"><h2>Needs Review</h2><span class="bdg brd">{{ pending_count }}</span></div>
+          <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+            {% for s in review_stories|slice:":3" %}
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:6px;cursor:pointer;" onclick="gp('queue',document.getElementById('nb-queue'))">
+              {% if s.cover_image %}<img src="{{ s.cover_image.url }}" style="width:36px;height:48px;object-fit:cover;border-radius:3px;flex-shrink:0;" alt="">{% else %}<div style="width:36px;height:48px;border-radius:3px;background:var(--muted);flex-shrink:0;"></div>{% endif %}
+              <div style="flex:1;min-width:0;">
+                <p style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.title }}</p>
+                <p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">by {{ s.author.username }} · {{ s.chapters.count }} ch · {{ s.updated_at|timesince }} ago</p>
+              </div>
+              <span class="bdg byw2">Pending</span>
+            </div>
+            {% endfor %}
+            {% if pending_count > 3 %}<p style="font-size:12px;color:var(--muted-fg);padding:4px 12px;">+{{ pending_count|add:"-3" }} more in queue</p>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if approved_stories %}
+        <div class="card">
+          <div class="ch"><h2>Recently Approved</h2></div>
+          <div style="padding:12px 14px;display:flex;flex-direction:column;gap:6px;">
+            {% for s in approved_stories|slice:":5" %}
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:hsl(142 60% 40%);flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <p style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ s.title }}</p>
+                <p style="font-size:11px;color:var(--muted-fg);">{{ s.author.username }} · {{ s.contract_status }}</p>
+              </div>
+              <span class="bdg bgr">Approved</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if not review_stories and not approved_stories %}
+        <div class="empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <h3>Queue is clear</h3>
+          <p>Stories submitted by your authors will appear here.</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <div class="card">
+          <div class="ch"><h2>Invite Code</h2></div>
+          <div class="cb">
+            <p style="font-size:12px;color:var(--muted-fg);margin-bottom:12px;">Share with authors to link them to you at signup.</p>
+            <div class="code-box" style="margin-bottom:10px;">
+              <span class="code-val">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</span>
+              <button onclick="copyCode()" class="btn bo bsm">Copy</button>
+            </div>
+            <p style="font-size:11px;color:var(--muted-fg);">{{ author_overview|length }} author{{ author_overview|length|pluralize }} linked</p>
+          </div>
+        </div>
+
+        {% if author_overview %}
+        <div class="card">
+          <div class="ch"><h2>My Authors</h2></div>
+          <div class="cb" style="display:flex;flex-direction:column;gap:10px;">
+            {% for a in author_overview|slice:":5" %}
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:26px;height:26px;border-radius:50%;background:hsl(220 60% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;">{{ a.username|first|upper }}</div>
+              <div>
+                <p style="font-size:13px;font-weight:500;">{{ a.get_full_name|default:a.username }}</p>
+                <p style="font-size:11px;color:var(--muted-fg);">{{ a.email }}</p>
+              </div>
+            </div>
+            {% endfor %}
+            {% if author_overview|length > 5 %}<button class="btn bo bsm" onclick="gp('authors',document.getElementById('nb-authors'))">View all {{ author_overview|length }} →</button>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STORY QUEUE ── -->
+  <div class="page" id="page-queue">
+    <div class="ph ph-row">
+      <div>
+        <h1>Story Queue</h1>
+        <p>Stories from your linked authors that have hit the chapter threshold and need your review.</p>
+      </div>
+      <span class="bdg brd" style="font-size:12px;padding:4px 10px;" id="queue-count-badge">{{ pending_count|default:"0" }} pending</span>
+    </div>
+
+    <div id="story-queue-list">
+      {% if review_stories %}
+        {% for s in review_stories %}
+        <div class="story-card" id="sc-{{ s.id }}">
+          <div class="story-head">
+            {% if s.cover_image %}<img class="story-cover" src="{{ s.cover_image.url }}" alt="">{% else %}<div class="story-cover"></div>{% endif %}
+            <div class="story-meta">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <p class="story-title">{{ s.title }}</p>
+                  <p class="story-sub">by {{ s.author.get_full_name|default:s.author.username }} ({{ s.author.email }}) · {{ s.chapters.count }} chapters · {{ s.word_count|default:"0" }} words</p>
+                  {% if s.synopsis %}<p style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px;font-style:italic;">{{ s.synopsis }}</p>{% endif %}
+                  {% if s.description %}<p style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px;">{{ s.description|truncatechars:200 }}</p>{% endif %}
+                  {% if s.story_outline %}
+                  <details style="margin-top:8px;">
+                    <summary style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);cursor:pointer;user-select:none;">Story Outline</summary>
+                    <div style="margin-top:8px;padding:10px 14px;background:var(--muted);border-left:3px solid var(--role);font-size:12px;color:var(--fg);line-height:1.7;white-space:pre-wrap;">{{ s.story_outline }}</div>
+                  </details>
+                  {% endif %}
+                  {% if s.external_link %}
+                  <p style="margin-top:6px;font-size:11px;color:var(--muted-fg);">
+                    Also on: <a href="{{ s.external_link }}" target="_blank" rel="noopener" style="color:var(--role);text-decoration:none;word-break:break-all;">{{ s.external_link }}</a>
+                  </p>
+                  {% endif %}
+
+                  <!-- ── Author Identity (KYC) ── -->
+                  {% if s.author_kyc %}
+                  <details style="margin-top:10px;">
+                    <summary style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;list-style:none;">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      Author Identity
+                      {% if s.author_kyc.status == 'approved' %}<span style="background:hsl(142 60% 40%/.15);color:hsl(142 60% 34%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Verified</span>
+                      {% elif s.author_kyc.status == 'pending' %}<span style="background:hsl(38 92% 50%/.15);color:hsl(38 62% 38%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Pending</span>
+                      {% else %}<span style="background:hsl(0 68% 50%/.15);color:hsl(0 68% 44%);padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;">Rejected</span>{% endif %}
+                    </summary>
+                    <div style="margin-top:8px;padding:12px 14px;background:var(--muted);border-left:3px solid var(--role);border-radius:0 6px 6px 0;font-size:12px;line-height:1.8;">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;">
+                        <div><span style="color:var(--muted-fg);">Full Name</span><br/><strong>{{ s.author_kyc.full_name }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Phone</span><br/><strong>{{ s.author_kyc.phone }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Country</span><br/><strong>{{ s.author_kyc.country }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Contact Address</span><br/><strong>{{ s.author_kyc.contact_address }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">ID Type</span><br/><strong>{{ s.author_kyc.get_id_type_display }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">ID Number</span><br/><strong>{{ s.author_kyc.id_number }}</strong></div>
+                        {% if s.author_kyc.payment_method == 'bank_account' %}
+                        <div><span style="color:var(--muted-fg);">Bank</span><br/><strong>{{ s.author_kyc.bank_name }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Account</span><br/><strong>{{ s.author_kyc.account_number }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Swift</span><br/><strong>{{ s.author_kyc.swift_code }}</strong></div>
+                        <div><span style="color:var(--muted-fg);">Bank Country</span><br/><strong>{{ s.author_kyc.bank_country }}</strong></div>
+                        {% else %}
+                        <div><span style="color:var(--muted-fg);">PayPal</span><br/><strong>{{ s.author_kyc.paypal_email }}</strong></div>
+                        {% endif %}
+                      </div>
+                      {% if s.author_kyc.id_document %}
+                      <div style="margin-top:10px;">
+                        <span style="color:var(--muted-fg);">ID Document</span><br/>
+                        <a href="{{ s.author_kyc.id_document.url }}" target="_blank" rel="noopener" style="color:var(--role);font-size:12px;text-decoration:none;display:inline-flex;align-items:center;gap:4px;margin-top:4px;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                          View ID Document
+                        </a>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </details>
+                  {% else %}
+                  <div style="margin-top:8px;padding:6px 10px;background:hsl(38 92% 50%/.1);border:1px solid hsl(38 92% 50%/.3);border-radius:5px;font-size:11px;color:hsl(38 62% 38%);">
+                    ⚠️ No KYC submitted — author has not completed identity verification.
+                  </div>
+                  {% endif %}
+                </div>
+                <span class="bdg byw2">Pending Review</span>
+              </div>
+              <div class="story-actions">
+                <button class="btn bp bsm" onclick="approveStory('{{ s.slug }}','{{ s.title|escapejs }}')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Approve & Send to CE
+                </button>
+                <button class="btn byw bsm" onclick="requestRevision('{{ s.slug }}','{{ s.title|escapejs }}')">Request Revision</button>
+                <button class="btn bdk bsm" onclick="rejectStory('{{ s.slug }}','{{ s.title|escapejs }}')">Reject</button>
+                <button class="btn bo bsm" onclick="escalateToCE('{{ s.slug }}','{{ s.title|escapejs }}')">→ Escalate to CE</button>
+              </div>
+            </div>
+          </div>
+          <div class="ch-list">
+            <div class="ch-list-head" onclick="toggleChapters('chaps-{{ s.id }}',this)">
+              <span>{{ s.chapters.count }} Chapter{{ s.chapters.count|pluralize }} — click to expand</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ch-items" id="chaps-{{ s.id }}">
+              {% for ch in s.chapters_list %}
+              <div class="ch-row">
+                <span class="ch-num">{{ ch.chapter_number }}</span>
+                <span class="ch-title">{{ ch.title }}</span>
+                <span class="ch-wc">{{ ch.word_count|default:"—" }} words</span>
+                <span class="ch-status bdg {% if ch.status == 'pending_review' or ch.status == 'se_reviewing' %}byw2{% elif ch.status == 'se_approved' %}bgr{% elif ch.status == 'rejected' %}brd{% else %}bgy{% endif %}">{{ ch.status|title|cut:"_" }}</span>
+                <button class="ch-read-btn" onclick="readChapter({{ ch.id }},'{{ ch.title|escapejs }}')">Read</button>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+          <h3>Queue is empty</h3>
+          <p>When your linked authors reach the chapter threshold, their stories will appear here for review.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── APPROVED STORIES ── -->
+  <div class="page" id="page-approved">
+    <div class="ph"><h1>Contract Pipeline</h1><p>Stories you have approved and their current CE stage.</p></div>
+
+    {% if approved_stories %}
+    <div class="card" style="margin-bottom:20px;">
+      <div class="ch"><h2>CE Pipeline</h2></div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Story</th><th>Author</th><th>Chapters</th><th>CE Stage</th></tr></thead>
+          <tbody>
+          {% for s in approved_stories %}
+            {% with app=s.contract_application %}
+            <tr>
+              <td style="font-weight:500;">{{ s.title }}</td>
+              <td style="color:var(--muted-fg);">{{ s.author.username }}</td>
+              <td style="color:var(--muted-fg);">{{ s.chapters.count }}</td>
+              <td>
+                {% if s.contract_status == 'signed' %}
+                  <span class="bdg bgr">Signed ✓</span>
+                {% elif s.contract_status == 'awaiting_signature' %}
+                  <span class="bdg bpu">Contract Sent to Author</span>
+                {% elif s.contract_status == 'contract_sent' %}
+                  <span class="bdg byw2">With CE</span>
+                {% else %}
+                  <span class="bdg bgy">{{ s.contract_status|title|cut:"_" }}</span>
+                {% endif %}
+                {% if app and app.contract_type %}
+                  <span style="font-size:10px;color:var(--muted-fg);margin-left:4px;">{{ app.get_contract_type_display }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endwith %}
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if ce_rejected_apps %}
+    <div class="card" style="margin-bottom:20px;">
+      <div class="ch" style="border-left:3px solid hsl(0 68% 50%);">
+        <h2 style="color:hsl(0 68% 44%);">CE Rejected</h2>
+        <span class="bdg brd">{{ ce_rejected_apps|length }}</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Story</th><th>Author</th><th>Rejected</th><th>Reason</th></tr></thead>
+          <tbody>
+          {% for app in ce_rejected_apps %}
+            <tr>
+              <td style="font-weight:500;">{{ app.story.title }}</td>
+              <td style="color:var(--muted-fg);">{{ app.story.author.username }}</td>
+              <td style="color:var(--muted-fg);white-space:nowrap;">{{ app.rejected_at|date:"d M Y" }}</td>
+              <td style="font-size:12px;color:var(--muted-fg);">{{ app.rejection_reason|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if not approved_stories and not ce_rejected_apps %}
+    <div class="empty"><h3>No approved stories yet</h3><p>Stories you approve will appear here.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── MY AUTHORS ── -->
+  <div class="page" id="page-authors">
+    <div class="ph ph-row">
+      <div><h1>My Authors</h1><p>Authors linked to you via your invite code or auto-assignment.</p></div>
+      <span class="bdg bpu" style="font-size:12px;padding:4px 10px;">{{ author_overview|length }} total</span>
+    </div>
+    {% if author_overview %}
+    <div class="card">
+      <div style="overflow-x:auto;">
+        <table class="tbl">
+          <thead><tr><th>Author</th><th>Email</th></tr></thead>
+          <tbody>
+          {% for a in author_overview %}
+            <tr>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="width:26px;height:26px;border-radius:50%;background:hsl(220 60% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:700;">{{ a.username|first|upper }}</div>
+                  <span style="font-weight:500;">{{ a.get_full_name|default:a.username }}</span>
+                </div>
+              </td>
+              <td style="color:var(--muted-fg);font-size:12px;">{{ a.email }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty"><h3>No authors yet</h3><p>Share your invite code to recruit authors.</p></div>
+    {% endif %}
+  </div>
+
+  <!-- ── INVITE AUTHORS ── -->
+  <div class="page" id="page-invite">
+    <div class="ph"><h1>Invite Authors</h1><p>Share your code with writers you want to work with.</p></div>
+    <div class="card" style="max-width:520px;">
+      <div class="ch"><h2>Your Invite Code</h2></div>
+      <div class="cb">
+        <p style="font-size:13px;color:var(--muted-fg);margin-bottom:18px;">Authors enter this code during signup or in their settings to link directly to you. Once linked, their stories appear in your review queue when they hit the chapter threshold.</p>
+        <div class="code-box" style="margin-bottom:18px;">
+          <span class="code-val" id="inviteCode">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</span>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button onclick="copyCode()" class="btn bp bsm">Copy</button>
+            <button onclick="shareCode()" class="btn bo bsm">Share</button>
+          </div>
+        </div>
+        <div style="padding:12px 16px;background:color-mix(in srgb,var(--role) 6%,transparent);border:1px solid color-mix(in srgb,var(--role) 18%,transparent);border-radius:6px;">
+          <p style="font-size:12px;color:var(--muted-fg);">Tell your authors:</p>
+          <p style="font-size:13px;margin-top:5px;font-style:italic;">"Sign up on Novelux and enter code <strong style="color:var(--role);font-family:monospace;">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</strong> to be linked to me as your Senior Editor."</p>
+        </div>
+        <p style="font-size:12px;color:var(--muted-fg);margin-top:14px;">{{ author_overview|length }} author{{ author_overview|length|pluralize }} currently linked.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROFILE ── -->
+  <div class="page" id="page-profile">
+    <div class="ph"><h1>Profile</h1></div>
+    <div class="card" style="max-width:560px;">
+      <div class="ch"><h2>Editor Information</h2></div>
+      <div class="cb">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;">{{ editor.username|first|upper }}</div>
+          <div>
+            <p style="font-size:16px;font-weight:600;">{{ editor.get_full_name|default:editor.username }}</p>
+            <p style="font-size:12px;color:var(--muted-fg);">{{ editor.email }}</p>
+            <div class="pip" style="margin-top:5px;">SENIOR EDITOR</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Authors</p><p style="font-size:14px;font-weight:500;">{{ author_overview|length }}</p></div>
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Pending Stories</p><p style="font-size:14px;font-weight:500;">{{ pending_count|default:"0" }}</p></div>
+          <div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Cleared (7d)</p><p style="font-size:14px;font-weight:500;">{{ cleared_this_week|default:"0" }}</p></div>
+          {% if supervisor_ce %}<div><p style="font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Reports to (CE)</p><p style="font-size:14px;font-weight:500;">{{ supervisor_ce.get_full_name|default:supervisor_ce.username }}</p></div>{% endif %}
+        </div>
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+          <p style="font-size:12px;color:var(--muted-fg);margin-bottom:10px;">Your invite code</p>
+          <div class="code-box">
+            <span class="code-val">{% if editor.editor_code %}{{ editor.editor_code }}{% else %}——{% endif %}</span>
+            <button onclick="copyCode()" class="btn bo bsm">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- Chapter Read Modal -->
+<div class="modal-bg" id="readModal">
+  <div class="modal">
+    <div class="modal-top">
+      <h3 id="modalTitle">Chapter</h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--muted-fg);font-size:20px;line-height:1;">×</button>
+    </div>
+    <div class="modal-body" id="modalBody">Loading…</div>
+    <div class="modal-foot">
+      <button class="btn bo bsm" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="tmsg"></span></div>
+
+<script>
+const NUX = {
+  token:   document.querySelector('meta[name="nux-token"]')?.content || '',
+  apiBase: document.querySelector('meta[name="nux-api"]')?.content || '/api',
+  async call(p, o={}) {
+    const r = await fetch(this.apiBase + p, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, ...(o.headers||{}) },
+      ...o,
+    });
+    if (!r.ok) { const e = await r.json().catch(()=>({})); throw e; }
+    return r.json();
+  },
+  post(p, b) { return this.call(p, { method: 'POST', body: JSON.stringify(b) }); },
+  get(p)     { return this.call(p); },
+};
+
+// Theme
+document.getElementById('thb').onclick = () => {
+  const d = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('nux_theme', d ? 'dark' : 'light');
+};
+
+// Sidebar
+function openSb()  { document.getElementById('sb').classList.add('open');  document.getElementById('ovl').classList.add('show'); }
+function closeSb() { document.getElementById('sb').classList.remove('open'); document.getElementById('ovl').classList.remove('show'); }
+
+// Pages
+const ptitles = { dashboard:'Dashboard', queue:'Story Queue', approved:'Approved Stories', authors:'My Authors', invite:'Invite Authors', profile:'Profile' };
+function gp(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id)?.classList.add('active');
+  document.querySelectorAll('.nbtn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('ptitle').textContent = ptitles[id] || id;
+  closeSb();
+}
+
+// Toast
+let _tt;
+function toast(m, dur=2800) {
+  clearTimeout(_tt);
+  document.getElementById('tmsg').textContent = m;
+  document.getElementById('toast').classList.add('show');
+  _tt = setTimeout(() => document.getElementById('toast').classList.remove('show'), dur);
+}
+
+// Toggle chapters
+function toggleChapters(id, head) {
+  const el = document.getElementById(id);
+  const icon = head.querySelector('svg');
+  el.classList.toggle('open');
+  icon.style.transform = el.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+// Read chapter in modal
+async function readChapter(id, title) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Loading…</p>';
+  document.getElementById('readModal').classList.add('open');
+  try {
+    const data = await NUX.get('/editorial/reviews/' + id + '/');
+    const content = data.chapter_content || data.content || '(No content)';
+    document.getElementById('modalBody').innerHTML = '<div style="line-height:1.8;">' + content + '</div>';
+  } catch(e) {
+    document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Failed to load chapter content.</p>';
+  }
+}
+function closeModal() { document.getElementById('readModal').classList.remove('open'); }
+document.getElementById('readModal').addEventListener('click', e => { if (e.target === document.getElementById('readModal')) closeModal(); });
+
+// Story actions
+async function approveStory(slug, title) {
+  const note = prompt(`Approve "${title}" and send to CE?\n\nOptional note for the author:`, '');
+  if (note === null) return;
+  try {
+    await NUX.post('/editorial/story-queue/' + slug + '/approve/', { note });
+    toast('Story approved and sent to CE ✓');
+    removeStoryCard(slug);
+    updateQueueBadge(-1);
+  } catch(e) {
+    toast('Error: ' + (e.detail || 'Failed to approve'));
+  }
+}
+
+async function requestRevision(slug, title) {
+  const reason = prompt(`Request revisions on "${title}"?\n\nExplain what the author needs to fix:`);
+  if (!reason) return;
+  try {
+    await NUX.post('/editorial/story-queue/' + slug + '/reject/', { reason, action: 'revision' });
+    toast('Revision requested — author notified.');
+    removeStoryCard(slug);
+    updateQueueBadge(-1);
+  } catch(e) {
+    toast('Error: ' + (e.detail || 'Failed'));
+  }
+}
+
+async function rejectStory(slug, title) {
+  if (!confirm(`Reject "${title}"?\n\nThis will return the story to the author with no contract path.`)) return;
+  const reason = prompt('Reason for rejection:');
+  if (reason === null) return;
+  try {
+    await NUX.post('/editorial/story-queue/' + slug + '/reject/', { reason: reason||'', action: 'reject' });
+    toast('Story rejected.');
+    removeStoryCard(slug);
+    updateQueueBadge(-1);
+  } catch(e) {
+    toast('Error: ' + (e.detail || 'Failed'));
+  }
+}
+
+async function escalateToCE(slug, title) {
+  const reasoning = prompt(`Escalate "${title}" directly to CE?\n\nReasoning:`);
+  if (reasoning === null) return;
+  try {
+    await NUX.post('/editorial/story-queue/' + slug + '/escalate/', { reasoning: reasoning||'' });
+    toast('Escalated to Chief Editor.');
+    removeStoryCard(slug);
+    updateQueueBadge(-1);
+  } catch(e) {
+    toast('Error: ' + (e.detail || 'Failed'));
+  }
+}
+
+function removeStoryCard(slug) {
+  // Remove card from DOM — find by data attr not id (id uses pk not slug)
+  const cards = document.querySelectorAll('#story-queue-list .story-card');
+  cards.forEach(c => {
+    if (c.querySelector(`[onclick*="${slug}"]`)) c.remove();
+  });
+  const list = document.getElementById('story-queue-list');
+  if (list && !list.querySelector('.story-card')) {
+    list.innerHTML = '<div class="empty"><h3>Queue is empty</h3><p>All stories reviewed.</p></div>';
+  }
+}
+
+let _queueCount = {{ pending_count|default:0 }};
+function updateQueueBadge(delta) {
+  _queueCount = Math.max(0, _queueCount + delta);
+  const badge = document.getElementById('queue-count-badge');
+  if (badge) badge.textContent = _queueCount + ' pending';
+  const nb = document.getElementById('nb-queue');
+  const existing = nb?.querySelector('.nb-badge');
+  if (_queueCount > 0) {
+    if (existing) existing.textContent = _queueCount;
+    else if (nb) { const s = document.createElement('span'); s.className = 'nb-badge'; s.textContent = _queueCount; nb.appendChild(s); }
+  } else if (existing) existing.remove();
+}
+
+// Copy/share invite code
+function copyCode() {
+  const code = document.getElementById('inviteCode')?.textContent?.trim() ||
+               document.querySelector('.code-val')?.textContent?.trim();
+  if (!code || code === '——') return;
+  navigator.clipboard.writeText(code).then(() => toast('Invite code copied!'));
+}
+function shareCode() {
+  const code = document.getElementById('inviteCode')?.textContent?.trim();
+  if (!code || code === '——') return;
+  const url = window.location.origin + '/register/?editor_code=' + code;
+  if (navigator.share) {
+    navigator.share({ title: 'Join me on Novelux', text: 'Use my code ' + code + ' when signing up.', url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => toast('Invite link copied!'));
+  }
+}
+</script>
+</body>
+</html>

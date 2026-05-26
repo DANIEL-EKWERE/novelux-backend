@@ -1,0 +1,4 @@
+# novelux-credentials.json
+*.json
+novelux-*.json
+.env

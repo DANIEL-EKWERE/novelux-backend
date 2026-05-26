@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  document.documentElement.classList.toggle('dark',t==='dark');
+  document.documentElement.classList.toggle('light',t!=='dark');
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Invalid Invite – Novelux</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);--primary:hsl(14 62% 38%);--muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);--border:hsl(0 0% 90%);--danger:hsl(0 68% 50%);}
+html.dark{--bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);--muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);--border:hsl(240 4% 26%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+.card{width:100%;max-width:400px;border:1px solid var(--border);padding:40px 36px;text-align:center;}
+.icon{width:52px;height:52px;border-radius:50%;background:color-mix(in srgb,var(--danger) 10%,transparent);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;color:var(--danger);}
+h1{font-size:20px;font-weight:600;margin-bottom:8px;}
+p{font-size:13px;color:var(--muted-fg);line-height:1.6;margin-bottom:20px;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;font-size:13px;font-weight:500;background:var(--primary);color:#fff;text-decoration:none;}
+.btn:hover{opacity:.88;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+  </div>
+  <h1>Invite Not Valid</h1>
+  <p>{{ reason|default:"This invite link is no longer valid." }}</p>
+  {% if invite %}
+  <p style="font-size:12px;">Invited email: <strong>{{ invite.email }}</strong><br/>
+  Status: <strong>{{ invite.get_status_display }}</strong></p>
+  {% endif %}
+  <p style="font-size:12px;color:var(--muted-fg);">If you think this is a mistake, contact your Chief Editor and ask them to resend the invite.</p>
+  <a href="/" class="btn">Go to Novelux</a>
+</div>
+</body>
+</html>

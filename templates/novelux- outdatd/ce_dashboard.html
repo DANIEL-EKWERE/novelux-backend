@@ -1,0 +1,982 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark',t==='dark');h.classList.toggle('light',t!=='dark');
+})();
+</script>
+<!-- NoveluX JWT Bridge -->
+<meta name="nux-token"    content="{{ access_token }}">
+<meta name="nux-username" content="{{ editor.username|default:'' }}">
+<meta name="nux-role"     content="{{ role }}">
+<meta name="nux-api"      content="{{ api_url|default:'/api' }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Chief Editor Dashboard – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--card:hsl(0 0% 99%);
+  --sidebar-w:220px;
+  --role-color:hsl(14 62% 38%);
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);--card:hsl(240 5% 9%);
+  --role-color:hsl(14 62% 55%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);height:100%;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+textarea,input,select{font-family:inherit;font-size:inherit;}
+svg{display:inline-block;vertical-align:middle;}
+
+.dash-layout{display:flex;min-height:100vh;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .3s;overflow-y:auto;}
+.sidebar.open{transform:translateX(0);}
+@media(min-width:1024px){.sidebar{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sidebar-head{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sidebar-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);}
+@media(min-width:1024px){.sidebar-close{display:none;}}
+.sidebar-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}
+.nav-section-label:first-child{margin-top:0;}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;text-align:left;transition:background .12s,color .12s;border-radius:2px;}
+.nav-btn:hover{background:var(--muted);color:var(--fg);}
+.nav-btn.active{background:color-mix(in srgb,var(--role-color) 10%,transparent);color:var(--role-color);font-weight:500;}
+.nav-btn .nav-icon{width:16px;height:16px;flex-shrink:0;}
+.sidebar-foot{padding:16px 12px;border-top:1px solid var(--border);}
+.editor-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);}
+.editor-avatar{width:34px;height:34px;border-radius:50%;background:var(--role-color);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.editor-info p{font-size:13px;font-weight:500;}
+.role-pip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.08em;background:color-mix(in srgb,var(--role-color) 12%,transparent);color:var(--role-color);margin-top:4px;}
+
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px;}
+@media(min-width:640px){.topbar{padding:0 24px;gap:12px;}}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.menu-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--fg);}
+@media(min-width:1024px){.menu-btn{display:none;}}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);transition:color .15s;position:relative;}
+.icon-btn:hover{color:var(--fg);}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--muted-fg);transition:color .15s;}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}
+html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}
+html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+
+.page{display:none;padding:24px 12px 80px;max-width:1200px;margin:0 auto;width:100%;}
+@media(min-width:640px){.page{padding:32px 20px 80px;}}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}
+.page.active{display:block;}
+
+.dash-hero{padding:20px 12px 20px;background:color-mix(in srgb,var(--role-color) 5%,transparent);border-bottom:1px solid var(--border);margin-bottom:24px;position:relative;overflow:hidden;}
+@media(min-width:640px){.dash-hero{padding:32px 20px 28px;margin-bottom:32px;}}
+@media(min-width:1024px){.dash-hero{padding:32px 24px 28px;}}
+.dash-hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;}
+.dash-hero>*{position:relative;z-index:1;}
+.dash-hero h1{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.dash-hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.dash-hero-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.stat-grid{grid-template-columns:repeat(3,1fr);gap:12px;}}
+@media(min-width:900px){.stat-grid{grid-template-columns:repeat(6,1fr);}}
+.stat-card{border:1px solid var(--border);padding:16px 20px;background:var(--card);}
+.stat-card .stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.stat-card .stat-val{margin-top:6px;font-size:22px;font-weight:600;letter-spacing:-.02em;}
+.stat-card .stat-change{margin-top:3px;font-size:11px;color:var(--muted-fg);}
+.stat-card .stat-change.up{color:hsl(142 60% 40%);}
+.stat-card .stat-change.down{color:hsl(0 70% 50%);}
+
+.card{border:1px solid var(--border);background:var(--card);}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-head h2{font-size:14px;font-weight:600;}
+.card-body{padding:20px;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:13px;font-weight:500;transition:opacity .15s;cursor:pointer;font-family:inherit;border:none;}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-primary:hover{opacity:.88;}
+.btn-role{background:var(--role-color);color:#fff;}
+.btn-role:hover{opacity:.88;}
+.btn-outline{border:1px solid var(--border);color:var(--fg);background:none;}
+.btn-outline:hover{background:var(--muted);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-ghost{color:var(--muted-fg);padding:6px 8px;font-size:12px;}
+.btn-ghost:hover{color:var(--fg);}
+.btn-danger{background:hsl(0 70% 50%);color:#fff;}
+.btn-danger:hover{opacity:.88;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:500;letter-spacing:.04em;}
+.badge-green{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.badge-yellow{background:color-mix(in srgb,hsl(45 90% 50%) 12%,transparent);color:hsl(45 80% 30%);}
+html.dark .badge-yellow{color:hsl(45 90% 60%);}
+.badge-gray{background:var(--muted);color:var(--muted-fg);}
+.badge-red{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.badge-orange{background:color-mix(in srgb,var(--role-color) 12%,transparent);color:var(--role-color);}
+.badge-blue{background:color-mix(in srgb,hsl(220 70% 48%) 12%,transparent);color:hsl(220 70% 48%);}
+html.dark .badge-blue{color:hsl(220 70% 65%);}
+.badge-purple{background:color-mix(in srgb,hsl(270 60% 48%) 12%,transparent);color:hsl(270 60% 48%);}
+html.dark .badge-purple{color:hsl(270 60% 65%);}
+
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th,.data-table td{padding:12px 16px;text-align:left;font-size:13px;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.data-table td{border-bottom:1px solid var(--border);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--muted);}
+.data-table .t-title{font-weight:500;}
+
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.form-label{font-size:12px;font-weight:500;color:var(--fg);letter-spacing:.02em;}
+.form-input,.form-select,.form-textarea{padding:10px 12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:14px;outline:none;transition:border-color .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--role-color);}
+.form-textarea{resize:vertical;line-height:1.6;}
+
+.analytics-grid{display:grid;grid-template-columns:1fr;gap:20px;}
+@media(min-width:768px){.analytics-grid{grid-template-columns:2fr 1fr;}}
+
+.prog-bar{height:4px;background:var(--border);overflow:hidden;}
+.prog-fill{height:100%;background:var(--role-color);transition:width .4s;}
+.prog-fill-blue{height:100%;background:hsl(220 70% 48%);transition:width .4s;}
+.prog-fill-purple{height:100%;background:hsl(270 60% 48%);transition:width .4s;}
+
+.chart-ph{height:160px;display:flex;align-items:flex-end;gap:4px;padding:16px;}
+.chart-bar{flex:1;background:color-mix(in srgb,var(--role-color) 20%,transparent);border-top:2px solid var(--role-color);transition:background .15s;}
+.chart-bar:hover{background:color-mix(in srgb,var(--role-color) 35%,transparent);}
+.chart-labels{display:flex;justify-content:space-between;padding:4px 16px 0;font-size:10px;color:var(--muted-fg);}
+
+/* CE-specific: editorial hierarchy visual */
+.hierarchy{display:flex;flex-direction:column;gap:0;}
+.hierarchy-level{padding:16px 20px;border:1px solid var(--border);margin-bottom:4px;}
+.hierarchy-level:last-child{margin-bottom:0;}
+.hierarchy-role{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:8px;}
+.hierarchy-members{display:flex;flex-wrap:wrap;gap:8px;}
+.member-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;background:var(--muted);font-size:12px;}
+.member-dot{width:7px;height:7px;border-radius:50%;}
+
+.modal-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal-box{background:var(--bg);border:1px solid var(--border);padding:32px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(16px);transition:transform .25s;}
+.modal-overlay.show .modal-box{transform:translateY(0);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-head h2{font-size:16px;font-weight:600;}
+
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--fg);color:var(--bg);padding:12px 20px;font-size:13px;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}
+.overlay.show{display:block;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="dash-layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <span>Novelux</span>
+    </div>
+    <button class="sidebar-close" onclick="closeSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Overview</span>
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      Dashboard
+    </button>
+    <span class="nav-section-label">Decisions</span>
+    <button class="nav-btn" onclick="showPage('ce-escalations',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      CE Escalations
+    </button>
+    <button class="nav-btn" onclick="showPage('policy-board',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/><line x1="15" x2="15" y1="9" y2="21"/></svg>
+      Policy Board
+    </button>
+    <button class="nav-btn" onclick="showPage('final-review',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Final Approvals
+    </button>
+    <span class="nav-section-label">Organisation</span>
+    <button class="nav-btn" onclick="showPage('org-overview',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Editorial Team
+    </button>
+    <button class="nav-btn" onclick="showPage('se-oversight',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      SE Oversight
+    </button>
+    <span class="nav-section-label">Platform</span>
+    <button class="nav-btn" onclick="showPage('analytics',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+      Platform Analytics
+    </button>
+    <button class="nav-btn" onclick="showPage('guidelines',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+      Editorial Guidelines
+    </button>
+    <span class="nav-section-label">Account</span>
+    <button class="nav-btn" onclick="showPage('profile',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Profile
+    </button>
+    <button class="nav-btn" onclick="showPage('settings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="editor-badge">
+      <div class="editor-avatar">C</div>
+      <div class="editor-info">
+        <p>Chiamaka Eze</p>
+        <div class="role-pip">CE · Chief Editor</div>
+      </div>
+    </div>
+    <a href="#" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);transition:color .15s;width:100%;" onmouseover="this.style.color='var(--fg)'" onmouseout="this.style.color='var(--muted-fg)'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<div class="main-area">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="openSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" title="Notifications"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="notif-dot"></span></button>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="badge badge-orange" style="font-size:10px;letter-spacing:.06em;">CE</span>
+    </div>
+  </header>
+
+  <!-- ══════ PAGE: DASHBOARD ══════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Good morning, {{ editor.username|default:"Editor" }} 👋</h1>
+          <p>Platform-wide editorial overview · {{ ce_escalation_count|default:"0" }} CE escalations require your final decision.</p>
+        </div>
+        <button class="btn btn-role btn-sm" onclick="showPage('ce-escalations',document.querySelector('[onclick*=ce-escalations]'))">View CE Escalations →</button>
+      </div>
+    </div>
+    <div style="padding:0 12px 0;max-width:1200px;margin:0 auto;width:100%;">
+
+      <!-- 6-metric overview -->
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">CE Escalations</div><div class="stat-val">2</div><div class="stat-change">Awaiting final decision</div></div>
+        <div class="stat-card"><div class="stat-label">Platform Chapters</div><div class="stat-val">1,247</div><div class="stat-change up">↑ 18% this month</div></div>
+        <div class="stat-card"><div class="stat-label">Total Editors</div><div class="stat-val">8</div><div class="stat-change">2 SE · 5 AE · 1 CE</div></div>
+        <div class="stat-card"><div class="stat-label">SE Decisions</div><div class="stat-val">34</div><div class="stat-change">This month</div></div>
+        <div class="stat-card"><div class="stat-label">Content Removed</div><div class="stat-val">3</div><div class="stat-change down">This month</div></div>
+        <div class="stat-card"><div class="stat-label">Policy Updates</div><div class="stat-val">1</div><div class="stat-change">Pending CE approval</div></div>
+      </div>
+
+      <div class="analytics-grid">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+          <!-- CE Escalations -->
+          <div class="card">
+            <div class="card-head"><h2>CE Escalations — Final Decision Required</h2><span class="badge badge-red">2 open</span></div>
+            <div style="display:flex;flex-direction:column;gap:0;">
+              <div style="padding:16px 20px;border-bottom:1px solid var(--border);">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+                  <div>
+                    <div style="font-size:14px;font-weight:600;">Ch. 3 — Beneath Stars · Iyanuoluwa K.</div>
+                    <div style="font-size:12px;color:var(--muted-fg);margin-top:3px;">Escalated by SE Obiageli N. · 4 days ago · <span class="badge badge-purple">Ambiguous Content</span></div>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-danger btn-sm" onclick="showToast('Content permanently removed.')">Remove</button>
+                    <button class="btn btn-role btn-sm" onclick="showPage('final-review',document.querySelector('[onclick*=final-review]'))">Final Decision</button>
+                  </div>
+                </div>
+                <div style="font-size:13px;color:var(--muted-fg);border-left:3px solid var(--role-color);padding-left:12px;font-style:italic;">"Borderline content that doesn't clearly violate policy but sets a concerning precedent. Need CE ruling." — Obiageli N., SE</div>
+              </div>
+              <div style="padding:16px 20px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+                  <div>
+                    <div style="font-size:14px;font-weight:600;">Ch. 1 — The Pact · Anonymous Author</div>
+                    <div style="font-size:12px;color:var(--muted-fg);margin-top:3px;">Escalated by SE Obiageli N. · 6 days ago · <span class="badge badge-blue">Plagiarism Concern</span></div>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button class="btn btn-danger btn-sm" onclick="showToast('Author account suspended.')">Suspend Author</button>
+                    <button class="btn btn-role btn-sm" onclick="showPage('final-review',document.querySelector('[onclick*=final-review]'))">Final Decision</button>
+                  </div>
+                </div>
+                <div style="font-size:13px;color:var(--muted-fg);border-left:3px solid var(--role-color);padding-left:12px;font-style:italic;">"Strong stylistic overlap with published Nnedi Okofor work. Author is anonymous. Recommend investigation before proceeding." — Obiageli N., SE</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Throughput chart -->
+          <div class="card">
+            <div class="card-head">
+              <h2>Platform Throughput (30 days)</h2>
+              <select style="font-size:12px;background:none;border:1px solid var(--border);color:var(--fg);height:28px;padding:0 8px;">
+                <option>All chapters</option><option>By genre</option>
+              </select>
+            </div>
+            <div class="chart-ph" id="ceChart"></div>
+            <div class="chart-labels" id="ceLabels"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:20px;">
+
+          <!-- SE Performance -->
+          <div class="card">
+            <div class="card-head"><h2>SE Performance</h2></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <div style="display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:50%;background:hsl(270 60% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">O</div><span style="font-size:13px;font-weight:500;">Obiageli N.</span></div>
+                  <span class="badge badge-green">On target</span>
+                </div>
+                <div style="font-size:11px;color:var(--muted-fg);margin-bottom:5px;">28 decisions · 2.1% CE escalation rate</div>
+                <div class="prog-bar"><div class="prog-fill-purple" style="width:88%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <div style="display:flex;align-items:center;gap:8px;"><div style="width:28px;height:28px;border-radius:50%;background:hsl(270 60% 48%);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">T</div><span style="font-size:13px;font-weight:500;">Taiwo B.</span></div>
+                  <span class="badge badge-yellow">Monitor</span>
+                </div>
+                <div style="font-size:11px;color:var(--muted-fg);margin-bottom:5px;">19 decisions · 5.3% CE escalation rate</div>
+                <div class="prog-bar"><div class="prog-fill-purple" style="width:58%;"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Policy pending -->
+          <div class="card">
+            <div class="card-head"><h2>Policy Updates Pending</h2><span class="badge badge-yellow">1</span></div>
+            <div class="card-body">
+              <div style="padding:14px;border:1px solid var(--border);margin-bottom:12px;">
+                <p style="font-size:13px;font-weight:500;">Mature Content Threshold — v2.1</p>
+                <p style="font-size:12px;color:var(--muted-fg);margin-top:4px;margin-bottom:12px;">Proposed by Obiageli N. · Clarifies violence and mature language thresholds for 18+ stories.</p>
+                <div style="display:flex;gap:8px;">
+                  <button class="btn btn-danger btn-sm" onclick="showToast('Policy update rejected.')">Reject</button>
+                  <button class="btn btn-role btn-sm" onclick="showPage('policy-board',document.querySelector('[onclick*=policy-board]'))">Review &amp; Approve</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Platform health -->
+          <div class="card">
+            <div class="card-head"><h2>Platform Health</h2></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Avg. review turnaround</span><span style="font-weight:500;">4.1h</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">AE → SE escalation rate</span><span style="font-weight:500;">4.8%</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">SE → CE escalation rate</span><span style="font-weight:500;">2.4%</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Removal rate</span><span style="font-weight:500;color:hsl(0 70% 45%);">0.24%</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:var(--muted-fg)">Author satisfaction avg.</span><span style="font-weight:500;color:hsl(142 60% 35%);">8.6 / 10</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CE ESCALATIONS ══════ -->
+  <div class="page" id="page-ce-escalations">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>CE Escalations</h1><p>Final-tier decisions that require the Chief Editor's authority.</p></div>
+        <span class="badge badge-red" style="font-size:12px;padding:4px 12px;">2 open</span>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="padding:20px;border:2px solid color-mix(in srgb,var(--role-color) 40%,transparent);background:color-mix(in srgb,var(--role-color) 3%,transparent);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+            <div>
+              <div style="font-size:15px;font-weight:600;">Ch. 3 — Beneath Stars</div>
+              <div style="font-size:12px;color:var(--muted-fg);margin-top:4px;">Iyanuoluwa K. · SE Obiageli N. · 4 days pending · <span class="badge badge-purple">Ambiguous</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" onclick="showToast('Author contacted.')">Contact Author</button>
+              <button class="btn btn-danger btn-sm" onclick="showToast('Content removed by CE.')">Remove</button>
+              <button class="btn btn-outline btn-sm" onclick="showToast('Approved with age-gate.')">Approve + Age-gate</button>
+              <button class="btn btn-role btn-sm" onclick="showPage('final-review',document.querySelector('[onclick*=final-review]'))">Full Review</button>
+            </div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);padding:14px;font-size:13px;line-height:1.7;color:var(--muted-fg);margin-bottom:12px;">
+            <strong style="color:var(--fg);display:block;margin-bottom:6px;">SE Assessment (Obiageli N.)</strong>
+            "Content sits in a grey area. The extended metaphor could be read as coded adult content or as purely literary. Without a clear policy precedent, I cannot rule definitively. Escalating to CE."
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">AE Flag</span><span style="font-size:13px;">Amara O.</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">SE Decision</span><span style="font-size:13px;">Escalated</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">Author standing</span><span class="badge badge-green" style="width:fit-content;">Good</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">Story rating</span><span style="font-size:13px;">General (13+)</span></div>
+          </div>
+        </div>
+
+        <div style="padding:20px;border:2px solid color-mix(in srgb,hsl(220 70% 48%) 30%,transparent);background:color-mix(in srgb,hsl(220 70% 48%) 3%,transparent);">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+            <div>
+              <div style="font-size:15px;font-weight:600;">Ch. 1 — The Pact</div>
+              <div style="font-size:12px;color:var(--muted-fg);margin-top:4px;">Anonymous · SE Obiageli N. · 6 days pending · <span class="badge badge-blue">Plagiarism</span></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" onclick="showToast('Plagiarism report filed.')">File Report</button>
+              <button class="btn btn-danger btn-sm" onclick="showToast('Author suspended.')">Suspend Author</button>
+              <button class="btn btn-danger btn-sm" onclick="showToast('Content removed by CE.')">Remove Content</button>
+              <button class="btn btn-role btn-sm" onclick="showPage('final-review',document.querySelector('[onclick*=final-review]'))">Full Review</button>
+            </div>
+          </div>
+          <div style="background:var(--bg);border:1px solid var(--border);padding:14px;font-size:13px;line-height:1.7;color:var(--muted-fg);margin-bottom:12px;">
+            <strong style="color:var(--fg);display:block;margin-bottom:6px;">SE Assessment (Obiageli N.)</strong>
+            "Sentence structures, metaphors, and thematic rhythm are near-identical to passages in Nnedi Okofor's published works. Author is anonymous — cannot verify identity. Plagiarism tools flagged 34% similarity."
+          </div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">AE Flag</span><span style="font-size:13px;">Amara O.</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">Similarity score</span><span style="font-size:13px;color:hsl(0 70% 45%);font-weight:600;">34%</span></div>
+            <div style="display:flex;flex-direction:column;gap:4px;"><span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);">Author standing</span><span class="badge badge-red" style="width:fit-content;">Anonymous</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: POLICY BOARD ══════ -->
+  <div class="page" id="page-policy-board">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Policy Board</h1><p>Editorial guidelines and policy change management.</p></div>
+        <button class="btn btn-role btn-sm" onclick="showToast('New policy draft started.')">+ Draft New Policy</button>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Pending Approval</h2><span class="badge badge-yellow">1</span></div>
+        <div style="padding:20px;">
+          <div style="padding:16px;border:1px solid var(--border);">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+              <div>
+                <p style="font-size:14px;font-weight:600;">Mature Content Threshold — Policy v2.1</p>
+                <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;">Proposed by SE Obiageli N. · 5 days ago</p>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-danger btn-sm" onclick="showToast('Policy rejected.')">Reject</button>
+                <button class="btn btn-outline btn-sm" onclick="showToast('Returned for revision.')">Return for Revision</button>
+                <button class="btn btn-role btn-sm" onclick="showToast('Policy approved and published.')">✓ Approve &amp; Publish</button>
+              </div>
+            </div>
+            <p style="font-size:13px;line-height:1.7;color:var(--muted-fg);">Proposes clearer thresholds for mature language and violence in 18+ tagged stories, including specific word-count-to-flagged-content ratios and updated AE guidance notes. Affects ~12% of current content under active editorial review.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Active Policies</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Policy</th><th>Version</th><th>Published</th><th>Author</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">Content & Violence Guidelines</td><td>v2.0</td><td style="color:var(--muted-fg)">3 months ago</td><td>Chiamaka E. (CE)</td><td><span class="badge badge-green">Active</span></td></tr>
+              <tr><td class="t-title">Mature Content Threshold</td><td>v2.0</td><td style="color:var(--muted-fg)">3 months ago</td><td>Chiamaka E. (CE)</td><td><span class="badge badge-yellow">Update Pending</span></td></tr>
+              <tr><td class="t-title">Plagiarism Detection Protocol</td><td>v1.3</td><td style="color:var(--muted-fg)">6 months ago</td><td>Chiamaka E. (CE)</td><td><span class="badge badge-green">Active</span></td></tr>
+              <tr><td class="t-title">Anonymous Author Policy</td><td>v1.0</td><td style="color:var(--muted-fg)">8 months ago</td><td>Chiamaka E. (CE)</td><td><span class="badge badge-red">Under Review</span></td></tr>
+              <tr><td class="t-title">Author Suspension Protocol</td><td>v1.1</td><td style="color:var(--muted-fg)">4 months ago</td><td>Chiamaka E. (CE)</td><td><span class="badge badge-green">Active</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: FINAL REVIEW ══════ -->
+  <div class="page" id="page-final-review">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Final CE Review — Ch. 3 "Beneath Stars"</h1>
+          <p>Iyanuoluwa K. · Ambiguous content · 4 days pending</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="showToast('Author contacted for clarification.')">Contact Author</button>
+          <button class="btn btn-danger btn-sm" onclick="showToast('Content removed by CE order.')">Remove Content</button>
+          <button class="btn btn-outline btn-sm" onclick="showToast('Approved with age-gate applied.')">Approve + Age-gate</button>
+          <button class="btn btn-role btn-sm" onclick="showToast('Approved by Chief Editor.')">✓ CE Approve</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+        <div style="display:grid;grid-template-columns:1fr;gap:20px;" class="review-two-col">
+          <style>.review-two-col{} @media(min-width:768px){.review-two-col{grid-template-columns:2fr 1fr !important;}}</style>
+          <div>
+            <div style="border:1px solid var(--border);padding:24px;font-size:15px;line-height:1.9;background:var(--bg);min-height:350px;">
+              <p style="margin-bottom:16px;">The river does not ask permission before it swallows. It simply opens — as hunger does, as longing does — and takes.</p>
+              <p style="margin-bottom:16px;">Adanna knew this. She had stood at its edge since she was seven years old, watching it consume the offerings the village brought. First mangoes. Then prayers. Then, one year that no one spoke of anymore, something else entirely.</p>
+              <p style="margin-bottom:16px;">She pressed her palm flat against the water's surface and felt nothing — no pull, no coldness, just the strange neutrality of a thing that has already decided.</p>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+              <div style="padding:10px 14px;border:1px solid var(--border);font-size:12px;"><strong>AE flag:</strong> Extended metaphor — ambiguous intent</div>
+              <div style="padding:10px 14px;border:1px solid var(--border);font-size:12px;"><strong>SE:</strong> Cannot rule — lacks precedent</div>
+              <div style="padding:10px 14px;border:1px solid var(--border);font-size:12px;"><strong>Rating:</strong> General (13+)</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div class="card">
+              <div class="card-head"><h2>CE Decision Record</h2></div>
+              <div class="card-body">
+                <div class="form-group"><label class="form-label">CE Ruling</label>
+                  <select class="form-select">
+                    <option>Approve as-is</option>
+                    <option selected>Approve with age-gate</option>
+                    <option>Request author clarification</option>
+                    <option>Major revision</option>
+                    <option>Remove content</option>
+                    <option>Suspend author</option>
+                  </select>
+                </div>
+                <div class="form-group"><label class="form-label">CE Reasoning (for record)</label>
+                  <textarea class="form-textarea" rows="5" placeholder="Document your ruling rationale. This is stored in the policy decision log."></textarea>
+                </div>
+                <div class="form-group"><label class="form-label">Set Precedent?</label>
+                  <select class="form-select"><option>No — case-by-case only</option><option>Yes — update policy guidance</option></select>
+                </div>
+                <button class="btn btn-role" style="width:100%;justify-content:center;" onclick="showToast('CE decision recorded and published.')">Record Final Decision</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-head"><h2>Escalation Trail</h2></div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                  <span class="badge badge-blue" style="flex-shrink:0;margin-top:2px;">AE</span>
+                  <div><p style="font-size:12px;font-weight:500;">Amara O. flagged</p><p style="font-size:11px;color:var(--muted-fg);">Ambiguous extended metaphor · 5 days ago</p></div>
+                </div>
+                <div style="width:1px;height:16px;background:var(--border);margin-left:20px;"></div>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                  <span class="badge badge-purple" style="flex-shrink:0;margin-top:2px;">SE</span>
+                  <div><p style="font-size:12px;font-weight:500;">Obiageli N. escalated</p><p style="font-size:11px;color:var(--muted-fg);">Lacks policy precedent · 4 days ago</p></div>
+                </div>
+                <div style="width:1px;height:16px;background:var(--border);margin-left:20px;"></div>
+                <div style="display:flex;gap:10px;align-items:flex-start;">
+                  <span class="badge badge-orange" style="flex-shrink:0;margin-top:2px;">CE</span>
+                  <div><p style="font-size:12px;font-weight:500;">Awaiting your ruling</p><p style="font-size:11px;color:var(--muted-fg);">Final authority</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: EDITORIAL TEAM ══════ -->
+  <div class="page" id="page-org-overview">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Editorial Team</h1><p>Platform-wide editorial hierarchy and team composition.</p></div>
+        <button class="btn btn-role btn-sm" onclick="showToast('Invite sent.')">+ Add Editor</button>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <!-- Visual hierarchy -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Editorial Hierarchy</h2></div>
+        <div class="card-body">
+          <div class="hierarchy">
+            <div class="hierarchy-level" style="border-left:3px solid var(--role-color);">
+              <div class="hierarchy-role" style="color:var(--role-color);">Chief Editor</div>
+              <div class="hierarchy-members">
+                <div class="member-chip"><div class="member-dot" style="background:var(--role-color);"></div>Chiamaka Eze</div>
+              </div>
+            </div>
+            <div class="hierarchy-level" style="border-left:3px solid hsl(270 60% 48%);margin-left:20px;">
+              <div class="hierarchy-role" style="color:hsl(270 60% 48%);">Senior Editors</div>
+              <div class="hierarchy-members">
+                <div class="member-chip"><div class="member-dot" style="background:hsl(270 60% 48%);"></div>Obiageli Nwosu</div>
+                <div class="member-chip"><div class="member-dot" style="background:hsl(270 60% 48%);"></div>Taiwo Bankole</div>
+              </div>
+            </div>
+            <div class="hierarchy-level" style="border-left:3px solid hsl(220 70% 48%);margin-left:40px;">
+              <div class="hierarchy-role" style="color:hsl(220 70% 48%);">Assistant Editors</div>
+              <div class="hierarchy-members">
+                <div class="member-chip"><div class="member-dot" style="background:hsl(220 70% 48%);"></div>Amara Osei</div>
+                <div class="member-chip"><div class="member-dot" style="background:hsl(220 70% 48%);"></div>Kofi Agyeman</div>
+                <div class="member-chip"><div class="member-dot" style="background:hsl(220 70% 48%);"></div>Ngozi Ikenna</div>
+                <div class="member-chip"><div class="member-dot" style="background:hsl(220 70% 48%);"></div>Fatou Diallo</div>
+                <div class="member-chip"><div class="member-dot" style="background:hsl(220 70% 48%);"></div>Taiwo Adebayo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Full Team Directory</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Role</th><th>Reports To</th><th>Status</th><th>Chapters (30d)</th><th>Actions</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">Chiamaka Eze</td><td><span class="badge badge-orange">CE</span></td><td>—</td><td><span class="badge badge-green">Active</span></td><td>—</td><td></td></tr>
+              <tr><td class="t-title">Obiageli Nwosu</td><td><span class="badge badge-purple">SE</span></td><td>Chiamaka E.</td><td><span class="badge badge-green">Active</span></td><td>28 decisions</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Taiwo Bankole</td><td><span class="badge badge-purple">SE</span></td><td>Chiamaka E.</td><td><span class="badge badge-yellow">Monitor</span></td><td>19 decisions</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Amara Osei</td><td><span class="badge badge-blue">AE</span></td><td>Obiageli N.</td><td><span class="badge badge-green">Active</span></td><td>84</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Kofi Agyeman</td><td><span class="badge badge-blue">AE</span></td><td>Obiageli N.</td><td><span class="badge badge-green">Active</span></td><td>91</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Ngozi Ikenna</td><td><span class="badge badge-blue">AE</span></td><td>Obiageli N.</td><td><span class="badge badge-yellow">Reviewing</span></td><td>76</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Fatou Diallo</td><td><span class="badge badge-blue">AE</span></td><td>Taiwo B.</td><td><span class="badge badge-gray">Off shift</span></td><td>62</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+              <tr><td class="t-title">Taiwo Adebayo</td><td><span class="badge badge-blue">AE</span></td><td>Taiwo B.</td><td><span class="badge badge-gray">Off shift</span></td><td>70</td><td><button class="btn btn-ghost btn-sm">Manage</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: SE OVERSIGHT ══════ -->
+  <div class="page" id="page-se-oversight">
+    <div class="dash-hero">
+      <div><h1>SE Oversight</h1><p>Review and audit all Senior Editor decisions.</p></div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>SE Decision Audit Log</h2><select style="font-size:12px;background:none;border:1px solid var(--border);color:var(--fg);height:28px;padding:0 8px;"><option>All SEs</option><option>Obiageli N.</option><option>Taiwo B.</option></select></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Chapter</th><th>SE</th><th>Decision</th><th>Reasoning</th><th>Date</th><th>CE Audit</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">Ch. 7 — The Queen's Gambit</td><td>Obiageli N.</td><td><span class="badge badge-green">Approved</span></td><td>Within guidelines</td><td style="color:var(--muted-fg)">1d ago</td><td><span class="badge badge-green">Confirmed</span></td></tr>
+              <tr><td class="t-title">Ch. 5 — Edge of Night</td><td>Obiageli N.</td><td><span class="badge badge-red">Removed</span></td><td>Policy violation</td><td style="color:var(--muted-fg)">2d ago</td><td><span class="badge badge-green">Confirmed</span></td></tr>
+              <tr><td class="t-title">Ch. 11 — Harmattan</td><td>Taiwo B.</td><td><span class="badge badge-yellow">Major Revision</span></td><td>Quality drop</td><td style="color:var(--muted-fg)">2d ago</td><td><button class="btn btn-role btn-sm" onclick="showToast('Decision audited and confirmed.')">Audit</button></td></tr>
+              <tr><td class="t-title">Ch. 3 — Beneath Stars</td><td>Obiageli N.</td><td><span class="badge badge-purple">CE Escalated</span></td><td>Ambiguous</td><td style="color:var(--muted-fg)">4d ago</td><td><span class="badge badge-yellow">Pending CE</span></td></tr>
+              <tr><td class="t-title">Ch. 1 — The Pact</td><td>Taiwo B.</td><td><span class="badge badge-purple">CE Escalated</span></td><td>Plagiarism</td><td style="color:var(--muted-fg)">6d ago</td><td><span class="badge badge-yellow">Pending CE</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: PLATFORM ANALYTICS ══════ -->
+  <div class="page" id="page-analytics">
+    <div class="dash-hero">
+      <div><h1>Platform Analytics</h1><p>Editorial performance and platform content health — full view.</p></div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Stories</div><div class="stat-val">382</div><div class="stat-change up">↑ 24 this month</div></div>
+        <div class="stat-card"><div class="stat-label">Total Chapters</div><div class="stat-val">1,247</div><div class="stat-change up">↑ 18%</div></div>
+        <div class="stat-card"><div class="stat-label">Authors</div><div class="stat-val">214</div><div class="stat-change">Active</div></div>
+        <div class="stat-card"><div class="stat-label">Removals (30d)</div><div class="stat-val">3</div><div class="stat-change">0.24% of content</div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Review Time</div><div class="stat-val">4.1h</div><div class="stat-change up">↑ improved</div></div>
+        <div class="stat-card"><div class="stat-label">Author Satisfaction</div><div class="stat-val">8.6</div><div class="stat-change">/ 10 avg.</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+        <div class="analytics-grid">
+          <div class="card">
+            <div class="card-head"><h2>Monthly Chapter Submissions</h2></div>
+            <div class="chart-ph" id="analyticsChart">
+              <div class="chart-bar" style="height:50%;"></div>
+              <div class="chart-bar" style="height:65%;"></div>
+              <div class="chart-bar" style="height:55%;"></div>
+              <div class="chart-bar" style="height:80%;"></div>
+              <div class="chart-bar" style="height:70%;"></div>
+              <div class="chart-bar" style="height:90%;"></div>
+              <div class="chart-bar" style="height:100%;"></div>
+              <div class="chart-bar" style="height:85%;"></div>
+            </div>
+            <div class="chart-labels"><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Flag Breakdown (30d)</h2></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span>Mature Content</span><span>4</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:44%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span>Violence</span><span>3</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:33%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span>Quality / Style</span><span>5</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:55%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span>Plagiarism</span><span>2</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:22%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span>Other</span><span>1</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:11%;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: GUIDELINES ══════ -->
+  <div class="page" id="page-guidelines">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Editorial Guidelines</h1><p>Master policy document — CE authority.</p></div>
+        <button class="btn btn-role btn-sm" onclick="showPage('policy-board',document.querySelector('[onclick*=policy-board]'))">Manage Policies →</button>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h2>AE Scope — What AEs Can Do</h2></div>
+        <div class="card-body">
+          <ul style="font-size:13px;line-height:2;color:var(--muted-fg);list-style:none;display:flex;flex-direction:column;gap:4px;">
+            <li>✓ Review and annotate submitted chapters</li>
+            <li>✓ Approve chapters that clearly meet guidelines</li>
+            <li>✓ Request revisions with structured feedback to authors</li>
+            <li>✓ Flag content for SE review</li>
+            <li style="color:hsl(0 70% 45%);">✗ Cannot remove content — must escalate to SE</li>
+            <li style="color:hsl(0 70% 45%);">✗ Cannot make policy decisions</li>
+            <li style="color:hsl(0 70% 45%);">✗ Cannot suspend or action author accounts</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-head"><h2>SE Scope — What SEs Can Do</h2></div>
+        <div class="card-body">
+          <ul style="font-size:13px;line-height:2;color:var(--muted-fg);list-style:none;display:flex;flex-direction:column;gap:4px;">
+            <li>✓ All AE capabilities</li>
+            <li>✓ Review and decide on AE-escalated content</li>
+            <li>✓ Remove content that clearly violates policy</li>
+            <li>✓ Issue major revision requests</li>
+            <li>✓ Monitor AE team performance</li>
+            <li>✓ Propose policy changes to CE</li>
+            <li style="color:hsl(0 70% 45%);">✗ Cannot approve policy changes — CE only</li>
+            <li style="color:hsl(0 70% 45%);">✗ Cannot permanently suspend author accounts — CE only</li>
+            <li style="color:hsl(0 70% 45%);">✗ Ambiguous or novel cases must be escalated to CE</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>CE Scope — Chief Editor Authority</h2></div>
+        <div class="card-body">
+          <ul style="font-size:13px;line-height:2;color:var(--muted-fg);list-style:none;display:flex;flex-direction:column;gap:4px;">
+            <li>✓ All SE capabilities</li>
+            <li>✓ Final authority on all escalated decisions</li>
+            <li>✓ Approve, amend, or reject policy changes</li>
+            <li>✓ Permanently suspend or reinstate author accounts</li>
+            <li>✓ Hire, promote, or remove editorial team members</li>
+            <li>✓ Set editorial precedent for novel content types</li>
+            <li>✓ Platform-wide content health oversight</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: PROFILE ══════ -->
+  <div class="page" id="page-profile">
+    <div class="dash-hero"><div><h1>My Profile</h1><p>Chief Editor account and authority settings.</p></div></div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>Editor Information</h2></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--role-color);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;flex-shrink:0;">C</div>
+            <div>
+              <p style="font-size:16px;font-weight:600;">Chiamaka Eze</p>
+              <div class="role-pip" style="margin-top:6px;">CHIEF EDITOR</div>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Display Name</label><input class="form-input" value="Chiamaka Eze"/></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="chiamaka.eze@novelux.com" type="email"/></div>
+          <div class="form-group"><label class="form-label">Authority Level</label><input class="form-input" value="Chief Editor — Final Authority" readonly style="color:var(--muted-fg);"/></div>
+          <button class="btn btn-role" onclick="showToast('Profile saved!')">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: SETTINGS ══════ -->
+  <div class="page" id="page-settings">
+    <div class="dash-hero"><div><h1>Settings</h1><p>Platform and notification preferences.</p></div></div>
+    <div style="padding:0 12px;max-width:1200px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>CE Notifications</h2></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div><p style="font-size:14px;font-weight:500;">CE escalation received</p><p style="font-size:12px;color:var(--muted-fg)">When an SE escalates a decision to you</p></div>
+            <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--role-color);border-radius:22px;transition:.2s;"></span></label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div><p style="font-size:14px;font-weight:500;">Policy change proposal</p><p style="font-size:12px;color:var(--muted-fg)">When an SE submits a policy update for approval</p></div>
+            <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--role-color);border-radius:22px;transition:.2s;"></span></label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div><p style="font-size:14px;font-weight:500;">Weekly editorial report</p><p style="font-size:12px;color:var(--muted-fg)">Platform-wide editorial health summary</p></div>
+            <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--role-color);border-radius:22px;transition:.2s;"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+</div><!-- /dash-layout -->
+
+<div class="toast" id="toast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script>
+const html=document.documentElement;
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  const d=html.classList.contains('dark');
+  html.classList.toggle('dark',!d);html.classList.toggle('light',d);
+  localStorage.setItem('nux_theme',d?'light':'dark');
+});
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
+const pageTitles={dashboard:'Dashboard','ce-escalations':'CE Escalations','policy-board':'Policy Board','final-review':'Final Review','org-overview':'Editorial Team','se-oversight':'SE Oversight',analytics:'Platform Analytics',guidelines:'Editorial Guidelines',profile:'Profile',settings:'Settings'};
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('topbarTitle').textContent=pageTitles[id]||id;
+  closeSidebar();
+}
+let toastTimer;
+function showToast(msg){
+  clearTimeout(toastTimer);
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+// Generate chart bars
+(function(){
+  const ch=document.getElementById('ceChart');
+  const lb=document.getElementById('ceLabels');
+  if(!ch)return;
+  const vals=[40,55,48,70,62,80,88,75,90,85,78,95,100,88];
+  const labels=['1','3','5','7','9','11','13','15','17','19','21','23','25','27'];
+  vals.forEach(v=>{const b=document.createElement('div');b.className='chart-bar';b.style.height=v+'%';ch.appendChild(b);});
+  if(lb)labels.forEach(l=>{const s=document.createElement('span');s.textContent=l;lb.appendChild(s);});
+})();
+
+// ── NoveluX API Client (CE Dashboard) ──────────────────────────────────────
+const NUX = {
+  token:   document.querySelector('meta[name="nux-token"]')?.content   || '',
+  apiBase: document.querySelector('meta[name="nux-api"]')?.content     || '/api',
+  role:    document.querySelector('meta[name="nux-role"]')?.content    || '',
+
+  async call(path, opts = {}) {
+    const res = await fetch(this.apiBase + path, {
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + this.token,
+        ...(opts.headers || {}),
+      }, ...opts,
+    });
+    if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
+    return res.json();
+  },
+  get:  (path)       => NUX.call(path),
+  post: (path, body) => NUX.call(path, { method: 'POST',  body: JSON.stringify(body) }),
+};
+
+async function loadCEStats() {
+  try {
+    const stats = await NUX.get('/editorial/stats/');
+    const slots = {
+      'stat-ce-esc':    stats.ce_escalation_count,
+      'stat-editors':   stats.total_editors,
+      'stat-cleared':   stats.chapters_cleared_month,
+      'stat-removed':   stats.content_removed_month,
+      'stat-policies':  stats.pending_policies,
+    };
+    for (const [id, val] of Object.entries(slots)) {
+      const el = document.getElementById(id);
+      if (el && val !== undefined) el.textContent = val;
+    }
+  } catch(e) {}
+}
+
+async function ceApprove(reviewId) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/ce-approve/`, {});
+    showToast('CE Approved ✓');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function ceRemove(reviewId, reason) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/ce-remove/`, { reason });
+    showToast('Content removed by CE order.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function suspendAuthor(reviewId, reason) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/suspend-author/`, { reason });
+    showToast('Author account suspended.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function approvePolicy(policyId) {
+  try {
+    await NUX.post(`/editorial/policies/${policyId}/approve/`, {});
+    showToast('Policy approved and published.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function rejectPolicy(policyId, note) {
+  try {
+    await NUX.post(`/editorial/policies/${policyId}/reject/`, { note });
+    showToast('Policy rejected.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (NUX.token) loadCEStats();
+});
+
+</script>

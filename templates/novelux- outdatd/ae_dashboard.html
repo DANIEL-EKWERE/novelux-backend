@@ -1,0 +1,747 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark',t==='dark');h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){window._nuxTheme=t;localStorage.setItem('nux_theme',t);h.classList.toggle('dark',t==='dark');h.classList.toggle('light',t!=='dark');};
+})();
+</script>
+<!-- NoveluX JWT Bridge -->
+<meta name="nux-token"    content="{{ access_token }}">
+<meta name="nux-username" content="{{ editor.username|default:'' }}">
+<meta name="nux-role"     content="{{ role }}">
+<meta name="nux-api"      content="{{ api_url|default:'/api' }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Assistant Editor Dashboard – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--card:hsl(0 0% 99%);
+  --sidebar-w:220px;
+  --role-color:hsl(220 70% 48%);
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);--card:hsl(240 5% 9%);
+  --role-color:hsl(220 70% 60%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);height:100%;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+textarea,input,select{font-family:inherit;font-size:inherit;}
+svg{display:inline-block;vertical-align:middle;}
+
+.dash-layout{display:flex;min-height:100vh;}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .3s;overflow-y:auto;}
+.sidebar.open{transform:translateX(0);}
+@media(min-width:1024px){.sidebar{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sidebar-head{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sidebar-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);}
+@media(min-width:1024px){.sidebar-close{display:none;}}
+.sidebar-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}
+.nav-section-label:first-child{margin-top:0;}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;text-align:left;transition:background .12s,color .12s;border-radius:2px;}
+.nav-btn:hover{background:var(--muted);color:var(--fg);}
+.nav-btn.active{background:color-mix(in srgb,var(--role-color) 10%,transparent);color:var(--role-color);font-weight:500;}
+.nav-btn .nav-icon{width:16px;height:16px;flex-shrink:0;}
+.sidebar-foot{padding:16px 12px;border-top:1px solid var(--border);}
+.editor-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);}
+.editor-avatar{width:34px;height:34px;border-radius:50%;background:var(--role-color);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:600;flex-shrink:0;}
+.editor-info p{font-size:13px;font-weight:500;}
+.editor-info span{font-size:11px;color:var(--muted-fg);}
+.role-pip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:10px;font-weight:600;letter-spacing:.08em;background:color-mix(in srgb,var(--role-color) 12%,transparent);color:var(--role-color);margin-top:4px;}
+
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px;}
+@media(min-width:640px){.topbar{padding:0 24px;gap:12px;}}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.menu-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--fg);}
+@media(min-width:1024px){.menu-btn{display:none;}}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);transition:color .15s;position:relative;}
+.icon-btn:hover{color:var(--fg);}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--muted-fg);transition:color .15s;}
+.theme-toggle:hover{color:var(--fg);}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}
+html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}
+html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+
+.page{display:none;padding:24px 12px 80px;max-width:1100px;margin:0 auto;width:100%;}
+@media(min-width:640px){.page{padding:32px 20px 80px;}}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}
+.page.active{display:block;}
+
+.dash-hero{padding:20px 12px 20px;background:color-mix(in srgb,var(--role-color) 4%,transparent);border-bottom:1px solid var(--border);margin-bottom:24px;position:relative;overflow:hidden;}
+@media(min-width:640px){.dash-hero{padding:32px 20px 28px;margin-bottom:32px;}}
+@media(min-width:1024px){.dash-hero{padding:32px 24px 28px;}}
+.dash-hero::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;}
+.dash-hero>*{position:relative;z-index:1;}
+.dash-hero h1{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.dash-hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.dash-hero-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}}
+.stat-card{border:1px solid var(--border);padding:20px;background:var(--card);}
+.stat-card .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.stat-card .stat-val{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}
+.stat-card .stat-change{margin-top:4px;font-size:11px;color:var(--muted-fg);}
+.stat-card .stat-change.up{color:hsl(142 60% 40%);}
+
+.card{border:1px solid var(--border);background:var(--card);}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-head h2{font-size:14px;font-weight:600;}
+.card-body{padding:20px;}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:13px;font-weight:500;transition:opacity .15s;cursor:pointer;font-family:inherit;border:none;}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-primary:hover{opacity:.88;}
+.btn-role{background:var(--role-color);color:#fff;}
+.btn-role:hover{opacity:.88;}
+.btn-outline{border:1px solid var(--border);color:var(--fg);background:none;}
+.btn-outline:hover{background:var(--muted);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-ghost{color:var(--muted-fg);padding:6px 8px;font-size:12px;}
+.btn-ghost:hover{color:var(--fg);}
+.btn-danger{background:hsl(0 70% 50%);color:#fff;}
+.btn-danger:hover{opacity:.88;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:500;letter-spacing:.04em;}
+.badge-green{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.badge-yellow{background:color-mix(in srgb,hsl(45 90% 50%) 12%,transparent);color:hsl(45 80% 30%);}
+html.dark .badge-yellow{color:hsl(45 90% 60%);}
+.badge-gray{background:var(--muted);color:var(--muted-fg);}
+.badge-red{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.badge-blue{background:color-mix(in srgb,var(--role-color) 12%,transparent);color:var(--role-color);}
+.badge-orange{background:color-mix(in srgb,hsl(14 62% 38%) 12%,transparent);color:hsl(14 62% 38%);}
+
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th,.data-table td{padding:12px 16px;text-align:left;font-size:13px;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.data-table td{border-bottom:1px solid var(--border);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--muted);}
+.data-table .t-title{font-weight:500;}
+
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.form-label{font-size:12px;font-weight:500;color:var(--fg);letter-spacing:.02em;}
+.form-input,.form-select,.form-textarea{padding:10px 12px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:14px;outline:none;transition:border-color .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--role-color);}
+.form-textarea{resize:vertical;line-height:1.6;}
+.form-hint{font-size:11px;color:var(--muted-fg);}
+
+/* Review panel */
+.review-panel{display:grid;grid-template-columns:1fr;gap:20px;}
+@media(min-width:768px){.review-panel{grid-template-columns:2fr 1fr;}}
+.review-text-area{border:1px solid var(--border);padding:24px;font-size:15px;line-height:1.8;background:var(--bg);min-height:400px;overflow-y:auto;position:relative;}
+.review-sidebar{display:flex;flex-direction:column;gap:16px;}
+.comment-thread{display:flex;flex-direction:column;gap:8px;}
+.comment-item{padding:12px;border:1px solid var(--border);background:var(--muted);}
+.comment-meta{font-size:11px;color:var(--muted-fg);margin-bottom:6px;}
+.comment-body{font-size:13px;line-height:1.5;}
+.comment-actions{display:flex;gap:8px;margin-top:8px;}
+
+.highlight-suggestion{background:color-mix(in srgb,hsl(45 90% 50%) 20%,transparent);border-bottom:2px solid hsl(45 90% 50%);cursor:pointer;}
+.highlight-deletion{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);text-decoration:line-through;color:var(--muted-fg);}
+.highlight-addition{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 30%);}
+
+.queue-item{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);margin-bottom:8px;transition:background .12s;}
+.queue-item:hover{background:var(--muted);}
+.queue-item:last-child{margin-bottom:0;}
+.queue-cover{width:40px;height:52px;background:var(--muted);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted-fg);}
+.queue-info{flex:1;min-width:0;}
+.queue-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.queue-meta{margin-top:3px;font-size:11px;color:var(--muted-fg);}
+.queue-actions{display:flex;gap:6px;flex-shrink:0;}
+
+.prog-bar{height:4px;background:var(--border);overflow:hidden;}
+.prog-fill{height:100%;background:var(--role-color);transition:width .4s;}
+
+.toast{position:fixed;bottom:24px;right:24px;z-index:200;background:var(--fg);color:var(--bg);padding:12px 20px;font-size:13px;display:flex;align-items:center;gap:10px;transform:translateY(100px);opacity:0;transition:all .25s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}
+.overlay.show{display:block;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted-fg);}
+.empty-state svg{opacity:.25;margin:0 auto 12px;display:block;}
+.empty-state h3{font-size:15px;font-weight:500;color:var(--fg);}
+.empty-state p{margin-top:6px;font-size:13px;}
+</style>
+</head>
+<body>
+<div class="dash-layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="brand">
+      <div class="brand-logo" style="background:var(--primary);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <span>Novelux</span>
+    </div>
+    <button class="sidebar-close" onclick="closeSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Overview</span>
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      Dashboard
+    </button>
+    <span class="nav-section-label">Editorial Work</span>
+    <button class="nav-btn" onclick="showPage('queue',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+      Review Queue
+    </button>
+    <button class="nav-btn" onclick="showPage('review',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Chapter Review
+    </button>
+    <button class="nav-btn" onclick="showPage('feedback',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Author Feedback
+    </button>
+    <span class="nav-section-label">Content Flags</span>
+    <button class="nav-btn" onclick="showPage('flags',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+      Flagged Content
+    </button>
+    <span class="nav-section-label">Account</span>
+    <button class="nav-btn" onclick="showPage('profile',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Profile
+    </button>
+    <button class="nav-btn" onclick="showPage('settings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="editor-badge">
+      <div class="editor-avatar">A</div>
+      <div class="editor-info">
+        <p>Amara Osei</p>
+        <div class="role-pip">AE · Asst. Editor</div>
+      </div>
+    </div>
+    <a href="#" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);transition:color .15s;width:100%;" onmouseover="this.style.color='var(--fg)'" onmouseout="this.style.color='var(--muted-fg)'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<div class="main-area">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="openSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" title="Notifications"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="notif-dot"></span></button>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <span class="badge badge-blue" style="font-size:10px;">AE</span>
+    </div>
+  </header>
+
+  <!-- ══════ PAGE: DASHBOARD ══════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Good morning, {{ editor.username|default:"Editor" }} 👋</h1>
+          <p>You have {{ queue_count|default:"0" }} chapters awaiting your review today.</p>
+        </div>
+        <button class="btn btn-role btn-sm" onclick="showPage('queue',document.querySelector('[onclick*=queue]'))">Go to Queue →</button>
+      </div>
+    </div>
+    <div style="padding:0 12px 0;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">In Queue</div><div class="stat-val">7</div><div class="stat-change">Chapters to review</div></div>
+        <div class="stat-card"><div class="stat-label">Reviewed Today</div><div class="stat-val">3</div><div class="stat-change up">↑ vs yesterday</div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Turnaround</div><div class="stat-val">4.2h</div><div class="stat-change">Per chapter</div></div>
+        <div class="stat-card"><div class="stat-label">Flagged</div><div class="stat-val">2</div><div class="stat-change">Needs escalation</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+        <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+          <div class="card">
+            <div class="card-head"><h2>Urgent – Review Now</h2><span class="badge badge-red">2 urgent</span></div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>Chapter</th><th>Story</th><th>Author</th><th>Submitted</th><th>Action</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="t-title">Ch. 12 — The Reckoning</td>
+                    <td style="color:var(--muted-fg)">Bound by Blood</td>
+                    <td style="color:var(--muted-fg)">Adaeze M.</td>
+                    <td><span class="badge badge-red">3h ago</span></td>
+                    <td><button class="btn btn-role btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button></td>
+                  </tr>
+                  <tr>
+                    <td class="t-title">Ch. 4 — Beneath the Baobab</td>
+                    <td style="color:var(--muted-fg)">Roots of Lagos</td>
+                    <td style="color:var(--muted-fg)">Emeka T.</td>
+                    <td><span class="badge badge-red">5h ago</span></td>
+                    <td><button class="btn btn-role btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Recent Activity</h2></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="width:8px;height:8px;border-radius:50%;background:hsl(142 60% 40%);margin-top:4px;flex-shrink:0;"></div>
+                <div><p style="font-size:13px;font-weight:500;">Approved — Ch. 11 of "Bound by Blood"</p><p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">2 hours ago · Minor style suggestions sent to author</p></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="width:8px;height:8px;border-radius:50%;background:hsl(45 90% 50%);margin-top:4px;flex-shrink:0;"></div>
+                <div><p style="font-size:13px;font-weight:500;">Revision requested — Ch. 3 of "Roots of Lagos"</p><p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">Yesterday · Pacing and dialogue issues flagged</p></div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="width:8px;height:8px;border-radius:50%;background:hsl(0 70% 50%);margin-top:4px;flex-shrink:0;"></div>
+                <div><p style="font-size:13px;font-weight:500;">Escalated to SE — Ch. 7 of "The Queen's Gambit"</p><p style="font-size:11px;color:var(--muted-fg);margin-top:2px;">Yesterday · Policy concern flagged for senior review</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: QUEUE ══════ -->
+  <div class="page" id="page-queue">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Review Queue</h1><p>Chapters assigned to you for editorial review.</p></div>
+        <select class="form-select" style="font-size:13px;height:36px;padding:0 10px;width:auto;">
+          <option>All genres</option><option>Romance</option><option>Thriller</option><option>Drama</option>
+        </select>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" style="border-color:var(--role-color);color:var(--role-color);">All (7)</button>
+        <button class="btn btn-ghost btn-sm">Urgent (2)</button>
+        <button class="btn btn-ghost btn-sm">Normal (4)</button>
+        <button class="btn btn-ghost btn-sm">Low (1)</button>
+      </div>
+      <div>
+        <div class="queue-item">
+          <div class="queue-cover"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <div class="queue-info">
+            <div class="queue-title">Ch. 12 — The Reckoning</div>
+            <div class="queue-meta">Bound by Blood · Adaeze M. · 4,821 words</div>
+          </div>
+          <span class="badge badge-red">Urgent</span>
+          <div class="queue-actions">
+            <button class="btn btn-role btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button>
+          </div>
+        </div>
+        <div class="queue-item">
+          <div class="queue-cover"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <div class="queue-info">
+            <div class="queue-title">Ch. 4 — Beneath the Baobab</div>
+            <div class="queue-meta">Roots of Lagos · Emeka T. · 3,102 words</div>
+          </div>
+          <span class="badge badge-red">Urgent</span>
+          <div class="queue-actions">
+            <button class="btn btn-role btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button>
+          </div>
+        </div>
+        <div class="queue-item">
+          <div class="queue-cover"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <div class="queue-info">
+            <div class="queue-title">Ch. 8 — Midnight Confessions</div>
+            <div class="queue-meta">Harmattan Season · Chisom W. · 5,440 words</div>
+          </div>
+          <span class="badge badge-blue">Normal</span>
+          <div class="queue-actions">
+            <button class="btn btn-outline btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button>
+          </div>
+        </div>
+        <div class="queue-item">
+          <div class="queue-cover"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+          <div class="queue-info">
+            <div class="queue-title">Ch. 1 — A New Beginning</div>
+            <div class="queue-meta">The Other Shore · Fatima A. · 2,800 words</div>
+          </div>
+          <span class="badge badge-gray">Low</span>
+          <div class="queue-actions">
+            <button class="btn btn-outline btn-sm" onclick="showPage('review',document.querySelector('[onclick*=review]'))">Review</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CHAPTER REVIEW ══════ -->
+  <div class="page" id="page-review">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Ch. 12 — The Reckoning</h1>
+          <p>Bound by Blood · Adaeze M. · 4,821 words · Submitted 3h ago</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="showToast('Revision request sent to author.')">Request Revision</button>
+          <button class="btn btn-outline btn-sm" onclick="showToast('Escalated to Senior Editor.')">Escalate to SE</button>
+          <button class="btn btn-role btn-sm" onclick="showToast('Chapter approved!')">✓ Approve</button>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="review-panel">
+        <div>
+          <div style="border:1px solid var(--border);padding:24px;font-size:15px;line-height:1.9;background:var(--bg);min-height:400px;overflow-y:auto;">
+            <p style="margin-bottom:16px;">The rain had not stopped for three days. Kemi stood at the edge of the veranda, watching the red earth turn to mud, and she wondered if the gods were weeping too.</p>
+            <p style="margin-bottom:16px;">"You should come inside," Auntie Bose called from somewhere in the dark house. "The rain will not wash away your troubles."</p>
+            <p style="margin-bottom:16px;">But Kemi was not so sure. <span class="highlight-suggestion" title="Consider: 'She had carried this weight for twelve years'" onclick="addComment('Suggestion on line 3')">She had been carrying this weight for twelve long years</span>, and she had learned that sometimes the rain was the only honest thing left in the world.</p>
+            <p style="margin-bottom:16px;">She turned back inside, her wrapper damp at the hem. The parlour smelled of <span class="highlight-deletion">eba</span><span class="highlight-addition"> egusi soup</span> and kerosene, familiar smells that used to mean safety.</p>
+            <p style="margin-bottom:16px;">Tomorrow, everything would change. Chidi was coming home.</p>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 0;font-size:12px;color:var(--muted-fg);">
+            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:color-mix(in srgb,hsl(45 90% 50%) 20%,transparent);border-bottom:2px solid hsl(45 90% 50%);"></span> Suggestion</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);"></span> Deletion</span>
+            <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);"></span> Addition</span>
+          </div>
+        </div>
+        <div class="review-sidebar">
+          <div class="card">
+            <div class="card-head"><h2>Add Comment</h2></div>
+            <div class="card-body">
+              <textarea class="form-textarea" rows="3" id="commentInput" placeholder="Select text then add a note…" style="margin-bottom:10px;"></textarea>
+              <select class="form-select" style="margin-bottom:10px;">
+                <option>General note</option>
+                <option>Style suggestion</option>
+                <option>Continuity issue</option>
+                <option>Policy concern</option>
+              </select>
+              <button class="btn btn-role" style="width:100%;justify-content:center;" onclick="addComment('Manual comment')">Add Comment</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Review Notes</h2><span style="font-size:11px;color:var(--muted-fg);">2 notes</span></div>
+            <div class="card-body">
+              <div class="comment-thread">
+                <div class="comment-item">
+                  <div class="comment-meta">You · Style suggestion · Para 3</div>
+                  <div class="comment-body">Consider tightening "twelve long years" — the "long" is redundant and weakens the line.</div>
+                  <div class="comment-actions">
+                    <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px;" onclick="showToast('Note resolved.')">Resolve</button>
+                  </div>
+                </div>
+                <div class="comment-item">
+                  <div class="comment-meta">You · Continuity · Para 4</div>
+                  <div class="comment-body">Changed "eba" to "egusi soup" to match the description in Ch. 3.</div>
+                  <div class="comment-actions">
+                    <button class="btn btn-ghost" style="font-size:11px;padding:2px 6px;" onclick="showToast('Note resolved.')">Resolve</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Chapter Score</h2></div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span>Pacing</span><span style="color:var(--role-color);font-weight:500;">8/10</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:80%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span>Dialogue</span><span style="color:var(--role-color);font-weight:500;">7/10</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:70%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span>Consistency</span><span style="color:var(--role-color);font-weight:500;">9/10</span></div>
+                <div class="prog-bar"><div class="prog-fill" style="width:90%;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: AUTHOR FEEDBACK ══════ -->
+  <div class="page" id="page-feedback">
+    <div class="dash-hero">
+      <div><h1>Author Feedback</h1><p>Send structured feedback on reviewed chapters.</p></div>
+    </div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>Feedback History</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Author</th><th>Chapter</th><th>Type</th><th>Sent</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">Adaeze M.</td><td style="color:var(--muted-fg)">Ch. 11 — Shadows</td><td><span class="badge badge-green">Approved</span></td><td style="color:var(--muted-fg)">2h ago</td><td><span class="badge badge-blue">Acknowledged</span></td></tr>
+              <tr><td class="t-title">Emeka T.</td><td style="color:var(--muted-fg)">Ch. 3 — Old Debts</td><td><span class="badge badge-yellow">Revision</span></td><td style="color:var(--muted-fg)">Yesterday</td><td><span class="badge badge-yellow">Pending</span></td></tr>
+              <tr><td class="t-title">Chisom W.</td><td style="color:var(--muted-fg)">Ch. 7 — Storms</td><td><span class="badge badge-red">Escalated</span></td><td style="color:var(--muted-fg)">2 days ago</td><td><span class="badge badge-gray">SE Review</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: FLAGGED ══════ -->
+  <div class="page" id="page-flags">
+    <div class="dash-hero">
+      <div><h1>Flagged Content</h1><p>Content that may need policy review or escalation.</p></div>
+    </div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>Active Flags</h2><span class="badge badge-red">2 open</span></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Content</th><th>Flag Type</th><th>Flagged</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="t-title">Ch. 9 — Dark Waters · Kelechi O.</td>
+                <td><span class="badge badge-red">Mature Content</span></td>
+                <td style="color:var(--muted-fg)">1 day ago</td>
+                <td><button class="btn btn-outline btn-sm" onclick="showToast('Escalated to Senior Editor.')">Escalate to SE</button></td>
+              </tr>
+              <tr>
+                <td class="t-title">Ch. 2 — Thorns · Anonymous</td>
+                <td><span class="badge badge-yellow">Violence</span></td>
+                <td style="color:var(--muted-fg)">2 days ago</td>
+                <td><button class="btn btn-outline btn-sm" onclick="showToast('Escalated to Senior Editor.')">Escalate to SE</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: PROFILE ══════ -->
+  <div class="page" id="page-profile">
+    <div class="dash-hero"><div><h1>My Profile</h1><p>Your editorial account details.</p></div></div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>Editor Information</h2></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--role-color);display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;font-weight:600;flex-shrink:0;">A</div>
+            <div><p style="font-size:16px;font-weight:600;">Amara Osei</p><div class="role-pip" style="margin-top:6px;">ASSISTANT EDITOR</div></div>
+          </div>
+          <div class="form-group"><label class="form-label">Display Name</label><input class="form-input" value="Amara Osei"/></div>
+          <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="amara.osei@novelux.com" type="email"/></div>
+          <div class="form-group"><label class="form-label">Speciality Genres</label><input class="form-input" value="Romance, Drama"/></div>
+          <button class="btn btn-role" onclick="showToast('Profile saved!')">Save Changes</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:20px;">
+        <div class="card-head"><h2>Your Editor Invite Code</h2></div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--muted-fg);margin-bottom:16px;">Share this code with authors during their signup or onboarding so they get automatically linked to you.</p>
+          <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border:1px solid var(--border);background:var(--muted);margin-bottom:16px;">
+            <span id="profile-code-val" style="font-size:28px;font-weight:700;letter-spacing:.25em;color:var(--role-color);font-family:monospace;">······</span>
+            <button onclick="copyEditorCode()" class="btn btn-outline btn-sm">Copy Code</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted-fg);">Your code is permanent and unique to you. Authors linked to you will appear in your assigned authors list.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: SETTINGS ══════ -->
+  <div class="page" id="page-settings">
+    <div class="dash-hero"><div><h1>Settings</h1><p>Notification and review preferences.</p></div></div>
+    <div style="padding:0 12px;max-width:1100px;margin:0 auto;width:100%;">
+      <div class="card">
+        <div class="card-head"><h2>Notifications</h2></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div><p style="font-size:14px;font-weight:500;">New chapter assigned</p><p style="font-size:12px;color:var(--muted-fg)">When a chapter is added to your queue</p></div>
+            <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--role-color);border-radius:22px;transition:.2s;"></span></label>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div><p style="font-size:14px;font-weight:500;">Author revisions submitted</p><p style="font-size:12px;color:var(--muted-fg)">When an author responds to your revision request</p></div>
+            <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--role-color);border-radius:22px;transition:.2s;"></span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+</div><!-- /dash-layout -->
+
+<div class="toast" id="toast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script>
+const html=document.documentElement;
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  const d=html.classList.contains('dark');
+  html.classList.toggle('dark',!d);html.classList.toggle('light',d);
+  localStorage.setItem('nux_theme',d?'light':'dark');
+});
+
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
+
+const pageTitles={dashboard:'Dashboard',queue:'Review Queue',review:'Chapter Review',feedback:'Author Feedback',flags:'Flagged Content',profile:'Profile',settings:'Settings'};
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('topbarTitle').textContent=pageTitles[id]||id;
+  closeSidebar();
+}
+
+let toastTimer;
+function showToast(msg){
+  clearTimeout(toastTimer);
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+function addComment(ctx){
+  const inp=document.getElementById('commentInput');
+  if(inp&&inp.value.trim()){showToast('Comment added.');inp.value='';}
+  else{showToast('Comment added ('+ctx+').');}
+}
+
+// ── NoveluX API Client (AE Dashboard) ──────────────────────────────────────
+const NUX = {
+  token:   document.querySelector('meta[name="nux-token"]')?.content   || '',
+  apiBase: document.querySelector('meta[name="nux-api"]')?.content     || '/api',
+  role:    document.querySelector('meta[name="nux-role"]')?.content    || '',
+
+  async call(path, opts = {}) {
+    const res = await fetch(this.apiBase + path, {
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + this.token,
+        ...(opts.headers || {}),
+      },
+      ...opts,
+    });
+    if (!res.ok) throw new Error(`API ${path} → ${res.status}`);
+    return res.json();
+  },
+
+  get:  (path)         => NUX.call(path),
+  post: (path, body)   => NUX.call(path, { method: 'POST',  body: JSON.stringify(body) }),
+  patch:(path, body)   => NUX.call(path, { method: 'PATCH', body: JSON.stringify(body) }),
+};
+
+// Populate real stats from server-rendered context (Django template vars)
+// The JS below uses NUX.call() for live interactions; page load data comes
+// from {{ queue_count }}, {{ urgent_count }} etc injected by the view.
+
+async function loadDashboardStats() {
+  try {
+    const stats = await NUX.get('/editorial/stats/');
+    // Update stat cards if present in DOM
+    const slots = {
+      'stat-queue':    stats.queue_count,
+      'stat-urgent':   stats.urgent_count,
+      'stat-reviewed': stats.reviewed_today,
+      'stat-flagged':  stats.flagged_count,
+    };
+    for (const [id, val] of Object.entries(slots)) {
+      const el = document.getElementById(id);
+      if (el && val !== undefined) el.textContent = val;
+    }
+  } catch(e) { /* stats panel remains at server-rendered values */ }
+}
+
+async function approveReview(reviewId) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/approve/`, {});
+    showToast('Chapter approved ✓');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function requestRevision(reviewId, message) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/request-revision/`, { message });
+    showToast('Revision request sent.');
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+async function escalateToSE(reviewId, flagType, description) {
+  try {
+    await NUX.post(`/editorial/reviews/${reviewId}/escalate-to-se/`, { flag_type: flagType, description });
+    showToast('Escalated to Senior Editor.');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) { showToast('Error: ' + e.message); }
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', () => {
+  if (NUX.token) {
+    loadDashboardStats();
+    loadEditorCode();
+  }
+});
+
+async function loadEditorCode() {
+  try {
+    const data = await NUX.get('/editorial/my-code/');
+    const code = data.editor_code || '';
+    const els  = ['editor-code-val', 'profile-code-val'];
+    els.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = code;
+    });
+    // Update author count badge
+    const countEl = document.getElementById('stat-authors');
+    if (countEl && data.author_count !== undefined) countEl.textContent = data.author_count;
+  } catch(e) {
+    // Silently fail — code shown as placeholder
+  }
+}
+
+function copyEditorCode() {
+  const code = document.getElementById('editor-code-val')?.textContent?.trim();
+  if (!code || code === '······') return;
+  navigator.clipboard.writeText(code).then(() => showToast('Editor code copied!'));
+}
+
+</script>

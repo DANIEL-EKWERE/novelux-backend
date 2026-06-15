@@ -1,0 +1,680 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Privacy Policy – Novelux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: hsl(0 0% 100%);
+      --fg: hsl(0 0% 9%);
+      --primary: hsl(14 62% 38%);
+      --primary-fg: hsl(0 0% 100%);
+      --muted: hsl(0 0% 96%);
+      --muted-fg: hsl(0 0% 45%);
+      --border: hsl(0 0% 90%);
+    }
+
+    html.dark {
+      --bg: hsl(240 6% 6%);
+      --fg: hsl(0 0% 90%);
+      --primary: hsl(14 62% 38%);
+      --primary-fg: hsl(0 0% 100%);
+      --muted: hsl(240 4% 14%);
+      --muted-fg: hsl(0 0% 50%);
+      --border: hsl(240 4% 26%);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Geist', -apple-system, system-ui, sans-serif;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      transition: background .2s, color .2s;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      background: none;
+    }
+
+    svg {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    nav {
+      position: fixed;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      background: color-mix(in srgb, var(--bg) 95%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      transition: background .2s;
+    }
+
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo {
+      width: 22px;
+      height: 22px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .nav-brand span {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      color: color-mix(in srgb, var(--fg) 70%, transparent);
+      transition: color .15s;
+    }
+
+    .theme-toggle:hover {
+      color: var(--fg);
+    }
+
+    .icon-sun,
+    .icon-moon {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      transition: opacity .2s, transform .2s;
+    }
+
+    html.light .icon-sun {
+      opacity: 1;
+      transform: rotate(0)scale(1);
+    }
+
+    html.light .icon-moon {
+      opacity: 0;
+      transform: rotate(90deg)scale(0);
+    }
+
+    html.dark .icon-sun {
+      opacity: 0;
+      transform: rotate(-90deg)scale(0);
+    }
+
+    html.dark .icon-moon {
+      opacity: 1;
+      transform: rotate(0)scale(1);
+    }
+
+    .legal-layout {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 88px 24px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    @media(min-width:900px) {
+      .legal-layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 48px;
+      }
+    }
+
+    /* Sticky TOC */
+    .toc {
+      display: none;
+    }
+
+    @media(min-width:900px) {
+      .toc {
+        display: block;
+        position: sticky;
+        top: 72px;
+        align-self: start;
+      }
+    }
+
+    .toc-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .15em;
+      color: var(--muted-fg);
+      margin-bottom: 12px;
+    }
+
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .toc-list a {
+      font-size: 13px;
+      color: var(--muted-fg);
+      padding: 5px 8px;
+      display: block;
+      transition: color .15s, background .15s;
+      border-left: 2px solid transparent;
+    }
+
+    .toc-list a:hover,
+    .toc-list a.active {
+      color: var(--primary);
+      border-left-color: var(--primary);
+    }
+
+    /* Content */
+    .legal-content h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 500;
+      letter-spacing: -.04em;
+      line-height: 1.1;
+      margin-bottom: 8px;
+    }
+
+    .legal-meta {
+      font-size: 12px;
+      color: var(--muted-fg);
+      margin-bottom: 40px;
+    }
+
+    .legal-section {
+      margin-bottom: 48px;
+      scroll-margin-top: 80px;
+    }
+
+    .legal-section h2 {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: -.02em;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .legal-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 20px 0 8px;
+    }
+
+    .legal-section p {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted-fg);
+      margin-bottom: 12px;
+    }
+
+    .legal-section p:last-child {
+      margin-bottom: 0;
+    }
+
+    .legal-section ul,
+    .legal-section ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .legal-section li {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted-fg);
+      margin-bottom: 6px;
+    }
+
+    .legal-section a {
+      color: var(--primary);
+      text-decoration: underline;
+    }
+
+    .highlight-box {
+      padding: 16px 20px;
+      background: color-mix(in srgb, var(--primary) 6%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--fg);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    @media(min-width:768px) {
+      .footer-inner {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-logo-sm {
+      width: 18px;
+      height: 18px;
+      border-radius: 22%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .footer-brand span {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 12px;
+      color: var(--muted-fg);
+    }
+
+    .footer-links a:hover {
+      color: var(--fg);
+    }
+
+    /* Mobile TOC */
+    .toc-mobile {
+      display: block;
+      margin-bottom: 24px;
+    }
+
+    @media(min-width:900px) {
+      .toc-mobile {
+        display: none;
+      }
+    }
+
+    .toc-mobile-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--muted);
+      color: var(--fg);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .toc-mobile-list {
+      border: 1px solid var(--border);
+      border-top: none;
+      display: none;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    .toc-mobile-list.open {
+      display: flex;
+    }
+
+    .toc-mobile-list a {
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--muted-fg);
+      border-bottom: 1px solid var(--border);
+      transition: color .15s;
+    }
+
+    .toc-mobile-list a:last-child {
+      border-bottom: none;
+    }
+
+    .toc-mobile-list a:hover {
+      color: var(--primary);
+    }
+  </style>
+</head>
+
+<body>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="nav-brand">
+        <div class="nav-logo"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+            onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+        <span>Novelux</span>
+      </a>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4" />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="legal-layout">
+    <!-- TOC -->
+    <aside class="toc">
+      <p class="toc-label">On this page</p>
+      <ul class="toc-list">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#collection">Data We Collect</a></li>
+        <li><a href="#use">How We Use It</a></li>
+        <li><a href="#sharing">Sharing & Disclosure</a></li>
+        <li><a href="#cookies">Cookies</a></li>
+        <li><a href="#retention">Data Retention</a></li>
+        <li><a href="#rights">Your Rights</a></li>
+        <li><a href="#children">Children's Privacy</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#changes">Changes to Policy</a></li>
+        <li><a href="#contact">Contact Us</a></li>
+      </ul>
+    </aside>
+
+    <!-- Content -->
+    <main class="legal-content">
+      <h1>Privacy Policy</h1>
+      <p class="legal-meta">Last updated: April 18, 2026 · Effective: April 18, 2026</p>
+      <div class="toc-mobile">
+        <button class="toc-mobile-toggle" onclick="toggleMobileToc(this)">
+          <span>On this page</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        <div class="toc-mobile-list" id="mobileTocList">
+          <a href="#overview" onclick="closeMobileToc()">Overview</a><a href="#collection"
+            onclick="closeMobileToc()">Data We Collect</a><a href="#use" onclick="closeMobileToc()">How We Use It</a><a
+            href="#sharing" onclick="closeMobileToc()">Sharing & Disclosure</a><a href="#cookies"
+            onclick="closeMobileToc()">Cookies</a><a href="#retention" onclick="closeMobileToc()">Data Retention</a><a
+            href="#rights" onclick="closeMobileToc()">Your Rights</a><a href="#children"
+            onclick="closeMobileToc()">Children's Privacy</a><a href="#security"
+            onclick="closeMobileToc()">Security</a><a href="#changes" onclick="closeMobileToc()">Changes to Policy</a><a
+            href="#contact" onclick="closeMobileToc()">Contact Us</a>
+        </div>
+      </div>
+
+
+      <div class="highlight-box">
+        This Privacy Policy explains how Novelux ("we," "our," or "us") collects, uses, and protects information when
+        you use our platform — whether as a reader, author, or visitor. Please read it carefully.
+      </div>
+
+      <div class="legal-section" id="overview">
+        <h2>1. Overview</h2>
+        <p>Novelux is a novel reading and publishing platform. We are committed to protecting your personal information
+          and being transparent about how we use it. This policy applies to all Novelux products including our website,
+          mobile app, and writer portal.</p>
+        <p>By using Novelux, you agree to the collection and use of information in accordance with this policy.</p>
+      </div>
+
+      <div class="legal-section" id="collection">
+        <h2>2. Data We Collect</h2>
+        <h3>Information you provide</h3>
+        <ul>
+          <li><strong>Account details:</strong> Name, email address, password, profile photo, bio, and country when you
+            register.</li>
+          <li><strong>Author details:</strong> WhatsApp number (optional, for support contact), payment details for
+            withdrawals, manuscript content.</li>
+          <li><strong>Communications:</strong> Messages, support tickets, and feedback you send us.</li>
+        </ul>
+        <h3>Information we collect automatically</h3>
+        <ul>
+          <li><strong>Usage data:</strong> Pages visited, novels read, chapters opened, reading time, and completion
+            rates.</li>
+          <li><strong>Device data:</strong> IP address, browser type, device model, operating system, and app version.
+          </li>
+          <li><strong>Analytics:</strong> Aggregated behavioral data to understand platform performance.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="use">
+        <h2>3. How We Use Your Data</h2>
+        <p>We use the data we collect to:</p>
+        <ul>
+          <li>Provide, maintain, and improve the Novelux platform.</li>
+          <li>Process author royalty payments and withdrawals.</li>
+          <li>Personalise novel recommendations and search results.</li>
+          <li>Send transactional emails (account activity, payment confirmations).</li>
+          <li>Respond to support requests and feedback.</li>
+          <li>Detect and prevent fraud, abuse, or illegal activity.</li>
+          <li>Comply with our legal obligations.</li>
+        </ul>
+        <p>We do not sell your personal data to third parties. Novelux products are ad-supported but we do not let
+          advertisers access your personal information directly.</p>
+      </div>
+
+      <div class="legal-section" id="sharing">
+        <h2>4. Sharing & Disclosure</h2>
+        <p>We may share your information with:</p>
+        <ul>
+          <li><strong>Service providers:</strong> Trusted vendors (payment processors, cloud hosts, analytics tools) who
+            process data on our behalf under strict confidentiality agreements.</li>
+          <li><strong>Legal authorities:</strong> Where required by law, court order, or to protect the rights and
+            safety of our users.</li>
+          <li><strong>Business transfers:</strong> In the event of a merger, acquisition, or sale of assets, user data
+            may be transferred as part of that transaction.</li>
+        </ul>
+        <p>We will never sell, rent, or trade your personal information for commercial purposes.</p>
+      </div>
+
+      <div class="legal-section" id="cookies">
+        <h2>5. Cookies & Tracking</h2>
+        <p>We use cookies and similar technologies to:</p>
+        <ul>
+          <li>Keep you logged in between sessions.</li>
+          <li>Remember your reading preferences (font size, dark mode).</li>
+          <li>Measure platform performance and user engagement.</li>
+        </ul>
+        <p>You can control cookies through your browser settings. Disabling certain cookies may affect functionality.
+        </p>
+      </div>
+
+      <div class="legal-section" id="retention">
+        <h2>6. Data Retention</h2>
+        <p>We retain your data for as long as your account is active or as needed to provide services. If you delete
+          your account:</p>
+        <ul>
+          <li>Personal profile data is deleted within 30 days.</li>
+          <li>Published manuscripts may remain on the platform if required by an active contract.</li>
+          <li>Financial records are retained for up to 7 years for legal compliance.</li>
+        </ul>
+      </div>
+
+      <div class="legal-section" id="rights">
+        <h2>7. Your Rights</h2>
+        <p>Depending on your location, you may have the right to:</p>
+        <ul>
+          <li><strong>Access</strong> the personal data we hold about you.</li>
+          <li><strong>Correct</strong> inaccurate or incomplete information.</li>
+          <li><strong>Delete</strong> your account and associated data.</li>
+          <li><strong>Object</strong> to or restrict certain processing.</li>
+          <li><strong>Port</strong> your data to another service.</li>
+        </ul>
+        <p>To exercise any of these rights, contact us at <a href="mailto:privacy@novelux.com">privacy@novelux.com</a>.
+        </p>
+      </div>
+
+      <div class="legal-section" id="children">
+        <h2>8. Children's Privacy</h2>
+        <p>Novelux is not directed at children under 13. We do not knowingly collect personal information from children
+          under 13. If you believe a child has provided us with personal data, please contact us immediately and we will
+          delete it.</p>
+      </div>
+
+      <div class="legal-section" id="security">
+        <h2>9. Security</h2>
+        <p>We implement industry-standard security measures including encryption in transit (HTTPS/TLS), encrypted
+          storage of sensitive data, and access controls. However, no system is completely secure — we encourage you to
+          use a strong password and not share your account credentials.</p>
+      </div>
+
+      <div class="legal-section" id="changes">
+        <h2>10. Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. When we do, we'll revise the "Last updated" date at the
+          top and notify you via email or an in-app notice for material changes. Your continued use of Novelux after
+          changes take effect constitutes acceptance of the updated policy.</p>
+      </div>
+
+      <div class="legal-section" id="contact">
+        <h2>11. Contact Us</h2>
+        <p>If you have questions about this Privacy Policy or how we handle your data:</p>
+        <ul>
+          <li><strong>Email:</strong> <a href="mailto:privacy@novelux.com">privacy@novelux.com</a></li>
+          <li><strong>Support:</strong> <a href="/faq/">Help Center</a></li>
+          <li><strong>Writer support:</strong> <a href="https://writer.novel-up.com/"
+              target="_blank">writer.novel-up.com</a></li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo-sm"><img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+            onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+        <span>Novelux</span>
+      </div>
+      <div class="footer-links">
+        <a href="/privacy/">Privacy Policy</a>
+        <a href="/terms/">Terms of Service</a>
+        <a href="/faq/">Help Center</a>
+        <span>© <span id="year"></span> Novelux</span>
+      </div>
+    </div>
+  </footer>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const html = document.documentElement;
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      const d = html.classList.contains('dark');
+      html.classList.toggle('dark', !d); html.classList.toggle('light', d);
+    });
+    html.classList.add('light');
+    // TOC active state
+    const sections = document.querySelectorAll('.legal-section');
+    const links = document.querySelectorAll('.toc-list a');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => { if (window.scrollY >= s.offsetTop - 100) current = s.id; });
+      links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current));
+    });
+
+    function toggleMobileToc(btn) {
+      const list = document.getElementById('mobileTocList');
+      list.classList.toggle('open');
+      const svg = btn.querySelector('svg');
+      if (svg) svg.style.transform = list.classList.contains('open') ? 'rotate(180deg)' : '';
+    }
+    function closeMobileToc() {
+      const list = document.getElementById('mobileTocList');
+      if (list) list.classList.remove('open');
+    }
+
+  </script>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+
+</html>

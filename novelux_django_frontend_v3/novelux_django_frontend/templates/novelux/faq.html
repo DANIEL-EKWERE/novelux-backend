@@ -1,0 +1,1018 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help Center – Novelux</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --background: hsl(0 0% 100%);
+      --foreground: hsl(0 0% 9%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --muted: hsl(0 0% 96%);
+      --muted-foreground: hsl(0 0% 45%);
+      --border: hsl(0 0% 90%);
+      --card-bg: hsl(0 0% 99%);
+    }
+    html.dark {
+      --background: hsl(240 6% 6%);
+      --foreground: hsl(0 0% 90%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --muted: hsl(240 4% 14%);
+      --muted-foreground: hsl(0 0% 50%);
+      --border: hsl(240 4% 26%);
+      --card-bg: hsl(240 5% 9%);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background-color: var(--background); scroll-behavior: smooth; }
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 14px;
+      background-color: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; z-index: 50; width: 100%;
+      background: color-mix(in srgb, var(--background) 95%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      transition: background 0.2s;
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 8px; }
+    .nav-logo {
+      width: 22px; height: 22px; border-radius: 22%;
+      background: var(--primary); display: flex; align-items: center; justify-content: center;
+    }
+    .nav-brand span { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
+    .theme-toggle {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      position: relative; color: color-mix(in srgb, var(--foreground) 70%, transparent);
+      transition: color 0.15s;
+    }
+    .theme-toggle:hover { color: var(--foreground); }
+    .icon-sun, .icon-moon {
+      position: absolute; width: 16px; height: 16px;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    html.light .icon-sun  { opacity: 1; transform: rotate(0deg) scale(1); }
+    html.light .icon-moon { opacity: 0; transform: rotate(90deg) scale(0); }
+    html.dark  .icon-sun  { opacity: 0; transform: rotate(-90deg) scale(0); }
+    html.dark  .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+    .btn-report {
+      font-size: 13px; height: 32px; padding: 0 16px;
+      background: var(--primary); color: var(--primary-foreground);
+      border-radius: 999px;
+      transition: opacity 0.15s;
+    }
+    .btn-report:hover { opacity: 0.88; }
+
+    /* HERO */
+    .hero {
+      padding: 96px 24px 64px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 0 12px; height: 28px;
+      border: 1px solid var(--border);
+      font-size: 11px; color: var(--muted-foreground);
+      text-transform: uppercase; letter-spacing: 0.12em;
+    }
+    .hero h1 {
+      margin-top: 20px;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 500; letter-spacing: -0.04em; line-height: 1.1;
+    }
+    .hero p {
+      margin-top: 16px; font-size: 15px; line-height: 1.7;
+      color: var(--muted-foreground); max-width: 480px; margin-left: auto; margin-right: auto;
+    }
+
+    /* SEARCH */
+    .search-wrap {
+      max-width: 480px; margin: 32px auto 0;
+      position: relative;
+    }
+    .search-wrap input {
+      width: 100%; height: 44px; padding: 0 16px 0 44px;
+      font-family: inherit; font-size: 14px;
+      background: var(--muted); color: var(--foreground);
+      border: 1px solid var(--border);
+      outline: none; transition: border-color 0.15s;
+    }
+    .search-wrap input::placeholder { color: var(--muted-foreground); }
+    .search-wrap input:focus { border-color: var(--primary); }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted-foreground); pointer-events: none;
+    }
+
+    /* MAIN LAYOUT */
+    .main {
+      max-width: 1200px; margin: 0 auto;
+      padding: 24px 16px 80px;
+      display: grid; grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    @media (min-width: 640px) { .main { padding: 32px 24px 80px; } }
+    @media (min-width: 768px) {
+      .main { grid-template-columns: 260px 1fr; gap: 40px; }
+    }
+
+    /* SIDEBAR */
+    .sidebar { display: flex; flex-direction: column; gap: 4px; }
+    .sidebar-label {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 0.15em; color: var(--muted-foreground);
+      margin-bottom: 8px; padding: 0 12px;
+    }
+    .cat-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; font-size: 13px;
+      color: var(--muted-foreground);
+      transition: background 0.15s, color 0.15s;
+      text-align: left; width: 100%;
+    }
+    .cat-btn:hover { background: var(--muted); color: var(--foreground); }
+    .cat-btn.active { background: var(--muted); color: var(--foreground); font-weight: 500; }
+    .cat-btn .cat-icon { width: 18px; height: 18px; flex-shrink: 0; color: var(--primary); }
+    .cat-count {
+      margin-left: auto; font-size: 11px;
+      color: var(--muted-foreground);
+    }
+
+    /* FAQ LIST */
+    .faq-header { margin-bottom: 8px; }
+    .faq-header h2 {
+      font-size: 18px; font-weight: 600; letter-spacing: -0.02em;
+    }
+    .faq-header p { margin-top: 4px; font-size: 13px; color: var(--muted-foreground); }
+
+    .faq-list { display: flex; flex-direction: column; }
+    .faq-item { border-top: 1px solid var(--border); }
+    .faq-item:last-child { border-bottom: 1px solid var(--border); }
+
+    .faq-trigger {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 20px 0;
+      text-align: left; font-size: 14px; font-weight: 500;
+      color: var(--foreground);
+      transition: color 0.15s;
+    }
+    .faq-trigger:hover { color: var(--primary); }
+    .faq-trigger.open { color: var(--primary); }
+    .faq-chevron {
+      width: 18px; height: 18px; flex-shrink: 0;
+      color: var(--muted-foreground);
+      transition: transform 0.25s;
+    }
+    .faq-trigger.open .faq-chevron { transform: rotate(180deg); }
+
+    .faq-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s ease, padding 0.25s;
+    }
+    .faq-body.open { max-height: 2000px; }
+    .faq-body-inner {
+      padding-bottom: 24px;
+      font-size: 13px; line-height: 1.75;
+      color: var(--muted-foreground);
+    }
+    .faq-body-inner p { margin-bottom: 12px; }
+    .faq-body-inner p:last-child { margin-bottom: 0; }
+    .faq-body-inner strong { color: var(--foreground); font-weight: 500; }
+    .faq-body-inner a { color: var(--primary); text-decoration: underline; }
+
+    /* Steps inside FAQ */
+    .faq-steps { margin: 16px 0; display: flex; flex-direction: column; gap: 8px; }
+    .faq-step {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 12px 14px; background: var(--muted);
+      border-left: 2px solid var(--primary);
+    }
+    .faq-step-num {
+      width: 20px; height: 20px; flex-shrink: 0;
+      background: var(--primary); color: var(--primary-foreground);
+      font-size: 11px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .faq-step p { margin: 0; }
+
+    /* Image placeholder inside FAQ */
+    .faq-img {
+      margin: 16px 0; width: 100%; aspect-ratio: 16/9;
+      background: var(--muted);
+      border: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 8px; color: var(--muted-foreground); font-size: 12px;
+    }
+    .faq-img svg { opacity: 0.4; }
+    .faq-img-caption {
+      font-size: 11px; color: var(--muted-foreground);
+      text-align: center; margin-top: -8px; margin-bottom: 8px;
+      font-style: italic;
+    }
+
+    /* Warning block */
+    .faq-warning {
+      margin: 12px 0; padding: 12px 14px;
+      background: color-mix(in srgb, hsl(45 90% 50%) 8%, transparent);
+      border: 1px solid color-mix(in srgb, hsl(45 90% 50%) 30%, transparent);
+      font-size: 12px; line-height: 1.6;
+      display: flex; gap: 8px;
+    }
+    .faq-note {
+      margin: 12px 0; padding: 12px 14px;
+      background: color-mix(in srgb, var(--primary) 6%, transparent);
+      border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      font-size: 12px; line-height: 1.6;
+    }
+
+    /* Category filter chips (mobile) */
+    .cat-chips {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding-bottom: 4px; margin-bottom: 24px;
+    }
+    @media (min-width: 768px) { .cat-chips { display: none; } }
+    .chip {
+      flex-shrink: 0; padding: 0 14px; height: 32px;
+      border: 1px solid var(--border); font-size: 12px;
+      color: var(--muted-foreground);
+      white-space: nowrap; transition: all 0.15s;
+    }
+    .chip.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+    .sidebar { display: none; }
+    @media (min-width: 768px) { .sidebar { display: flex; } }
+
+    /* Empty state */
+    .empty-state {
+      padding: 60px 0; text-align: center;
+      color: var(--muted-foreground); font-size: 14px;
+      display: none;
+    }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); }
+    .footer-inner {
+      max-width: 1200px; margin: 0 auto; padding: 32px 24px;
+      display: flex; flex-direction: column; gap: 16px; align-items: center;
+    }
+    @media (min-width: 768px) { .footer-inner { flex-direction: row; justify-content: space-between; } }
+    .footer-brand { display: flex; align-items: center; gap: 8px; }
+    .footer-logo {
+      width: 22px; height: 22px; border-radius: 22%;
+      background: var(--primary); display: flex; align-items: center; justify-content: center;
+    }
+    .footer-brand span { font-size: 13px; font-weight: 600; }
+    .footer-links { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .footer-links a { font-size: 12px; color: var(--muted-foreground); transition: color 0.15s; }
+    .footer-links a:hover { color: var(--foreground); }
+    .footer-links span { font-size: 12px; color: var(--muted-foreground); }
+
+    .help-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: color-mix(in srgb, var(--background) 97%, transparent);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 40;
+    }
+    .help-bar p { font-size: 14px; font-weight: 500; }
+    .help-bar span { font-size: 12px; color: var(--muted-foreground); }
+
+    /* ── MODALS ── */
+    .faq-modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.55);
+      display: flex; align-items: flex-end; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    @media (min-width: 520px) { .faq-modal-overlay { align-items: center; } }
+    .faq-modal-overlay.show { opacity: 1; pointer-events: all; }
+    .faq-modal {
+      background: var(--background); width: 100%; max-width: 500px;
+      max-height: 90vh; overflow-y: auto; border: 1px solid var(--border);
+      border-radius: 16px 16px 0 0; transform: translateY(40px);
+      transition: transform 0.3s ease;
+    }
+    @media (min-width: 520px) { .faq-modal { border-radius: 12px; transform: translateY(20px); } }
+    .faq-modal-overlay.show .faq-modal { transform: translateY(0); }
+    .faq-modal-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 20px 16px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--background); z-index: 2;
+    }
+    .faq-modal-head h2 { font-size: 20px; font-weight: 700; }
+    .faq-modal-close {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      color: var(--muted-foreground); border-radius: 50%; background: var(--muted);
+      transition: background 0.15s; border: none; cursor: pointer;
+    }
+    .faq-modal-close:hover { background: var(--border); }
+    .faq-modal-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+    .faq-modal-section { display: flex; flex-direction: column; gap: 8px; }
+    .faq-modal-label { font-size: 14px; font-weight: 600; color: var(--foreground); }
+    .faq-modal-input {
+      width: 100%; padding: 14px 16px; font-family: inherit; font-size: 14px;
+      background: var(--muted); color: var(--foreground);
+      border: 1px solid var(--border); border-radius: 10px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .faq-modal-input:focus { border-color: var(--primary); }
+    .faq-modal-input::placeholder { color: var(--muted-foreground); }
+    .faq-modal-textarea {
+      width: 100%; padding: 14px 16px; font-family: inherit; font-size: 14px;
+      background: var(--muted); color: var(--foreground);
+      border: 1px solid var(--border); border-radius: 10px; outline: none;
+      resize: none; line-height: 1.6; transition: border-color 0.15s;
+    }
+    .faq-modal-textarea:focus { border-color: var(--primary); }
+    .faq-modal-textarea::placeholder { color: var(--muted-foreground); }
+    .faq-upload-grid { display: flex; flex-wrap: wrap; gap: 10px; min-height: 90px; align-items: flex-start; }
+    .faq-upload-box {
+      width: 90px; height: 90px; border: 2px dashed var(--border);
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted-foreground); background: var(--muted);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .faq-upload-box:hover { border-color: var(--primary); color: var(--primary); }
+    .faq-upload-preview {
+      width: 90px; height: 90px; border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border); position: relative; background: var(--muted); flex-shrink: 0;
+    }
+    .faq-upload-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .remove-img {
+      position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+      border-radius: 50%; background: rgba(0,0,0,0.65); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 11px; font-weight: 700;
+    }
+    .faq-upload-warn { font-size: 12px; color: hsl(0 70% 50%); }
+    .faq-submit-btn {
+      width: 100%; padding: 15px; font-family: inherit; font-size: 16px; font-weight: 600;
+      cursor: pointer; background: hsl(230 70% 58%); color: #fff;
+      border: none; border-radius: 40px; transition: opacity 0.15s;
+    }
+    .faq-submit-btn:hover { opacity: 0.88; }
+    .faq-toast {
+      position: fixed; bottom: 80px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--foreground); color: var(--background);
+      padding: 12px 20px; border-radius: 40px; font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 8px;
+      opacity: 0; pointer-events: none; z-index: 300;
+      transition: opacity 0.25s, transform 0.25s; white-space: nowrap;
+    }
+    .faq-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo">
+        <img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" />
+      </div>
+      <span>Novelux</span>
+    </a>
+    <div class="nav-actions">
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+      </button>
+      <button class="btn-report" onclick="openReportModal()">Report</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <span class="tag">
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+    Help Center
+  </span>
+  <h1>How can we help?</h1>
+  <p>Browse frequently asked questions or search for a topic below.</p>
+  <div class="search-wrap">
+    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="searchInput" placeholder="Search topics…" autocomplete="off" />
+  </div>
+</section>
+
+<!-- MOBILE CATEGORY CHIPS -->
+<div style="padding:20px 24px 0; max-width:1200px; margin:0 auto;">
+  <div class="cat-chips" id="catChips">
+    <button class="chip active" data-cat="all">All topics</button>
+    <button class="chip" data-cat="reader">For Readers</button>
+    <button class="chip" data-cat="writer">For Writers</button>
+    <button class="chip" data-cat="account">Account</button>
+    <button class="chip" data-cat="technical">Technical</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <p class="sidebar-label">Topics</p>
+    <button class="cat-btn active" data-cat="all">
+      <svg class="cat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      All topics
+      <span class="cat-count">14</span>
+    </button>
+    <button class="cat-btn" data-cat="reader">
+      <svg class="cat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      For Readers
+      <span class="cat-count">8</span>
+    </button>
+    <button class="cat-btn" data-cat="writer">
+      <svg class="cat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      For Writers
+      <span class="cat-count">3</span>
+    </button>
+    <button class="cat-btn" data-cat="account">
+      <svg class="cat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Account
+      <span class="cat-count">1</span>
+    </button>
+    <button class="cat-btn" data-cat="technical">
+      <svg class="cat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>
+      Technical
+      <span class="cat-count">2</span>
+    </button>
+  </aside>
+
+  <!-- FAQ CONTENT -->
+  <div>
+    <div class="faq-header" id="faqHeader">
+      <h2>Frequent topics</h2>
+      <p>Select a question to see the full answer.</p>
+    </div>
+
+    <div class="faq-list" id="faqList">
+
+      <!-- 1 -->
+      <div class="faq-item" data-cat="reader" data-q="How to download novels?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to download novels?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>You can download novels for offline reading directly from the novel's detail page.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Open the novel you want to download.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Tap the <strong>Download</strong> icon (arrow pointing down) in the top-right corner of the novel page.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Select the chapters you want — or tap <strong>Download All</strong> to get everything at once.</p></div>
+              <div class="faq-step"><div class="faq-step-num">4</div><p>Once downloaded, the novel appears in your <strong>Library → Downloaded</strong> tab, accessible without an internet connection.</p></div>
+            </div>
+            <div class="faq-img">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+              Download screen screenshot
+            </div>
+            <p class="faq-img-caption">The download icon appears in the top-right of every novel page.</p>
+            <div class="faq-note">💡 Downloads are tied to your account. If you log out, downloaded novels may not be accessible until you log in again.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="faq-item" data-cat="reader" data-q="Why reading novels requires watching ads?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          Why reading novels requires watching ads?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Novelux is free to read for everyone. To keep the platform free, we use ad revenue to pay authors their royalties and fund platform maintenance.</p>
+            <p>A short ad before certain chapters helps ensure authors get paid for every chapter you enjoy — without you spending a cent.</p>
+            <div class="faq-note">💡 You can remove ads entirely by subscribing to <strong>Novelux Premium</strong>. Visit your profile settings to learn more about subscription options.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="faq-item" data-cat="reader" data-q="How to add a novel to my library?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to add a novel to my library?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Adding a novel to your library lets you track updates and pick up where you left off.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Open the novel's detail page.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Tap the <strong>Bookmark</strong> icon or the <strong>"Add to Library"</strong> button.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>The novel now appears in <strong>My Library</strong> and you'll receive notifications when new chapters drop.</p></div>
+            </div>
+            <div class="faq-img">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+              Library bookmark screenshot
+            </div>
+            <p class="faq-img-caption">The bookmark icon is visible on every novel detail page.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="faq-item" data-cat="reader" data-q="How to view downloaded novels?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to view downloaded novels?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>All novels you've downloaded are stored under the <strong>Downloaded</strong> tab in your Library, available offline at any time.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Tap the <strong>Library</strong> icon in the bottom navigation bar.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Select the <strong>Downloaded</strong> tab at the top of the Library screen.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Tap any novel to read it — even without an internet connection.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="faq-item" data-cat="reader" data-q="How to set the font and sliding mode of the reading interface?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to set the font and sliding mode of the reading interface?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Novelux lets you customize your reading experience with different fonts, sizes, brightness, and page-turn modes.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Open any chapter and tap anywhere on the screen to reveal the reading toolbar.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Tap the <strong>Aa</strong> icon (font settings) in the toolbar.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Choose your preferred <strong>font family</strong>, adjust <strong>font size</strong>, <strong>line spacing</strong>, and <strong>background color</strong>.</p></div>
+              <div class="faq-step"><div class="faq-step-num">4</div><p>Tap the <strong>Slide mode</strong> option to switch between scroll mode (continuous) and page-flip mode (tap to advance).</p></div>
+            </div>
+            <div class="faq-img">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
+              Font settings panel screenshot
+            </div>
+            <p class="faq-img-caption">The font panel shows all customization options including slide/scroll toggle.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 -->
+      <div class="faq-item" data-cat="technical" data-q="Why do some chapters display garbled characters?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          Why do some chapters of novels display garbled characters?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Garbled or scrambled characters are typically caused by a text encoding mismatch between the author's submission file and the app's reader.</p>
+            <p><strong>Common causes:</strong></p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">!</div><p>The chapter was uploaded using a non-UTF-8 encoding (e.g. GBK or ANSI).</p></div>
+              <div class="faq-step"><div class="faq-step-num">!</div><p>The chapter contains special characters or symbols not supported by the current font.</p></div>
+            </div>
+            <p style="margin-top:12px;"><strong>How to fix:</strong> Use the <strong>underline error reporting</strong> feature — long-press on the garbled text and select "Report Error." Our editorial team will fix it within 48 hours.</p>
+            <div class="faq-warning">⚠️ If the entire novel appears garbled, try closing and reopening the app, or clearing the app cache in your phone settings.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="faq-item" data-cat="reader" data-q="How to share novels with friends?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to share novels with friends?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Sharing a novel generates a link that takes your friend directly to the novel's page on Novelux.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Open the novel you want to share.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Tap the <strong>Share</strong> icon (box with upward arrow) on the novel's detail page.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Choose your sharing method — copy link, send via WhatsApp, Telegram, or any installed app.</p></div>
+            </div>
+            <div class="faq-note">💡 Sharing earns you bonus reading coins when friends sign up using your link.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="faq-item" data-cat="technical" data-q="How to check for updated versions?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to check for updated versions?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Keeping the app up to date ensures you have the latest features and bug fixes.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Go to <strong>Profile → Settings → About</strong> to see your current app version.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Tap <strong>Check for Updates</strong> to compare with the latest available version.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Alternatively, visit your device's <strong>App Store / Google Play</strong> and search for Novelux to update.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="faq-item" data-cat="reader" data-q="Why are some books shown as finished even though they are not finished?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          Why are some books shown as finished even though they are not finished?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>A novel may be tagged as <strong>"Completed"</strong> on Novelux while the original author is still publishing chapters on another platform. This happens because:</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">!</div><p>The version uploaded to Novelux was a completed manuscript at time of submission, but the author continues a new arc or sequel elsewhere.</p></div>
+              <div class="faq-step"><div class="faq-step-num">!</div><p>The author has not yet submitted the latest chapters to Novelux for review.</p></div>
+            </div>
+            <p style="margin-top:12px;">If you believe this is an error, tap <strong>"Report Issue"</strong> on the novel page and our team will investigate within 72 hours.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="faq-item" data-cat="reader" data-q="I'm looking for a book but can't find it?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          I'm looking for a book but can't find it?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Not every novel is available on Novelux yet — our library grows daily as authors submit and our editorial team reviews new titles.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>Try searching by the <strong>author's name</strong> in addition to the title — the title may be slightly different across platforms.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Check spelling variations (e.g. "Billionaire CEO" vs "CEO Billionaire").</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Use the <strong>"Suggest a Book"</strong> option (below) to request we add it.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11 -->
+      <div class="faq-item" data-cat="reader" data-q="How to use the underline error reporting function?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          How to use the underline error reporting function?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>The error reporting tool lets you highlight specific text and flag it directly to our editorial team for correction.</p>
+            <div class="faq-steps">
+              <div class="faq-step"><div class="faq-step-num">1</div><p>While reading a chapter, <strong>long-press</strong> on the problematic word or sentence.</p></div>
+              <div class="faq-step"><div class="faq-step-num">2</div><p>Drag the selection handles to cover all the garbled or incorrect text.</p></div>
+              <div class="faq-step"><div class="faq-step-num">3</div><p>Tap <strong>"Report Error"</strong> from the popup menu that appears.</p></div>
+              <div class="faq-step"><div class="faq-step-num">4</div><p>Add an optional note and submit. Our team reviews all reports within 48 hours.</p></div>
+            </div>
+            <div class="faq-img">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>
+              Error reporting highlight screenshot
+            </div>
+            <p class="faq-img-caption">Long-press any text to trigger the selection and report option.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12 -->
+      <div class="faq-item" data-cat="writer" data-q="Can I upload my novel on Novelux?">
+        <button class="faq-trigger" onclick="toggleFaq(this)">
+          Can I upload my novel on Novelux?
+          <svg class="faq-chevron" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="faq-body">
+          <div class="faq-body-inner">
+            <p>Yes! Novelux is open to writers worldwide. You can upload your manuscript and start reaching millions of readers.</p>
+            <p>Visit our <a href="/become-author/"><strong>Become an Author</strong></a> page for the full 5-step guide — from registering at <a href="https://writer.novel-up.com/" target="_blank">writer.novel-up.com</a> to your first royalty payout.</p>
+            <div class="faq-note">💡 Both exclusive and non-exclusive contracts are available. Non-exclusive authors can keep publishing on other platforms simultaneously.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 12b -->
+      <div class="faq-item" data-cat="writer" data-q="What content is allowed? Content guidelines rules">
+        <button class="faq-trigger" onclick="window.location.href='/content-guidelines/'" style="justify-content:space-between;">
+          What content is allowed on Novelux?
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-foreground)"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- 13 -->
+      <div class="faq-item" data-cat="account" data-q="Contact us">
+        <button class="faq-trigger" onclick="openReportModal()" style="justify-content:space-between;">
+          Contact us / Report an issue
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-foreground)"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- 14 -->
+      <div class="faq-item" data-cat="writer" data-q="I suggest Novelux add the following books">
+        <button class="faq-trigger" onclick="openSuggestModal()" style="justify-content:space-between;">
+          I suggest Novelux add the following books
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted-foreground)"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </button>
+      </div>
+
+    </div>
+
+    <div class="empty-state" id="emptyState">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:0.3"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      No results found for your search.
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer style="margin-bottom:64px;">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <img src="{% static 'novelux/images/logo.png' %}" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" />
+      </div>
+      <span>Novelux</span>
+    </div>
+    <div class="footer-links">
+      <a href="/privacy/">Privacy Policy</a>
+      <a href="/terms/">Terms of Service</a>
+      <a href="/cookies/">Cookie Policy</a>
+      <a href="/content-guidelines/">Content Guidelines</a>
+      <span>© <span id="year"></span> Novelux</span>
+    </div>
+  </div>
+</footer>
+
+<!-- HELP BAR -->
+<div class="help-bar">
+  <div>
+    <p>Need some help?</p>
+    <span>We're here for you</span>
+  </div>
+  <button class="btn-report" onclick="openReportModal()">Report</button>
+</div>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Theme
+  const html = document.documentElement;
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const isDark = html.classList.contains('dark');
+    html.classList.toggle('dark', !isDark);
+    html.classList.toggle('light', isDark);
+  });
+  html.classList.add('light');
+
+  // FAQ accordion toggle
+  function toggleFaq(btn) {
+    const body = btn.nextElementSibling;
+    const isOpen = body.classList.contains('open');
+    document.querySelectorAll('.faq-body.open').forEach(b => b.classList.remove('open'));
+    document.querySelectorAll('.faq-trigger.open').forEach(b => b.classList.remove('open'));
+    if (!isOpen) {
+      body.classList.add('open');
+      btn.classList.add('open');
+    }
+  }
+
+  // Category filter
+  function filterCat(cat) {
+    document.querySelectorAll('.faq-item').forEach(item => {
+      item.style.display = (cat === 'all' || item.dataset.cat === cat) ? '' : 'none';
+    });
+    checkEmpty();
+  }
+
+  // Sidebar buttons
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterCat(btn.dataset.cat);
+    });
+  });
+
+  // Mobile chips
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      filterCat(chip.dataset.cat);
+    });
+  });
+
+  // Search
+  document.getElementById('searchInput').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    document.querySelectorAll('.faq-item').forEach(item => {
+      const text = (item.dataset.q || '').toLowerCase();
+      const body = (item.querySelector('.faq-body-inner') || {}).textContent || '';
+      item.style.display = (!q || text.includes(q) || body.toLowerCase().includes(q)) ? '' : 'none';
+    });
+    document.querySelectorAll('.cat-btn, .chip').forEach(b => b.classList.remove('active'));
+    const allBtn = document.querySelector('.cat-btn[data-cat="all"]');
+    const allChip = document.querySelector('.chip[data-cat="all"]');
+    if (allBtn) allBtn.classList.add('active');
+    if (allChip) allChip.classList.add('active');
+    checkEmpty();
+  });
+
+  function checkEmpty() {
+    const visible = Array.from(document.querySelectorAll('.faq-item')).filter(i => i.style.display !== 'none');
+    const el = document.getElementById('emptyState');
+    if (el) el.style.display = visible.length === 0 ? 'block' : 'none';
+  }
+
+  // ── MODALS ──
+  function openReportModal() {
+    document.getElementById('reportModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function openSuggestModal() {
+    document.getElementById('suggestModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  // Close modal when clicking the backdrop
+  document.querySelectorAll('.faq-modal-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeModal(overlay.id);
+    });
+  });
+
+  // Image upload previews
+  function handleUpload(event, gridId, inputId) {
+    var files = Array.from(event.target.files);
+    var grid = document.getElementById(gridId);
+    files.forEach(function(file) {
+      if (!file.type.startsWith('image/')) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var wrap = document.createElement('div');
+        wrap.className = 'faq-upload-preview';
+        var img = document.createElement('img');
+        img.src = e.target.result;
+        img.alt = 'preview';
+        var rm = document.createElement('div');
+        rm.className = 'remove-img';
+        rm.textContent = 'x';
+        rm.onclick = function() { wrap.remove(); };
+        wrap.appendChild(img);
+        wrap.appendChild(rm);
+        var label = grid.querySelector('label');
+        grid.insertBefore(wrap, label);
+      };
+      reader.readAsDataURL(file);
+    });
+    event.target.value = '';
+  }
+
+  // Submit form
+  function submitForm(modalId) {
+    closeModal(modalId);
+    var toast = document.getElementById('faqToast');
+    var msg = document.getElementById('faqToastMsg');
+    if (msg) msg.textContent = 'Submitted! We will be in touch soon.';
+    if (toast) {
+      toast.classList.add('show');
+      setTimeout(function() { toast.classList.remove('show'); }, 3000);
+    }
+  }
+</script>
+
+<!-- ══ REPORT MODAL ══ -->
+<div class="faq-modal-overlay" id="reportModal">
+  <div class="faq-modal">
+    <div class="faq-modal-head">
+      <h2>Report</h2>
+      <button class="faq-modal-close" onclick="closeModal('reportModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="faq-modal-body">
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">How to contact you</label>
+        <input class="faq-modal-input" type="tel" placeholder="Provide Your WhatsApp Number" />
+      </div>
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">Problem description</label>
+        <textarea class="faq-modal-textarea" rows="5" placeholder="Please include as much information as possible about your issue or suggestion so that we can address it as quickly as possible."></textarea>
+      </div>
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">Add screenshots</label>
+        <div class="faq-upload-grid" id="reportUploadGrid">
+          <label class="faq-upload-box" for="reportFileInput">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          </label>
+          <input type="file" id="reportFileInput" accept="image/*" multiple style="display:none" onchange="handleUpload(event,'reportUploadGrid','reportFileInput')" />
+        </div>
+        <p class="faq-upload-warn">*Do not send explicit, violent, or other irrelevant images.</p>
+      </div>
+      <button class="faq-submit-btn" onclick="submitForm('reportModal')">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SUGGEST BOOK MODAL ══ -->
+<div class="faq-modal-overlay" id="suggestModal">
+  <div class="faq-modal">
+    <div class="faq-modal-head">
+      <h2>Suggest a Book</h2>
+      <button class="faq-modal-close" onclick="closeModal('suggestModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+    </div>
+    <div class="faq-modal-body">
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">How to contact you</label>
+        <input class="faq-modal-input" type="tel" placeholder="Provide Your WhatsApp Number" />
+      </div>
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">I suggest Novelux add the following books</label>
+        <textarea class="faq-modal-textarea" rows="6" placeholder="Please tell us the full title of the book、 the full name of the author and How you know about this book?&#10;Please be as detailed as possible, it will help us find the book 🌹"></textarea>
+      </div>
+      <div class="faq-modal-section">
+        <label class="faq-modal-label">Add screenshots</label>
+        <div class="faq-upload-grid" id="suggestUploadGrid">
+          <label class="faq-upload-box" for="suggestFileInput">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          </label>
+          <input type="file" id="suggestFileInput" accept="image/*" multiple style="display:none" onchange="handleUpload(event,'suggestUploadGrid','suggestFileInput')" />
+        </div>
+        <p class="faq-upload-warn">*Do not send explicit, violent, or other irrelevant images.</p>
+      </div>
+      <button class="faq-submit-btn" onclick="submitForm('suggestModal')">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SUCCESS TOAST ══ -->
+<div class="faq-toast" id="faqToast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="faqToastMsg">Submitted successfully!</span>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+  // Wire every .theme-toggle button on this page
+  document.querySelectorAll('#themeToggle, .theme-toggle').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    });
+  });
+});
+</script>
+</body>
+</html>

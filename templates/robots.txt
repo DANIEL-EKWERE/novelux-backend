@@ -1,0 +1,33 @@
+User-agent: *
+
+# Allow public content
+Allow: /$
+Allow: /explore/
+Allow: /articles/
+Allow: /become-author/
+Allow: /faq/
+Allow: /privacy/
+Allow: /terms/
+Allow: /cookies/
+Allow: /content-guidelines/
+Allow: /copyright-policy/
+Allow: /download/apk/
+
+# Block authenticated / private routes
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /editorial/
+Disallow: /author/
+Disallow: /login/
+Disallow: /register/
+Disallow: /logout/
+Disallow: /forgot-password/
+Disallow: /reset-password/
+Disallow: /auth/
+Disallow: /my-books/
+Disallow: /book-request/
+Disallow: /newsletter/
+
+# Sitemap
+Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml

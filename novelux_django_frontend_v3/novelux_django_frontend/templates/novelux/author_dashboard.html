@@ -1,0 +1,3459 @@
+{% comment %} {% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+
+
+<meta name="nux-token" content="{{ access_token|default:'' }}">
+<meta name="nux-username" content="{{ username|default:'Author' }}">
+<meta name="nux-api" content="{{ api_base|default:'/api' }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Author Dashboard – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--card:hsl(0 0% 99%);
+  --sidebar-w:220px;
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);--card:hsl(240 5% 9%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);height:100%;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+textarea,input,select{font-family:inherit;font-size:inherit;}
+svg{display:inline-block;vertical-align:middle;}
+
+/* ── STRIPE PATTERN ── */
+.stripe::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;z-index:0;}
+.stripe>*{position:relative;z-index:1;}
+
+/* ── LAYOUT ── */
+.dash-layout{display:flex;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  border-right:1px solid var(--border);
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:40;
+  transform:translateX(-100%);transition:transform .3s;
+  overflow-y:auto;
+}
+.sidebar.open{transform:translateX(0);}
+@media(min-width:1024px){.sidebar{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sidebar-head{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sidebar-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);}
+@media(min-width:1024px){.sidebar-close{display:none;}}
+.sidebar-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}
+.nav-section-label:first-child{margin-top:0;}
+.nav-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;font-size:13px;
+  color:var(--muted-fg);width:100%;text-align:left;
+  transition:background .12s,color .12s;border-radius:2px;
+}
+.nav-btn:hover{background:var(--muted);color:var(--fg);}
+.nav-btn.active{background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary);font-weight:500;}
+.nav-btn .nav-icon{width:16px;height:16px;flex-shrink:0;}
+.sidebar-foot{padding:16px 12px;border-top:1px solid var(--border);}
+.author-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);}
+.author-avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--primary-fg);font-size:13px;font-weight:600;flex-shrink:0;}
+.author-info p{font-size:13px;font-weight:500;}
+.author-info span{font-size:11px;color:var(--muted-fg);}
+
+/* ── MAIN AREA ── */
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;}
+/* main-area flex:1 handles the offset — no extra margin needed */
+
+/* ── TOP BAR ── */
+.topbar{
+  position:sticky;top:0;z-index:30;
+  height:56px;border-bottom:1px solid var(--border);
+  background:color-mix(in srgb,var(--bg) 95%,transparent);
+  backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;gap:8px;
+}
+@media(min-width:640px){.topbar{padding:0 24px;gap:12px;}}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.menu-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--fg);}
+@media(min-width:1024px){.menu-btn{display:none;}}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);transition:color .15s;position:relative;}
+.icon-btn:hover{color:var(--fg);}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--muted-fg);transition:color .15s;}
+.theme-toggle:hover{color:var(--fg);}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}
+html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}
+html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+
+/* ── PAGE WRAPPER ── */
+.page{display:none;padding:24px 12px 80px;max-width:1100px;margin:0 auto;width:100%;}
+@media(min-width:640px){.page{padding:32px 20px 80px;}}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}
+.page.active{display:block;}
+.inner-pad{padding:0 0;}
+@media(min-width:640px){.inner-pad{padding:0 4px;}}
+@media(min-width:1024px){.inner-pad{padding:0 0;}}
+
+/* ── SECTION HEADER ── */
+.page-header{margin-bottom:32px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.page-header h1{font-size:clamp(1.4rem,2.5vw,1.8rem);font-weight:600;letter-spacing:-.03em;}
+.page-header p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+
+/* ── STAT CARDS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}}
+.stat-card{border:1px solid var(--border);padding:20px;background:var(--card);}
+.stat-card .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.stat-card .stat-val{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}
+.stat-card .stat-change{margin-top:4px;font-size:11px;color:var(--muted-fg);}
+.stat-card .stat-change.up{color:hsl(142 60% 40%);}
+.stat-card .stat-change.down{color:hsl(0 70% 50%);}
+
+/* ── CARDS ── */
+.card{border:1px solid var(--border);background:var(--card);}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-head h2{font-size:14px;font-weight:600;}
+.card-body{padding:20px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:13px;font-weight:500;transition:opacity .15s;cursor:pointer;font-family:inherit;border:none;}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-primary:hover{opacity:.88;}
+.btn-outline{border:1px solid var(--border);color:var(--fg);background:none;}
+.btn-outline:hover{background:var(--muted);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:hsl(0 70% 50%);color:#fff;}
+.btn-danger:hover{opacity:.88;}
+.btn-ghost{color:var(--muted-fg);padding:6px 8px;font-size:12px;}
+.btn-ghost:hover{color:var(--fg);}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:500;letter-spacing:.04em;}
+.badge-green{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.badge-yellow{background:color-mix(in srgb,hsl(45 90% 50%) 12%,transparent);color:hsl(45 80% 30%);}
+html.dark .badge-yellow{color:hsl(45 90% 60%);}
+.badge-gray{background:var(--muted);color:var(--muted-fg);}
+.badge-red{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.badge-primary{background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);}
+
+/* ── PROGRESS BAR ── */
+.prog-bar{height:4px;background:var(--border);overflow:hidden;}
+.prog-fill{height:100%;background:var(--primary);transition:width .4s;}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th,.data-table td{padding:12px 16px;text-align:left;font-size:13px;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.data-table td{border-bottom:1px solid var(--border);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--muted);}
+.data-table .t-title{font-weight:500;}
+
+/* ── CHART PLACEHOLDER ── */
+.chart-ph{height:180px;display:flex;align-items:flex-end;gap:4px;padding:16px;}
+.chart-bar{flex:1;background:color-mix(in srgb,var(--primary) 20%,transparent);border-top:2px solid var(--primary);transition:background .15s;}
+.chart-bar:hover{background:color-mix(in srgb,var(--primary) 35%,transparent);}
+.chart-labels{display:flex;justify-content:space-between;padding:4px 16px 0;font-size:10px;color:var(--muted-fg);}
+
+/* ── MINI CHART (sparkline) ── */
+.mini-chart{display:flex;align-items:flex-end;gap:2px;height:32px;}
+.mini-bar{width:6px;background:color-mix(in srgb,var(--primary) 30%,transparent);border-top:1px solid var(--primary);}
+
+/* ── BOOK LIST ── */
+.book-list{display:flex;flex-direction:column;gap:1px;}
+.book-row{display:grid;grid-template-columns:48px 1fr;grid-template-rows:auto auto;gap:8px 12px;padding:14px;border:1px solid var(--border);margin-bottom:8px;transition:background .12s;}
+.book-row:last-child{margin-bottom:0;}
+.book-row:hover{background:var(--muted);}
+.book-thumb{width:48px;height:62px;background:var(--muted);border:1px solid var(--border);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);grid-row:1/3;}
+.book-thumb img{width:100%;height:100%;object-fit:cover;}
+.book-info{min-width:0;grid-column:2;}
+.book-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.book-meta{margin-top:3px;font-size:11px;color:var(--muted-fg);line-height:1.5;}
+.book-actions{display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap;grid-column:2;}
+@media(min-width:640px){
+  .book-row{display:flex;align-items:center;gap:14px;}
+  .book-thumb{grid-row:auto;}
+  .book-info{flex:1;}
+  .book-actions{flex-wrap:nowrap;}
+}
+
+/* ── CHAPTER LIST ── */
+.chapter-list{display:flex;flex-direction:column;gap:8px;}
+.chapter-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);cursor:pointer;transition:background .12s;}
+.chapter-row:hover{background:var(--muted);}
+.ch-num{width:28px;height:28px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;color:var(--muted-fg);}
+.ch-info{flex:1;min-width:0;}
+.ch-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-meta{margin-top:2px;font-size:11px;color:var(--muted-fg);}
+.ch-drag{cursor:grab;color:var(--muted-fg);}
+.ch-drag:active{cursor:grabbing;}
+
+/* ── RICH TEXT EDITOR ── */
+.editor-wrap{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:500px;}
+.editor-toolbar{display:flex;align-items:center;gap:2px;padding:8px 12px;border:1px solid var(--border);border-bottom:none;background:var(--muted);flex-wrap:wrap;}
+.tool-btn{width:30px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted-fg);transition:background .12s,color .12s;}
+.tool-btn:hover,.tool-btn.active{background:var(--bg);color:var(--fg);}
+.tool-sep{width:1px;height:18px;background:var(--border);margin:0 4px;}
+.editor-area{flex:1;border:1px solid var(--border);padding:24px 32px;font-size:15px;line-height:1.8;color:var(--fg);background:var(--bg);outline:none;resize:none;overflow-y:auto;}
+.editor-area:focus{border-color:var(--primary);}
+.editor-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 0;font-size:12px;color:var(--muted-fg);}
+.save-indicator{display:flex;align-items:center;gap:6px;}
+.save-dot{width:6px;height:6px;border-radius:50%;background:var(--muted-fg);}
+.save-dot.saved{background:hsl(142 60% 40%);}
+.save-dot.saving{background:hsl(45 90% 50%);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:640px){.form-grid.two-col{grid-template-columns:1fr 1fr;}}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:12px;font-weight:500;color:var(--fg);letter-spacing:.02em;}
+.form-label .req{color:var(--primary);}
+.form-input,.form-select,.form-textarea{
+  padding:10px 12px;border:1px solid var(--border);
+  background:var(--bg);color:var(--fg);
+  font-size:14px;outline:none;
+  transition:border-color .15s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--primary);}
+.form-textarea{resize:vertical;line-height:1.6;}
+.form-hint{font-size:11px;color:var(--muted-fg);}
+.tags-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);background:var(--bg);min-height:42px;align-items:center;cursor:text;}
+.tags-input-wrap:focus-within{border-color:var(--primary);}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);font-size:12px;}
+.tag-chip button{width:14px;height:14px;display:flex;align-items:center;justify-content:center;color:var(--primary);}
+.tags-real-input{border:none;outline:none;background:none;color:var(--fg);min-width:80px;font-size:13px;}
+.genre-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;}
+.genre-choice{padding:8px 12px;border:1px solid var(--border);font-size:12px;text-align:center;cursor:pointer;transition:all .15s;background:none;color:var(--fg);}
+.genre-choice.selected{background:color-mix(in srgb,var(--primary) 12%,transparent);border-color:var(--primary);color:var(--primary);font-weight:500;}
+.tone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;}
+.tone-chip{padding:6px 12px;border:1px solid var(--border);font-size:12px;cursor:pointer;transition:all .15s;background:none;color:var(--muted-fg);}
+.tone-chip.selected{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb,var(--primary) 8%,transparent);}
+
+/* ── STEPS ── */
+.step-flow{display:flex;gap:0;margin-bottom:32px;overflow-x:auto;padding-bottom:4px;}
+.step-item-flow{display:flex;align-items:center;gap:0;flex-shrink:0;}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted-fg);background:var(--bg);}
+.step-circle.done{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}
+.step-circle.current{border-color:var(--primary);color:var(--primary);}
+.step-label-flow{margin-left:8px;font-size:12px;color:var(--muted-fg);white-space:nowrap;}
+.step-label-flow.current{color:var(--primary);font-weight:500;}
+.step-label-flow.done{color:var(--fg);}
+.step-line{width:32px;height:2px;background:var(--border);margin:0 4px;}
+.step-line.done{background:var(--primary);}
+
+/* ── EARNINGS ── */
+.earnings-overview{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:32px;}
+@media(min-width:640px){.earnings-overview{grid-template-columns:1fr 1fr;}}
+@media(min-width:900px){.earnings-overview{grid-template-columns:repeat(3,1fr);}}
+.earn-card{border:1px solid var(--border);padding:24px;background:var(--card);position:relative;overflow:hidden;}
+.earn-card.featured{background:color-mix(in srgb,var(--primary) 5%,transparent);border-color:color-mix(in srgb,var(--primary) 30%,transparent);}
+.earn-card .earn-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.earn-card .earn-val{margin-top:10px;font-size:32px;font-weight:600;letter-spacing:-.03em;}
+.earn-card .earn-sub{margin-top:6px;font-size:12px;color:var(--muted-fg);}
+
+/* ── ANALYTICS GRID ── */
+.analytics-grid{display:grid;grid-template-columns:1fr;gap:20px;}
+@media(min-width:768px){.analytics-grid{grid-template-columns:2fr 1fr;}}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:200;
+  background:var(--fg);color:var(--bg);
+  padding:12px 20px;font-size:13px;
+  display:flex;align-items:center;gap:10px;
+  transform:translateY(100px);opacity:0;
+  transition:all .25s;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ── OVERLAY (mobile sidebar) ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}
+.overlay.show{display:block;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal-box{background:var(--bg);border:1px solid var(--border);padding:32px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(16px);transition:transform .25s;}
+.modal-overlay.show .modal-box{transform:translateY(0);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-head h2{font-size:16px;font-weight:600;}
+
+/* ── HERO STRIPE (dashboard) ── */
+.dash-hero{
+  padding:20px 12px 20px;
+  background:color-mix(in srgb,var(--primary) 4%,transparent);
+  border-bottom:1px solid var(--border);
+  margin-bottom:24px;
+  position:relative;overflow:hidden;
+}
+@media(min-width:640px){.dash-hero{padding:32px 20px 28px;margin-bottom:32px;}}
+@media(min-width:1024px){.dash-hero{padding:32px 24px 28px;}}
+.dash-hero::before{
+  content:'';position:absolute;inset:0;
+  background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);
+  pointer-events:none;
+}
+.dash-hero>*{position:relative;z-index:1;}
+.dash-hero h1{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.dash-hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.dash-hero-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+@media(max-width:480px){.dash-hero-row{flex-direction:column;gap:12px;}}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted-fg);}
+.empty-state svg{opacity:.25;margin:0 auto 12px;display:block;}
+.empty-state h3{font-size:15px;font-weight:500;color:var(--fg);}
+.empty-state p{margin-top:6px;font-size:13px;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="dash-layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="brand">
+      <div class="brand-logo"><img src="images/logo.png" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </div>
+    <button class="sidebar-close" onclick="closeSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Overview</span>
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      Dashboard
+    </button>
+    <span class="nav-section-label">My Work</span>
+    <button class="nav-btn" onclick="showPage('my-books',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      My Books
+    </button>
+    <button class="nav-btn" onclick="showPage('create-story',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+      New Story
+    </button>
+    <button class="nav-btn" onclick="showPage('chapters',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+      Chapters
+    </button>
+    <button class="nav-btn" onclick="showPage('editor',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Write Chapter
+    </button>
+    <span class="nav-section-label">Performance</span>
+    <button class="nav-btn" onclick="showPage('analytics',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+      Analytics
+    </button>
+    <button class="nav-btn" onclick="showPage('earnings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Earnings
+    </button>
+    <span class="nav-section-label">Resources</span>
+    <a class="nav-btn" href="novelux-content-guidelines.html" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+      Content Guidelines
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+    <a class="nav-btn" href="novelux-faq.html" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      Help Center
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+    <a class="nav-btn" href="novelux-become-author.html" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Author Guide
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+
+    <span class="nav-section-label">Account</span>
+    <button class="nav-btn" onclick="showPage('profile',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Profile
+    </button>
+    <button class="nav-btn" onclick="showPage('settings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="author-badge">
+      <div class="author-avatar">A</div>
+      <div class="author-info">
+        <p>Adaeze M.</p>
+        <span>Romance Author</span>
+      </div>
+    </div>
+    <a href="novelux-author-onboarding.html" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);transition:color .15s;width:100%;" onmouseover="this.style.color='var(--fg)'" onmouseout="this.style.color='var(--muted-fg)'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+
+<!-- overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main-area">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="openSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" title="Notifications"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="notif-dot"></span></button>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <a href="index.html" class="btn btn-outline btn-sm" title="Back to site">← Site</a>
+    </div>
+  </header>
+
+  <!-- ══════ PAGE: DASHBOARD ══════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Good afternoon, Adaeze 👋</h1>
+          <p>Here's what's happening with your stories today.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="showPage('analytics',document.querySelector('[onclick*=analytics]'))">View Analytics</button>
+          <button class="btn btn-primary btn-sm" onclick="showPage('create-story',document.querySelector('[onclick*=create-story]'))">+ New Story</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Reads</div><div class="stat-val"><span id="ov-reads">—</span></div><div class="stat-change up">↑ 12% this week</div></div>
+        <div class="stat-card"><div class="stat-label">Followers</div><div class="stat-val"><span id="ov-stories">—</span></div><div class="stat-change up">↑ 234 new</div></div>
+        <div class="stat-card"><div class="stat-label">Est. Earnings</div><div class="stat-val"><span id="ov-earnings">—</span></div><div class="stat-change up">↑ $48 this week</div></div>
+        <div class="stat-card"><div class="stat-label">Completion Rate</div><div class="stat-val"><span id="ov-rating">—</span></div><div class="stat-change up">↑ 4pts</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:24px;">
+        <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+          <!-- Activity chart -->
+          <div class="card">
+            <div class="card-head"><h2>Weekly Reads</h2><span style="font-size:12px;color:var(--muted-fg)">Last 7 days</span></div>
+            <div class="chart-ph" id="activityChart"></div>
+            <div class="chart-labels" id="chartLabels"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:24px;">
+        <!-- Active stories -->
+        <div class="card">
+          <div class="card-head"><h2>Active Stories</h2><button class="btn btn-ghost" onclick="showPage('my-books',document.querySelector('[onclick*=my-books]'))">View all →</button></div>
+          <div class="card-body" style="padding:0;">
+            <div id="dashBookList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+        <!-- Recent activity -->
+        <div class="card">
+          <div class="card-head"><h2>Recent Activity</h2></div>
+          <div class="card-body" style="padding:0;">
+            <table class="data-table">
+              <thead><tr><th>Event</th><th>Story</th><th>Time</th></tr></thead>
+              <tbody>
+                <tr><td><span class="badge badge-green">New reader</span></td><td class="t-title">Bound by Blood</td><td style="color:var(--muted-fg)">2 min ago</td></tr>
+                <tr><td><span class="badge badge-primary">Chapter read</span></td><td class="t-title">Married to a Ghost</td><td style="color:var(--muted-fg)">14 min ago</td></tr>
+                <tr><td><span class="badge badge-yellow">Comment</span></td><td class="t-title">Bound by Blood</td><td style="color:var(--muted-fg)">1 hr ago</td></tr>
+                <tr><td><span class="badge badge-green">New follower</span></td><td class="t-title">—</td><td style="color:var(--muted-fg)">2 hrs ago</td></tr>
+                <tr><td><span class="badge badge-primary">Chapter read</span></td><td class="t-title">The Billionaire's Secret</td><td style="color:var(--muted-fg)">3 hrs ago</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: MY BOOKS ══════ -->
+  <div class="page" id="page-my-books">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>My Books</h1><p>Manage all your stories in one place.</p></div>
+        <button class="btn btn-primary" onclick="showPage('create-story',document.querySelector('[onclick*=create-story]'))">+ New Story</button>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm active-filter" onclick="filterBooks('all',this)">All (3)</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterBooks('published',this)">Published (2)</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterBooks('draft',this)">Draft (1)</button>
+      </div>
+      <div id="fullBookList"></div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CREATE STORY ══════ -->
+  <div class="page" id="page-create-story">
+    <div class="dash-hero">
+      <div><h1>Create New Story</h1><p>Tell us about your book before you start writing.</p></div>
+    </div>
+    <div class="inner-pad">
+      <!-- Step indicator -->
+      <div class="step-flow" id="createSteps">
+        <div class="step-item-flow"><div class="step-circle current" id="step-c1">1</div><span class="step-label-flow current">Story Details</span></div>
+        <div class="step-line"></div>
+        <div class="step-item-flow"><div class="step-circle" id="step-c2">2</div><span class="step-label-flow">Chapters</span></div>
+        <div class="step-line"></div>
+        <div class="step-item-flow"><div class="step-circle" id="step-c3">3</div><span class="step-label-flow">Publish</span></div>
+      </div>
+
+      <!-- Step 1: Story Details -->
+      <div id="create-step1">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Basic Information</h2></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Story Title <span class="req">*</span></label>
+                <input class="form-input" type="text" placeholder="e.g. Bound by Blood" id="storyTitle"/>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Synopsis / Hook <span class="req">*</span></label>
+                <textarea class="form-textarea" rows="3" placeholder="One compelling paragraph that makes a reader want to read chapter 1..." id="storySynopsis"></textarea>
+                <span class="form-hint">Max 300 characters. This appears on the novel listing.</span>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Full Description / Summary <span class="req">*</span></label>
+                <textarea class="form-textarea" rows="5" placeholder="A longer description — set the scene, introduce the main characters and conflict..." id="storyDesc"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Genre &amp; Tags</h2></div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Genre <span class="req">*</span></label>
+              <div class="genre-grid" id="genreGrid">
+                <button class="genre-choice" onclick="selectGenre(this)">Romance</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Fantasy</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Mystery</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Drama</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Thriller</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Werewolf</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Billionaire</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Mafia</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Sci-Fi</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Horror</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Historical</button>
+                <button class="genre-choice" onclick="selectGenre(this)">Comedy</button>
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Story Tone</label>
+              <div class="tone-grid" id="toneGrid">
+                <button class="tone-chip" onclick="selectTone(this)">Dark &amp; Gritty</button>
+                <button class="tone-chip" onclick="selectTone(this)">Light-hearted</button>
+                <button class="tone-chip" onclick="selectTone(this)">Slow Burn</button>
+                <button class="tone-chip" onclick="selectTone(this)">Action-packed</button>
+                <button class="tone-chip" onclick="selectTone(this)">Emotional</button>
+                <button class="tone-chip" onclick="selectTone(this)">Suspenseful</button>
+                <button class="tone-chip" onclick="selectTone(this)">Sweet &amp; Fluffy</button>
+                <button class="tone-chip" onclick="selectTone(this)">Angsty</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tags</label>
+              <div class="tags-input-wrap" id="tagsWrap" onclick="document.getElementById('tagInput').focus()">
+                <input class="tags-real-input" id="tagInput" placeholder="Type a tag and press Enter..." onkeydown="handleTagInput(event)"/>
+              </div>
+              <span class="form-hint">Add up to 10 tags. Press Enter or comma to add.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Characters</h2></div>
+          <div class="card-body">
+            <div id="characterList" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+            <button class="btn btn-outline btn-sm" onclick="addCharacter()">+ Add Character</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Story Settings</h2></div>
+          <div class="card-body">
+            <div class="form-grid two-col">
+              <div class="form-group">
+                <label class="form-label">Target Word Count</label>
+                <select class="form-select"><option>50,000 – 80,000</option><option>80,000 – 120,000</option><option>120,000+</option><option>Open-ended</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Update Schedule</label>
+                <select class="form-select"><option>Daily</option><option>3x / week</option><option selected>Weekly</option><option>Bi-weekly</option><option>When ready</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Audience</label>
+                <select class="form-select"><option>General (13+)</option><option selected>Teen (13-17)</option><option>Young Adult (18+)</option><option>Mature (18+)</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Language</label>
+                <select class="form-select"><option selected>English</option><option>French</option><option>Spanish</option><option>Portuguese</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding-bottom:40px;">
+          <button class="btn btn-outline" onclick="saveDraft()">Save as Draft</button>
+          <button class="btn btn-primary" onclick="goToStep2()">Next: Add Chapters →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Chapters placeholder (shown after step 1) -->
+      <div id="create-step2" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Your story has been created!</h2></div>
+          <div class="card-body">
+            <p style="color:var(--muted-fg);margin-bottom:20px;">Now add your first chapter to get started. You can always come back to add more.</p>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-primary" onclick="showPage('editor',document.querySelector('[onclick*=editor]'))">✏️ Write Chapter 1</button>
+              <button class="btn btn-outline" onclick="showPage('chapters',document.querySelector('[onclick*=chapters]'))">Manage Chapters</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CHAPTERS ══════ -->
+  <div class="page" id="page-chapters">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Chapter Manager</h1>
+          <p id="chapterBookLabel">Bound by Blood · 12 chapters · 47,200 words</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <select class="form-select" style="font-size:13px;height:36px;padding:0 10px;" id="bookSelector" onchange="updateChapterBook()">
+            <option>Bound by Blood</option>
+            <option>Married to a Ghost</option>
+            <option>The Billionaire's Secret</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="showPage('editor',document.querySelector('[onclick*=editor]'))">+ New Chapter</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;color:var(--muted-fg);">Drag to reorder</span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-ghost btn-sm">Bulk publish</button>
+        <button class="btn btn-ghost btn-sm">Bulk schedule</button>
+      </div>
+      <div class="chapter-list" id="chapterListEl"></div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: EDITOR ══════ -->
+  <div class="page" id="page-editor">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1 id="editorChTitle">Chapter 13: The Choice</h1>
+          <p>Bound by Blood · Auto-saving every 5 seconds</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="publishChapter()">Publish</button>
+          <button class="btn btn-primary btn-sm" onclick="manualSave()">Save Draft</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad" style="padding-bottom:40px;">
+      <div class="form-grid two-col" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Chapter Title</label>
+          <input class="form-input" id="chapterTitleInput" value="The Choice" oninput="startSaveTimer()"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chapter Number</label>
+          <input class="form-input" value="13" type="number" min="1"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Author's Note (optional)</label>
+        <input class="form-input" placeholder="A message to your readers for this chapter..." id="authorNote" oninput="startSaveTimer()"/>
+      </div>
+      <div class="editor-wrap">
+        <div class="editor-toolbar">
+          <button class="tool-btn" title="Bold" onclick="formatText('bold')"><b>B</b></button>
+          <button class="tool-btn" title="Italic" onclick="formatText('italic')"><i>I</i></button>
+          <button class="tool-btn" title="Underline" onclick="formatText('underline')"><u>U</u></button>
+          <div class="tool-sep"></div>
+          <button class="tool-btn" onclick="formatText('justifyLeft')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></button>
+          <button class="tool-btn" onclick="formatText('justifyCenter')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg></button>
+          <button class="tool-btn" onclick="formatText('justifyFull')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg></button>
+          <div class="tool-sep"></div>
+          <button class="tool-btn" onclick="insertScene()">— Scene —</button>
+          <div class="tool-sep"></div>
+          <select style="font-size:12px;background:none;border:none;color:var(--fg);cursor:pointer;height:28px;padding:0 4px;" onchange="changeFontSize(this)">
+            <option value="14px">14</option><option value="16px" selected>16</option><option value="18px">18</option><option value="20px">20</option>
+          </select>
+          <div class="tool-sep"></div>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted-fg)" id="wordCountBadge">0 words</span>
+        </div>
+        <div class="editor-area" id="editorArea" contenteditable="true" oninput="onEditorInput()" spellcheck="true">
+          <p>The message came at midnight.</p>
+          <p>Kemi read it three times before she let herself believe it was real. After two years of silence, three returned letters, and one very deliberate decision to stop hoping — here it was. His name on her screen like a ghost refusing to stay buried.</p>
+          <p><em>We need to talk. Tonight. — D</em></p>
+          <p>She put the phone face-down on the nightstand and stared at the ceiling. The fan turned in slow, lazy circles, the same way it had on the night he left. She'd counted those rotations too, back then. It had not helped.</p>
+        </div>
+        <div class="editor-footer">
+          <div class="save-indicator">
+            <div class="save-dot saved" id="saveDot"></div>
+            <span id="saveStatus">All changes saved</span>
+          </div>
+          <span id="editorWordCount">72 words · Est. 0 min read</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: ANALYTICS ══════ -->
+  <div class="page" id="page-analytics">
+    <div class="dash-hero">
+      <div><h1>Analytics</h1><p>Detailed performance across all your stories.</p></div>
+    </div>
+    <div class="inner-pad">
+      <div class="stat-grid" style="margin-bottom:32px;">
+        <div class="stat-card"><div class="stat-label">Total Reads (30d)</div><div class="stat-val"><span id="an-reads">—</span></div><div class="stat-change up">↑ 18%</div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Completion</div><div class="stat-val"><span id="an-rating2">—</span></div><div class="stat-change up">↑ 4pts</div></div>
+        <div class="stat-card"><div class="stat-label">New Followers</div><div class="stat-val"><span id="an-comments">—</span></div><div class="stat-change up">↑ 23%</div></div>
+        <div class="stat-card"><div class="stat-label">Comments</div><div class="stat-val"><span id="an-stories">—</span></div><div class="stat-change down">↓ 3%</div></div>
+      </div>
+
+      <div class="analytics-grid">
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-head"><h2>Reads Over Time</h2><select style="font-size:12px;background:none;border:1px solid var(--border);color:var(--fg);height:28px;padding:0 8px;"><option>Last 30 days</option><option>Last 90 days</option></select></div>
+            <div class="chart-ph" id="analyticsChart"></div>
+            <div class="chart-labels" id="analyticsLabels"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Per-Chapter Performance</h2></div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Chapter</th><th>Reads</th><th>Completion</th><th>Comments</th></tr></thead>
+                <tbody id="chapterPerfTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-head"><h2>Audience</h2></div>
+            <div class="card-body">
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Nigeria</span><span>38%</span></div><div class="prog-bar"><div class="prog-fill" style="width:38%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Ghana</span><span>22%</span></div><div class="prog-bar"><div class="prog-fill" style="width:22%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>USA</span><span>17%</span></div><div class="prog-bar"><div class="prog-fill" style="width:17%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>UK</span><span>11%</span></div><div class="prog-bar"><div class="prog-fill" style="width:11%"></div></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Other</span><span>12%</span></div><div class="prog-bar"><div class="prog-fill" style="width:12%"></div></div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Drop-off Points</h2></div>
+            <div class="card-body">
+              <p style="font-size:12px;color:var(--muted-fg);margin-bottom:12px;">Chapters where readers stop most often:</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;"><span>Ch. 4 – The Secret</span><span class="badge badge-red">High</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;"><span>Ch. 8 – Betrayal</span><span class="badge badge-yellow">Medium</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;"><span>Ch. 11 – Silence</span><span class="badge badge-yellow">Medium</span></div>
+              </div>
+              <div style="margin-top:16px;padding:12px;background:color-mix(in srgb,var(--primary) 6%,transparent);border:1px solid color-mix(in srgb,var(--primary) 20%,transparent);font-size:12px;color:var(--muted-fg);">
+                💡 Tip: High drop-off at Ch.4 may mean the pacing slowed. Consider adding a stronger hook at the end of Ch.3.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: EARNINGS ══════ -->
+  <div class="page" id="page-earnings">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Earnings</h1><p>Your royalties and withdrawal history.</p></div>
+        <button class="btn btn-primary" onclick="showToast('Withdrawal request submitted!')">Request Withdrawal</button>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div class="earnings-overview">
+        <div class="earn-card featured" style="position:relative;overflow:hidden;">
+          <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--primary) 4%,transparent) 8px,color-mix(in srgb,var(--primary) 4%,transparent) 9px);pointer-events:none;"></div>
+          <div style="position:relative;z-index:1;">
+            <div class="earn-lbl">Available Balance</div>
+            <div class="earn-val">$342.80</div>
+            <div class="earn-sub">Ready to withdraw</div>
+          </div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-lbl">This Month</div>
+          <div class="earn-val">$183.20</div>
+          <div class="earn-sub">+12% vs last month</div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-lbl">All Time</div>
+          <div class="earn-val">$1,847</div>
+          <div class="earn-sub">Since Jan 2024</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Earnings by Story</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Story</th><th>Contract</th><th>This Month</th><th>All Time</th><th>Reads</th></tr></thead>
+            <tbody>
+              <tr><td class="t-title">Bound by Blood</td><td><span class="badge badge-green">Royalty 50/50</span></td><td>$104.40</td><td>$1,122</td><td>68.4K</td></tr>
+              <tr><td class="t-title">Married to a Ghost</td><td><span class="badge badge-green">Royalty 50/50</span></td><td>$61.80</td><td>$543</td><td>44.2K</td></tr>
+              <tr><td class="t-title">The Billionaire's Secret</td><td><span class="badge badge-gray">Draft</span></td><td>$17.00</td><td>$182</td><td>14.8K</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Withdrawal History</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td style="color:var(--muted-fg)">Apr 1, 2026</td><td style="font-weight:500">$250.00</td><td>PayPal</td><td><span class="badge badge-green">Paid</span></td></tr>
+              <tr><td style="color:var(--muted-fg)">Mar 1, 2026</td><td style="font-weight:500">$180.00</td><td>Bank Transfer</td><td><span class="badge badge-green">Paid</span></td></tr>
+              <tr><td style="color:var(--muted-fg)">Feb 1, 2026</td><td style="font-weight:500">$145.00</td><td>PayPal</td><td><span class="badge badge-green">Paid</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: PROFILE ══════ -->
+  <div class="page" id="page-profile">
+    <div class="dash-hero"><div><h1>Author Profile</h1><p>How readers see you.</p></div></div>
+    <div class="inner-pad">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Public Profile</h2></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--primary-fg);font-size:28px;font-weight:600;flex-shrink:0;">A</div>
+            <div><button class="btn btn-outline btn-sm">Change Photo</button><p style="margin-top:6px;font-size:11px;color:var(--muted-fg);">JPG, PNG or GIF · Max 2MB</p></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Display Name</label><input class="form-input" value="Adaeze M."/></div>
+            <div class="form-group"><label class="form-label">Author Handle</label><input class="form-input" value="@adaeze_writes"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Bio</label><textarea class="form-textarea" rows="3">Romance author based in Lagos. I write about love, betrayal, and all the messy bits in between. 4 stories published.</textarea></div>
+            <div class="form-group"><label class="form-label">Country</label><select class="form-select"><option selected>Nigeria</option><option>Ghana</option><option>Kenya</option><option>UK</option><option>USA</option></select></div>
+            <div class="form-group"><label class="form-label">Genres</label><input class="form-input" value="Romance, Drama, Thriller"/></div>
+          </div>
+          <div style="margin-top:20px;"><button class="btn btn-primary" onclick="showToast('Profile saved!')">Save Changes</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: SETTINGS ══════ -->
+  <div class="page" id="page-settings">
+    <div class="dash-hero"><div><h1>Settings</h1><p>Account and notification preferences.</p></div></div>
+    <div class="inner-pad">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Notifications</h2></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">New reader</p><p style="font-size:12px;color:var(--muted-fg)">When someone starts reading your story</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">Comments</p><p style="font-size:12px;color:var(--muted-fg)">When a reader leaves a comment</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">Weekly summary</p><p style="font-size:12px;color:var(--muted-fg)">Email summary of your performance</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Account Security</h2></div>
+        <div class="card-body">
+          <div class="form-grid" style="margin-bottom:16px;">
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="adaeze@email.com" type="email"/></div>
+            <div class="form-group"><label class="form-label">Current Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+            <div class="form-group"><label class="form-label">New Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+            <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+          </div>
+          <button class="btn btn-primary" onclick="showToast('Password updated!')">Update Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+</div><!-- /dash-layout -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Saved</span>
+</div>
+
+
+<!-- ══ NOVELUX DASHBOARD — THEME + DYNAMIC DATA ══ -->
+<style>
+.skeleton{display:inline-block;min-width:48px;height:.9em;background:color-mix(in srgb,var(--fg) 8%,transparent);border-radius:3px;animation:sk 1.4s infinite ease-in-out;}
+@keyframes sk{0%,100%{opacity:.35}50%{opacity:.9}}
+</style>
+<script>
+// ══ 1. THEME — reads/writes localStorage, applies on every page ══
+(function(){
+  var saved = localStorage.getItem('nux_theme');
+  var prefer = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+  var theme  = saved || prefer;
+  var html   = document.documentElement;
+  function apply(t){
+    html.classList.toggle('dark',  t==='dark');
+    html.classList.toggle('light', t!=='dark');
+  }
+  apply(theme);
+  window._nuxTheme = theme;
+  window._nuxSetTheme = function(t){
+    window._nuxTheme = t;
+    localStorage.setItem('nux_theme', t);
+    apply(t);
+  };
+  // Wire theme toggle button
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn = document.getElementById('themeToggle');
+    if(btn) btn.onclick = function(){
+      window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark');
+    };
+  });
+})();
+
+// ══ 2. API BRIDGE — JWT from <meta> injected by Django view ══
+(function(){
+var _meta = function(n){ return (document.querySelector('meta[name="'+n+'"]')||{}).content||''; };
+var ACCESS = _meta('nux-token');
+var API    = _meta('nux-api')||'/api';
+var UNAME  = _meta('nux-username');
+
+async function apiFetch(ep, opts){
+  opts = opts||{};
+  if(!ACCESS){ go('/login/?next=/dashboard/'); return null; }
+  var res = await fetch(API+ep, Object.assign({}, opts, {
+    headers: Object.assign({'Content-Type':'application/json','Authorization':'Bearer '+ACCESS}, opts.headers||{})
+  }));
+  if(res.status===401){
+    var r = await fetch('/auth/refresh-web/',{method:'POST'});
+    if(!r.ok){ go('/login/?next=/dashboard/'); return null; }
+    window.location.reload(); return null;
+  }
+  if(res.status===204) return {};
+  return res.ok ? res.json() : null;
+}
+function go(url){ window.location.href=url; }
+function num(n){ n=Number(n)||0; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return ''+n; }
+function money(n){ return '₦'+num(n); }
+function setText(id,v){ var e=document.getElementById(id); if(e) e.innerHTML=''+v; }
+function relTime(iso){
+  if(!iso) return '—';
+  var diff=Date.now()-new Date(iso).getTime(), m=Math.floor(diff/60000);
+  if(m<2) return 'just now'; if(m<60) return m+' min ago';
+  var h=Math.floor(m/60); if(h<24) return h+' hr ago';
+  return new Date(iso).toLocaleDateString([],{month:'short',day:'numeric'});
+}
+function coverUrl(u){ if(!u) return ''; return u.startsWith('http')?u:'https://novelux-backend.onrender.com'+u; }
+
+// ── story cache ───────────────────────────────────────────────────
+var _stories=[], _curSlug=null;
+
+// ══ OVERVIEW ══
+async function loadOverview(){
+  var res = await apiFetch('/stories/?author=me&page_size=100');
+  if(!res) return;
+  _stories = res.results||res||[];
+  var count  = Number(res.count||_stories.length);
+  var reads  = _stories.reduce(function(s,st){return s+(Number(st.total_views)||0);},0);
+  var tips   = _stories.reduce(function(s,st){return s+(Number(st.total_tips)||0);},0);
+  var ratedS = _stories.filter(function(s){return s.average_rating>0;});
+  var avgR   = ratedS.length ? (ratedS.reduce(function(s,st){return s+(Number(st.average_rating)||0);},0)/ratedS.length).toFixed(1) : '—';
+
+  setText('ov-reads',   num(reads));
+  setText('ov-stories', count);
+  setText('ov-earnings',money(tips*0.85));
+  setText('ov-rating',  avgR+(avgR!=='—'?' ★':''));
+  setText('an-reads',   num(reads));
+  setText('an-stories', count);
+  setText('an-rating2', avgR+(avgR!=='—'?' ★':''));
+
+  renderDashBooks(_stories);
+  renderFullBooks(_stories,'all');
+  buildWeeklyChart(_stories);
+  buildAnalyticsChart(_stories);
+  renderActivity(res);
+  if(_stories.length) renderChapterPerf(_stories[0].slug);
+
+  var cRes = await apiFetch('/comments/?author=me&page_size=1');
+  if(cRes) setText('an-comments', num(cRes.count||0));
+}
+
+// ══ BOOK LISTS ══
+function thumb(st,sz){
+  sz=sz||18;
+  if(st.cover_image) return '<img src="'+coverUrl(st.cover_image)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"/>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+sz+'" height="'+sz+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+}
+function statusBadge(st){ return (st.status==='published'||st.status==='ongoing') ? 'badge-green' : 'badge-yellow'; }
+
+function renderDashBooks(stories){
+  var el=document.getElementById('dashBookList'); if(!el) return;
+  if(!stories.length){ el.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted-fg);font-size:13px;">No stories yet — <a href="#" onclick="showPage(\'create-story\',null);return false">create your first one</a></div>'; return; }
+  el.innerHTML=stories.slice(0,3).map(function(b){
+    var g=b.genre&&b.genre.name?b.genre.name:(b.genre||'—');
+    return '<div class="book-row"><div class="book-thumb" style="background:var(--muted);">'+thumb(b)+'</div><div class="book-info"><div class="book-title">'+b.title+'</div><div class="book-meta">'+g+' · '+(b.total_chapters||0)+' chapters · '+num(b.total_views||0)+' reads</div></div><span class="badge '+statusBadge(b)+'">'+(b.status||'draft')+'</span></div>';
+  }).join('');
+}
+
+function renderFullBooks(stories,filter){
+  var el=document.getElementById('fullBookList'); if(!el) return;
+  var list=filter&&filter!=='all'?stories.filter(function(b){return b.status===filter;}):stories;
+  // Update filter btn counts
+  document.querySelectorAll('[data-filter-btn]').forEach(function(btn){
+    var f=btn.dataset.filterBtn;
+    var n=f==='all'?stories.length:stories.filter(function(b){return b.status===f;}).length;
+    btn.textContent=f.charAt(0).toUpperCase()+f.slice(1)+' ('+n+')';
+  });
+  if(!list.length){ el.innerHTML='<div style="padding:32px;text-align:center;color:var(--muted-fg);">No stories here yet.</div>'; return; }
+  el.innerHTML=list.map(function(b){
+    var g=b.genre&&b.genre.name?b.genre.name:(b.genre||'—');
+    return '<div class="book-row"><div class="book-thumb" style="background:var(--muted);">'+thumb(b,18)+'</div><div class="book-info"><div class="book-title">'+b.title+'</div><div class="book-meta">'+g+' · '+(b.total_chapters||0)+' chapters · '+num(b.total_views||0)+' reads</div></div><div class="book-actions"><span class="badge '+statusBadge(b)+'">'+(b.status||'draft')+'</span><button class="btn btn-ghost btn-sm" onclick="loadChapters(\''+b.slug+'\');showPage(\'chapters\',document.querySelector(\'[onclick*=chapters]\'))">Chapters</button><button class="btn btn-outline btn-sm" onclick="openEditor(\''+b.slug+'\',null)">Edit</button></div></div>';
+  }).join('');
+}
+window.filterBooks=function(f,btn){
+  document.querySelectorAll('.active-filter').forEach(function(b){b.classList.remove('active-filter','btn-outline');});
+  if(btn){btn.classList.add('active-filter','btn-outline');}
+  renderFullBooks(_stories,f);
+};
+
+// ══ CHAPTERS ══
+window.loadChapters=async function(slug){
+  _curSlug=slug;
+  var el=document.getElementById('chapterListEl'); if(!el) return;
+  el.innerHTML='<div style="padding:24px;color:var(--muted-fg);">Loading…</div>';
+  var res=await apiFetch('/chapters/'+slug+'/?page_size=200');
+  if(!res){ el.innerHTML='<div style="padding:24px;color:var(--muted-fg);">Could not load.</div>'; return; }
+  var chapters=res.results||res||[];
+  var st=_stories.find(function(s){return s.slug===slug;});
+  if(st){ var h=document.querySelector('#page-chapters h1'); if(h) h.textContent=st.title||'Chapters'; }
+  el.innerHTML=chapters.length?chapters.map(function(ch){
+    return '<div class="chapter-row" onclick="openEditor(\''+slug+'\','+ch.chapter_number+')"><div class="ch-drag" onclick="event.stopPropagation()"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg></div><div class="ch-num">'+ch.chapter_number+'</div><div class="ch-info"><div class="ch-title">'+(ch.title||'Chapter '+ch.chapter_number)+'</div><div class="ch-meta">'+num(ch.word_count||0)+' words · '+num(ch.total_views||0)+' reads</div></div><span class="badge '+(ch.is_published?'badge-green':'badge-yellow')+'">'+(ch.is_published?'published':'draft')+'</span><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditor(\''+slug+'\','+ch.chapter_number+')">Edit</button><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();delCh(\''+slug+'\','+ch.chapter_number+')"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button></div>';
+  }).join(''):'<div style="padding:32px;text-align:center;color:var(--muted-fg);">No chapters yet.</div>';
+};
+window.delCh=async function(slug,num2){
+  if(!confirm('Delete Chapter '+num2+'?')) return;
+  var r=await apiFetch('/chapters/'+slug+'/'+num2+'/',{method:'DELETE'});
+  if(r!==null){ showToast('Chapter deleted'); loadChapters(slug); }
+};
+
+// ══ EDITOR ══
+window.openEditor=async function(slug,chNum){
+  _curSlug=slug;
+  showPage('editor',document.querySelector('[onclick*=editor]'));
+  var st=_stories.find(function(s){return s.slug===slug;});
+  if(st){ var t=document.getElementById('editorStoryTitle'); if(t) t.textContent=st.title||'Story'; }
+  var numEl=document.getElementById('editorChapterNum');
+  if(numEl) numEl.textContent=chNum?'Chapter '+chNum:'New Chapter';
+  if(!chNum){ var ti=document.getElementById('chapterTitleInput'); var ea=document.getElementById('editorArea'); if(ti)ti.value=''; if(ea)ea.innerHTML=''; return; }
+  var res=await apiFetch('/chapters/'+slug+'/'+chNum+'/');
+  if(!res) return;
+  var ti=document.getElementById('chapterTitleInput'); var ea=document.getElementById('editorArea');
+  if(ti) ti.value=res.title||'';
+  if(ea){
+    var dk='nux_draft_'+slug+'_ch'+chNum, ld=null;
+    try{ ld=JSON.parse(localStorage.getItem(dk)||'null'); }catch(e){}
+    var st2=ld&&new Date(ld.saved||0)>new Date(res.updated_at||0)?ld.content:res.content||'';
+    ea.innerHTML=st2;
+  }
+  updateWordCount();
+};
+
+// ══ EDITOR AUTO-SAVE ══
+var _saveTimer=null;
+window.onEditorInput=function(){ updateWordCount(); startSaveTimer(); };
+function startSaveTimer(){
+  var dot=document.getElementById('saveDot'), status=document.getElementById('saveStatus');
+  if(dot) dot.className='save-dot saving';
+  if(status) status.textContent='Saving…';
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(async function(){
+    var slug=_curSlug;
+    var chMatch=((document.getElementById('editorChapterNum')||{}).textContent||'').match(/\d+/);
+    var chNum=chMatch?chMatch[0]:null;
+    var content=(document.getElementById('editorArea')||{}).innerHTML||'';
+    var title=((document.getElementById('chapterTitleInput')||{}).value||'').trim();
+    if(slug&&chNum){
+      localStorage.setItem('nux_draft_'+slug+'_ch'+chNum,JSON.stringify({content:content,title:title,saved:new Date().toISOString()}));
+      var r=await apiFetch('/chapters/'+slug+'/'+chNum+'/draft/',{method:'PATCH',body:JSON.stringify({content:content,title:title})});
+      var ok=r!==null;
+      if(dot) dot.className='save-dot '+(ok?'saved':'error');
+      if(status){ var t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); status.textContent=(ok?'Saved · ':'Local only · ')+t; }
+    }
+  },1500);
+}
+function updateWordCount(){
+  var el=document.getElementById('editorArea'), badge=document.getElementById('editorWordCount');
+  if(!el||!badge) return;
+  var w=el.innerText.trim().split(/\s+/).filter(Boolean).length;
+  badge.textContent=w.toLocaleString()+' words · Est. '+Math.max(1,Math.round(w/200))+' min read';
+  var wb=document.getElementById('wordCountBadge'); if(wb) wb.textContent=w.toLocaleString()+' words';
+}
+window.manualSave=function(){ startSaveTimer(); };
+window.publishChapter=async function(){
+  var slug=_curSlug;
+  var chMatch=((document.getElementById('editorChapterNum')||{}).textContent||'').match(/\d+/);
+  if(!slug||!chMatch){ showToast('Save story first'); return; }
+  var content=(document.getElementById('editorArea')||{}).innerHTML||'';
+  var title=((document.getElementById('chapterTitleInput')||{}).value||'').trim();
+  var r=await apiFetch('/chapters/'+slug+'/'+chMatch[0]+'/',{method:'PATCH',body:JSON.stringify({content:content,title:title,is_published:true})});
+  showToast(r?'Chapter published! 🎉':'Could not publish — try again');
+};
+
+// ══ CREATE STORY ══
+window.goToStep2=async function(){
+  var title=(document.getElementById('storyTitle')||{}).value.trim();
+  if(!title){ showToast('Please enter a story title'); return; }
+  var synopsis=(document.getElementById('storySynopsis')||{}).value.trim();
+  var desc=(document.getElementById('storyDesc')||{}).value.trim();
+  var genreEl=document.querySelector('.genre-choice.selected');
+  var genre=genreEl?genreEl.dataset.slug||(genreEl.textContent.trim().toLowerCase()):'';
+  var r=await apiFetch('/stories/',{method:'POST',body:JSON.stringify({title:title,description:desc||synopsis,synopsis:synopsis,genre:genre,status:'draft'})});
+  if(r&&r.slug){
+    _curSlug=r.slug; _stories.unshift(r); showToast('Story created!');
+    document.getElementById('create-step1').style.display='none';
+    document.getElementById('create-step2').style.display='block';
+    document.getElementById('step-c1').className='step-circle done';
+    document.querySelector('#createSteps .step-line').className='step-line done';
+    document.getElementById('step-c2').className='step-circle current';
+  } else { showToast('Could not create story'); }
+};
+window.saveDraft=function(){ startSaveTimer(); };
+
+// ══ ANALYTICS CHARTS ══
+function buildChart(elId,labelsId,data,labels){
+  var el=document.getElementById(elId); var le=document.getElementById(labelsId); if(!el) return;
+  var max=Math.max.apply(null,data.concat([1]));
+  el.innerHTML=data.map(function(v){return '<div class="chart-bar" style="height:'+Math.round((v/max)*100)+'%" title="'+v.toLocaleString()+' reads"></div>';}).join('');
+  if(le) le.innerHTML=labels.map(function(l){return '<span>'+l+'</span>';}).join('');
+}
+function buildWeeklyChart(stories){
+  var total=stories.reduce(function(s,st){return s+(Number(st.total_views)||0);},0);
+  var w=[.08,.10,.12,.13,.15,.18,.24]; var days=w.map(function(x){return Math.round(x*total);});
+  var d=new Date().getDay(); // 0=Sun
+  var lbl=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']; var today=d===0?6:d-1;
+  var ordered=lbl.slice(today+1).concat(lbl.slice(0,today+1));
+  buildChart('activityChart','chartLabels',days,ordered);
+}
+function buildAnalyticsChart(stories){
+  var total=stories.reduce(function(s,st){return s+(Number(st.total_views)||0);},0);
+  var data=Array.from({length:30},function(_,i){
+    var f=(i+1)/30; var j=0.85+Math.random()*0.3; return Math.round(total*f*0.05*j);
+  });
+  var labels=Array.from({length:30},function(_,i){var d=new Date();d.setDate(d.getDate()-29+i);return d.getDate()+'';});
+  buildChart('analyticsChart','analyticsLabels',data,labels);
+}
+async function renderChapterPerf(slug){
+  var el=document.getElementById('chapterPerfTable'); if(!el||!slug) return;
+  var res=await apiFetch('/chapters/'+slug+'/?page_size=10'); if(!res) return;
+  var chs=(res.results||res).slice(0,5);
+  el.innerHTML=chs.map(function(ch,i){
+    var pct=ch.completion_rate!=null?ch.completion_rate+'%':'—';
+    var cls=Number(ch.completion_rate||0)>80?'badge-green':'badge-yellow';
+    return '<tr><td style="color:var(--muted-fg)">'+(ch.chapter_number||i+1)+'</td><td class="t-title">'+(ch.title||'Chapter '+(ch.chapter_number||i+1))+'</td><td>'+num(ch.total_views||0)+'</td><td><span class="badge '+cls+'">'+pct+'</span></td><td>'+num(ch.total_comments||0)+'</td></tr>';
+  }).join('');
+}
+
+// ══ ACTIVITY ══
+function renderActivity(storiesRes){
+  var el=document.querySelector('#page-dashboard .data-table tbody'); if(!el) return;
+  var stories=storiesRes.results||storiesRes||[];
+  if(!stories.length){ el.innerHTML='<tr><td colspan="3" style="text-align:center;color:var(--muted-fg);padding:24px;">No activity yet</td></tr>'; return; }
+  var rows=[];
+  stories.slice(0,5).forEach(function(st){
+    if(st.updated_at) rows.push({type:'Chapter read',story:st.title||'—',time:st.updated_at,badge:'badge-primary'});
+    if(st.created_at&&rows.length<5) rows.push({type:'New reader',story:st.title||'—',time:st.created_at,badge:'badge-green'});
+  });
+  rows.sort(function(a,b){return new Date(b.time)-new Date(a.time);});
+  el.innerHTML=rows.slice(0,5).map(function(r){
+    return '<tr><td><span class="badge '+r.badge+'">'+r.type+'</span></td><td class="t-title">'+r.story+'</td><td style="color:var(--muted-fg)">'+relTime(r.time)+'</td></tr>';
+  }).join('');
+}
+
+// ══ EARNINGS ══
+window.loadEarnings=async function(){
+  var res=await apiFetch('/coins/balance/'); if(!res) return;
+  var bal=Number(res.balance||res.coin_balance||0);
+  setText('earn-balance',money(bal)); setText('earn-available',money(bal*0.85));
+  var tipEl=document.getElementById('earningsStoryTable');
+  if(tipEl&&_stories.length){
+    tipEl.innerHTML=_stories.slice(0,10).map(function(st){
+      var tips=Number(st.total_tips||0);
+      return '<tr><td class="t-title">'+(st.title||'—')+'</td><td>'+num(st.total_views||0)+'</td><td>'+money(tips*0.85)+'</td><td><span class="badge badge-green">Paid</span></td></tr>';
+    }).join('');
+  }
+};
+
+// ══ PROFILE ══
+window.loadProfile=async function(){
+  var res=await apiFetch('/auth/me/'); if(!res) return;
+  [['profile-username',res.username||''],['profile-email',res.email||''],['profile-bio',res.bio||'']].forEach(function(p){
+    var e=document.getElementById(p[0]); if(e) e.value=p[1];
+  });
+  var av=document.querySelector('.author-avatar'); if(av) av.textContent=(res.username||'A')[0].toUpperCase();
+  document.querySelectorAll('.author-info p').forEach(function(el){el.textContent=res.username||'Author';});
+  document.querySelectorAll('.author-info span').forEach(function(el){el.textContent=res.email||'';});
+};
+window.saveProfile=async function(){
+  var uname=(document.getElementById('profile-username')||{}).value.trim();
+  var bio=(document.getElementById('profile-bio')||{}).value.trim();
+  var r=await apiFetch('/auth/update-profile/',{method:'PATCH',body:JSON.stringify({username:uname,bio:bio})});
+  showToast(r?'Profile updated ✓':'Could not save');
+};
+
+// ══ PAGE NAVIGATION ══
+var _pageTitles={dashboard:'Dashboard','my-books':'My Books','create-story':'New Story',chapters:'Chapters',editor:'Write Chapter',analytics:'Analytics',earnings:'Earnings',profile:'Profile',settings:'Settings'};
+window.showPage=function(id,btn){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+  var pg=document.getElementById('page-'+id); if(pg) pg.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn) btn.classList.add('active');
+  var tt=document.getElementById('topbarTitle'); if(tt) tt.textContent=_pageTitles[id]||id;
+  closeSidebar(); window.scrollTo(0,0);
+  if(id==='earnings') window.loadEarnings();
+  if(id==='profile')  window.loadProfile();
+  if(id==='chapters'&&_curSlug) window.loadChapters(_curSlug);
+  if(id==='analytics') buildAnalyticsChart(_stories);
+};
+
+// ══ MISC HELPERS ══
+window.showToast=function(msg){ var t=document.getElementById('toast'),m=document.getElementById('toastMsg'); if(!t||!m) return; m.textContent=msg; t.classList.add('show'); setTimeout(function(){t.classList.remove('show');},2500); };
+window.confirmDelete=function(){ if(confirm('Delete this chapter?')) showToast('Chapter deleted'); };
+window.formatText=function(cmd){ document.execCommand(cmd,false,null); (document.getElementById('editorArea')||{}).focus&&document.getElementById('editorArea').focus(); };
+window.insertScene=function(){ document.execCommand('insertHTML',false,'<p style="text-align:center;color:var(--muted-fg);letter-spacing:.3em;font-size:12px;">· · ·</p><p><br></p>'); };
+window.changeFontSize=function(sel){ var ea=document.getElementById('editorArea'); if(ea) ea.style.fontSize=sel.value; };
+var _tags=[];
+window.handleTagInput=function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); var v=e.target.value.trim().replace(/,$/,''); if(v&&_tags.length<10&&!_tags.includes(v)){_tags.push(v);renderTags();} e.target.value=''; } else if(e.key==='Backspace'&&e.target.value===''){_tags.pop();renderTags();} };
+function renderTags(){ var wrap=document.getElementById('tagsWrap'),inp=document.getElementById('tagInput'); if(!wrap||!inp) return; wrap.querySelectorAll('.tag-chip').forEach(function(el){el.remove();}); _tags.forEach(function(t,i){ var c=document.createElement('div'); c.className='tag-chip'; c.innerHTML=t+'<button onclick="removeTag('+i+')"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>'; wrap.insertBefore(c,inp); }); }
+window.removeTag=function(i){_tags.splice(i,1);renderTags();};
+window.selectGenre=function(btn){ document.querySelectorAll('.genre-choice').forEach(function(b){b.classList.remove('selected');}); btn.classList.add('selected'); };
+window.selectTone=function(btn){ btn.classList.toggle('selected'); };
+var _charCount=0;
+window.addCharacter=function(){
+  _charCount++;
+  var list=document.getElementById('characterList'); if(!list) return;
+  var div=document.createElement('div'); div.className='card'; div.style.padding='16px';
+  div.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg)">Character '+_charCount+'</span><button class="btn btn-ghost btn-sm" onclick="this.closest(\'.card\').remove()">Remove</button></div><div class="form-grid two-col"><div class="form-group"><label class="form-label">Name</label><input class="form-input" placeholder="Character name"/></div><div class="form-group"><label class="form-label">Role</label><select class="form-select"><option>Protagonist</option><option>Antagonist</option><option>Love Interest</option><option>Side Character</option><option>Mentor</option></select></div><div class="form-group" style="grid-column:1/-1"><label class="form-label">Description</label><textarea class="form-textarea" rows="2" placeholder="Physical appearance, personality, backstory..."></textarea></div></div>';
+  list.appendChild(div);
+};
+
+// ══ BOOT ══
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.author-info p').forEach(function(el){el.textContent=UNAME;});
+  loadOverview();
+});
+
+window.noveluxAPI = { fetch: apiFetch };
+})();
+</script>
+
+</body>
+</html> {% endcomment %}
+
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<!-- NoveluX JWT Bridge — token injected server-side into meta tag -->
+<meta name="nux-token"    content="{{ access_token }}">
+<meta name="nux-username" content="{{ username }}">
+<meta name="nux-api"      content="{{ api_base|default:'/api' }}">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Author Dashboard – Novelux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:hsl(0 0% 100%);--fg:hsl(0 0% 9%);
+  --primary:hsl(14 62% 38%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(0 0% 96%);--muted-fg:hsl(0 0% 45%);
+  --border:hsl(0 0% 90%);--card:hsl(0 0% 99%);
+  --sidebar-w:220px;
+}
+html.dark{
+  --bg:hsl(240 6% 6%);--fg:hsl(0 0% 90%);
+  --primary:hsl(14 65% 50%);--primary-fg:hsl(0 0% 100%);
+  --muted:hsl(240 4% 14%);--muted-fg:hsl(0 0% 50%);
+  --border:hsl(240 4% 26%);--card:hsl(240 5% 9%);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:var(--bg);height:100%;}
+body{font-family:'Geist',-apple-system,system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;transition:background .2s,color .2s;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;font-family:inherit;border:none;background:none;}
+textarea,input,select{font-family:inherit;font-size:inherit;}
+svg{display:inline-block;vertical-align:middle;}
+
+/* ── STRIPE PATTERN ── */
+.stripe::before{content:'';position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);pointer-events:none;z-index:0;}
+.stripe>*{position:relative;z-index:1;}
+
+/* ── LAYOUT ── */
+.dash-layout{display:flex;min-height:100vh;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  border-right:1px solid var(--border);
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:40;
+  transform:translateX(-100%);transition:transform .3s;
+  overflow-y:auto;
+}
+.sidebar.open{transform:translateX(0);}
+@media(min-width:1024px){.sidebar{transform:translateX(0)!important;position:sticky;top:0;height:100vh;}}
+.sidebar-head{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-logo{width:22px;height:22px;border-radius:22%;background:var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand span{font-size:14px;font-weight:700;letter-spacing:.04em;}
+.sidebar-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);}
+@media(min-width:1024px){.sidebar-close{display:none;}}
+.sidebar-nav{padding:16px 12px;flex:1;display:flex;flex-direction:column;gap:2px;}
+.nav-section-label{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);padding:12px 8px 6px;margin-top:8px;}
+.nav-section-label:first-child{margin-top:0;}
+.nav-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;font-size:13px;
+  color:var(--muted-fg);width:100%;text-align:left;
+  transition:background .12s,color .12s;border-radius:2px;
+}
+.nav-btn:hover{background:var(--muted);color:var(--fg);}
+.nav-btn.active{background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary);font-weight:500;}
+.nav-btn .nav-icon{width:16px;height:16px;flex-shrink:0;}
+.sidebar-foot{padding:16px 12px;border-top:1px solid var(--border);}
+.author-badge{display:flex;align-items:center;gap:10px;padding:10px;background:var(--muted);}
+.author-avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--primary-fg);font-size:13px;font-weight:600;flex-shrink:0;}
+.author-info p{font-size:13px;font-weight:500;}
+.author-info span{font-size:11px;color:var(--muted-fg);}
+
+/* ── MAIN AREA ── */
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column;}
+/* main-area flex:1 handles the offset — no extra margin needed */
+
+/* ── TOP BAR ── */
+.topbar{
+  position:sticky;top:0;z-index:30;
+  height:56px;border-bottom:1px solid var(--border);
+  background:color-mix(in srgb,var(--bg) 95%,transparent);
+  backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 12px;gap:8px;
+}
+@media(min-width:640px){.topbar{padding:0 24px;gap:12px;}}
+.topbar-left{display:flex;align-items:center;gap:12px;}
+.menu-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--fg);}
+@media(min-width:1024px){.menu-btn{display:none;}}
+.topbar-title{font-size:15px;font-weight:600;letter-spacing:-.01em;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);transition:color .15s;position:relative;}
+.icon-btn:hover{color:var(--fg);}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--primary);}
+.notif-dot.hidden{display:none;}
+.notif-badge{position:absolute;top:4px;right:4px;min-width:16px;height:16px;border-radius:8px;background:var(--primary);color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;}
+.notif-panel{position:fixed;top:52px;right:12px;width:340px;max-width:calc(100vw - 24px);background:var(--card-bg);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:1000;display:none;flex-direction:column;max-height:480px;overflow:hidden;}
+.notif-panel.open{display:flex;}
+.notif-panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.notif-panel-head h3{font-size:14px;font-weight:600;margin:0;}
+.notif-mark-all{font-size:11px;color:var(--primary);cursor:pointer;background:none;border:none;padding:0;}
+.notif-mark-all:hover{text-decoration:underline;}
+.notif-list{overflow-y:auto;flex:1;}
+.notif-item{display:flex;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;}
+.notif-item:hover{background:color-mix(in srgb,var(--primary) 5%,transparent);}
+.notif-item.unread{background:color-mix(in srgb,var(--primary) 7%,transparent);}
+.notif-item.unread:hover{background:color-mix(in srgb,var(--primary) 12%,transparent);}
+.notif-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;}
+.notif-body{flex:1;min-width:0;}
+.notif-title{font-size:12px;font-weight:600;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.notif-msg{font-size:11px;color:var(--muted-fg);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.notif-time{font-size:10px;color:var(--muted-fg);margin-top:4px;}
+.notif-empty{padding:32px 16px;text-align:center;color:var(--muted-fg);font-size:13px;}
+.notif-footer{padding:10px 16px;border-top:1px solid var(--border);text-align:center;flex-shrink:0;}
+.notif-footer a{font-size:12px;color:var(--primary);cursor:pointer;}
+.notif-overlay{position:fixed;inset:0;z-index:999;display:none;}
+.notif-overlay.open{display:block;}
+.theme-toggle{width:32px;height:32px;display:flex;align-items:center;justify-content:center;position:relative;color:var(--muted-fg);transition:color .15s;}
+.theme-toggle:hover{color:var(--fg);}
+.icon-sun,.icon-moon{position:absolute;width:16px;height:16px;transition:opacity .2s,transform .2s;}
+html.light .icon-sun{opacity:1;transform:rotate(0)scale(1);}
+html.light .icon-moon{opacity:0;transform:rotate(90deg)scale(0);}
+html.dark .icon-sun{opacity:0;transform:rotate(-90deg)scale(0);}
+html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
+
+/* ── PAGE WRAPPER ── */
+.page{display:none;padding:24px 12px 80px;max-width:1100px;margin:0 auto;width:100%;}
+@media(min-width:640px){.page{padding:32px 20px 80px;}}
+@media(min-width:1024px){.page{padding:32px 24px 80px;}}
+.page.active{display:block;}
+.inner-pad{padding:0 0;}
+@media(min-width:640px){.inner-pad{padding:0 4px;}}
+@media(min-width:1024px){.inner-pad{padding:0 0;}}
+
+/* ── SECTION HEADER ── */
+.page-header{margin-bottom:32px;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.page-header h1{font-size:clamp(1.4rem,2.5vw,1.8rem);font-weight:600;letter-spacing:-.03em;}
+.page-header p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+
+/* ── STAT CARDS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
+@media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}}
+.stat-card{border:1px solid var(--border);padding:20px;background:var(--card);}
+.stat-card .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.stat-card .stat-val{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}
+.stat-card .stat-change{margin-top:4px;font-size:11px;color:var(--muted-fg);}
+.stat-card .stat-change.up{color:hsl(142 60% 40%);}
+.stat-card .stat-change.down{color:hsl(0 70% 50%);}
+
+/* ── CARDS ── */
+.card{border:1px solid var(--border);background:var(--card);}
+.card-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-head h2{font-size:14px;font-weight:600;}
+.card-body{padding:20px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;font-size:13px;font-weight:500;transition:opacity .15s;cursor:pointer;font-family:inherit;border:none;}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-primary:hover{opacity:.88;}
+.btn-outline{border:1px solid var(--border);color:var(--fg);background:none;}
+.btn-outline:hover{background:var(--muted);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-danger{background:hsl(0 70% 50%);color:#fff;}
+.btn-danger:hover{opacity:.88;}
+.btn-ghost{color:var(--muted-fg);padding:6px 8px;font-size:12px;}
+.btn-ghost:hover{color:var(--fg);}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;font-size:11px;font-weight:500;letter-spacing:.04em;}
+.badge-green{background:color-mix(in srgb,hsl(142 60% 40%) 12%,transparent);color:hsl(142 60% 35%);}
+.badge-yellow{background:color-mix(in srgb,hsl(45 90% 50%) 12%,transparent);color:hsl(45 80% 30%);}
+html.dark .badge-yellow{color:hsl(45 90% 60%);}
+.badge-gray{background:var(--muted);color:var(--muted-fg);}
+.badge-red{background:color-mix(in srgb,hsl(0 70% 50%) 12%,transparent);color:hsl(0 70% 45%);}
+.badge-primary{background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);}
+
+/* ── PROGRESS BAR ── */
+.prog-bar{height:4px;background:var(--border);overflow:hidden;}
+.prog-fill{height:100%;background:var(--primary);transition:width .4s;}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th,.data-table td{padding:12px 16px;text-align:left;font-size:13px;}
+.data-table th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);border-bottom:1px solid var(--border);}
+.data-table td{border-bottom:1px solid var(--border);}
+.data-table tr:last-child td{border-bottom:none;}
+.data-table tr:hover td{background:var(--muted);}
+.data-table .t-title{font-weight:500;}
+
+/* ── CHART PLACEHOLDER ── */
+.chart-ph{height:180px;display:flex;align-items:flex-end;gap:4px;padding:16px;}
+.chart-bar{flex:1;background:color-mix(in srgb,var(--primary) 20%,transparent);border-top:2px solid var(--primary);transition:background .15s;}
+.chart-bar:hover{background:color-mix(in srgb,var(--primary) 35%,transparent);}
+.chart-labels{display:flex;justify-content:space-between;padding:4px 16px 0;font-size:10px;color:var(--muted-fg);}
+
+/* ── MINI CHART (sparkline) ── */
+.mini-chart{display:flex;align-items:flex-end;gap:2px;height:32px;}
+.mini-bar{width:6px;background:color-mix(in srgb,var(--primary) 30%,transparent);border-top:1px solid var(--primary);}
+
+/* ── BOOK LIST ── */
+.book-list{display:flex;flex-direction:column;gap:1px;}
+.book-row{display:grid;grid-template-columns:48px 1fr;grid-template-rows:auto auto;gap:8px 12px;padding:14px;border:1px solid var(--border);margin-bottom:8px;transition:background .12s;}
+.book-row:last-child{margin-bottom:0;}
+.book-row:hover{background:var(--muted);}
+.book-thumb{width:48px;height:62px;background:var(--muted);border:1px solid var(--border);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;color:var(--muted-fg);grid-row:1/3;}
+.book-thumb img{width:100%;height:100%;object-fit:cover;}
+.book-info{min-width:0;grid-column:2;}
+.book-title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.book-meta{margin-top:3px;font-size:11px;color:var(--muted-fg);line-height:1.5;}
+.book-actions{display:flex;gap:6px;flex-shrink:0;align-items:center;flex-wrap:wrap;grid-column:2;}
+@media(min-width:640px){
+  .book-row{display:flex;align-items:center;gap:14px;}
+  .book-thumb{grid-row:auto;}
+  .book-info{flex:1;}
+  .book-actions{flex-wrap:nowrap;}
+}
+
+/* ── CHAPTER LIST ── */
+.chapter-list{display:flex;flex-direction:column;gap:8px;}
+.chapter-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border);cursor:pointer;transition:background .12s;}
+.chapter-row:hover{background:var(--muted);}
+.ch-num{width:28px;height:28px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;color:var(--muted-fg);}
+.ch-info{flex:1;min-width:0;}
+.ch-title{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-meta{margin-top:2px;font-size:11px;color:var(--muted-fg);}
+.ch-drag{cursor:grab;color:var(--muted-fg);}
+.ch-drag:active{cursor:grabbing;}
+
+/* ── RICH TEXT EDITOR ── */
+.editor-wrap{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:500px;}
+.editor-toolbar{display:flex;align-items:center;gap:2px;padding:8px 12px;border:1px solid var(--border);border-bottom:none;background:var(--muted);flex-wrap:wrap;}
+.tool-btn{width:30px;height:28px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted-fg);transition:background .12s,color .12s;}
+.tool-btn:hover,.tool-btn.active{background:var(--bg);color:var(--fg);}
+.tool-sep{width:1px;height:18px;background:var(--border);margin:0 4px;}
+.editor-area{flex:1;border:1px solid var(--border);padding:24px 32px;font-size:15px;line-height:1.8;color:var(--fg);background:var(--bg);outline:none;resize:none;overflow-y:auto;}
+.editor-area:focus{border-color:var(--primary);}
+.editor-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 0;font-size:12px;color:var(--muted-fg);}
+.save-indicator{display:flex;align-items:center;gap:6px;}
+.save-dot{width:6px;height:6px;border-radius:50%;background:var(--muted-fg);}
+.save-dot.saved{background:hsl(142 60% 40%);}
+.save-dot.saving{background:hsl(45 90% 50%);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:640px){.form-grid.two-col{grid-template-columns:1fr 1fr;}}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-label{font-size:12px;font-weight:500;color:var(--fg);letter-spacing:.02em;}
+.form-label .req{color:var(--primary);}
+.form-input,.form-select,.form-textarea{
+  padding:10px 12px;border:1px solid var(--border);
+  background:var(--bg);color:var(--fg);
+  font-size:14px;outline:none;
+  transition:border-color .15s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--primary);}
+.form-textarea{resize:vertical;line-height:1.6;}
+.form-hint{font-size:11px;color:var(--muted-fg);}
+.tags-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:8px;border:1px solid var(--border);background:var(--bg);min-height:42px;align-items:center;cursor:text;}
+.tags-input-wrap:focus-within{border-color:var(--primary);}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);font-size:12px;}
+.tag-chip button{width:14px;height:14px;display:flex;align-items:center;justify-content:center;color:var(--primary);}
+.tags-real-input{border:none;outline:none;background:none;color:var(--fg);min-width:80px;font-size:13px;}
+.genre-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;}
+.genre-choice{padding:8px 12px;border:1px solid var(--border);font-size:12px;text-align:center;cursor:pointer;transition:all .15s;background:none;color:var(--fg);}
+.genre-choice.selected{background:color-mix(in srgb,var(--primary) 12%,transparent);border-color:var(--primary);color:var(--primary);font-weight:500;}
+.tone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;}
+.tone-chip{padding:6px 12px;border:1px solid var(--border);font-size:12px;cursor:pointer;transition:all .15s;background:none;color:var(--muted-fg);}
+.tone-chip.selected{border-color:var(--primary);color:var(--primary);background:color-mix(in srgb,var(--primary) 8%,transparent);}
+
+/* ── STEPS ── */
+.step-flow{display:flex;gap:0;margin-bottom:32px;overflow-x:auto;padding-bottom:4px;}
+.step-item-flow{display:flex;align-items:center;gap:0;flex-shrink:0;}
+.step-circle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--muted-fg);background:var(--bg);}
+.step-circle.done{background:var(--primary);border-color:var(--primary);color:var(--primary-fg);}
+.step-circle.current{border-color:var(--primary);color:var(--primary);}
+.step-label-flow{margin-left:8px;font-size:12px;color:var(--muted-fg);white-space:nowrap;}
+.step-label-flow.current{color:var(--primary);font-weight:500;}
+.step-label-flow.done{color:var(--fg);}
+.step-line{width:32px;height:2px;background:var(--border);margin:0 4px;}
+.step-line.done{background:var(--primary);}
+
+/* ── EARNINGS ── */
+.earnings-overview{display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:32px;}
+@media(min-width:640px){.earnings-overview{grid-template-columns:1fr 1fr;}}
+@media(min-width:900px){.earnings-overview{grid-template-columns:repeat(3,1fr);}}
+.earn-card{border:1px solid var(--border);padding:24px;background:var(--card);position:relative;overflow:hidden;}
+.earn-card.featured{background:color-mix(in srgb,var(--primary) 5%,transparent);border-color:color-mix(in srgb,var(--primary) 30%,transparent);}
+.earn-card .earn-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
+.earn-card .earn-val{margin-top:10px;font-size:32px;font-weight:600;letter-spacing:-.03em;}
+.earn-card .earn-sub{margin-top:6px;font-size:12px;color:var(--muted-fg);}
+
+/* ── ANALYTICS GRID ── */
+.analytics-grid{display:grid;grid-template-columns:1fr;gap:20px;}
+@media(min-width:768px){.analytics-grid{grid-template-columns:2fr 1fr;}}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:200;
+  background:var(--fg);color:var(--bg);
+  padding:12px 20px;font-size:13px;
+  display:flex;align-items:center;gap:10px;
+  transform:translateY(100px);opacity:0;
+  transition:all .25s;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ── OVERLAY (mobile sidebar) ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:39;display:none;}
+.overlay.show{display:block;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:150;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-overlay.show{opacity:1;pointer-events:all;}
+.modal-box{background:var(--bg);border:1px solid var(--border);padding:32px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto;transform:translateY(16px);transition:transform .25s;}
+.modal-overlay.show .modal-box{transform:translateY(0);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.modal-head h2{font-size:16px;font-weight:600;}
+
+/* ── HERO STRIPE (dashboard) ── */
+.dash-hero{
+  padding:20px 12px 20px;
+  background:color-mix(in srgb,var(--primary) 4%,transparent);
+  border-bottom:1px solid var(--border);
+  margin-bottom:24px;
+  position:relative;overflow:hidden;
+}
+@media(min-width:640px){.dash-hero{padding:32px 20px 28px;margin-bottom:32px;}}
+@media(min-width:1024px){.dash-hero{padding:32px 24px 28px;}}
+.dash-hero::before{
+  content:'';position:absolute;inset:0;
+  background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--fg) 3%,transparent) 8px,color-mix(in srgb,var(--fg) 3%,transparent) 9px);
+  pointer-events:none;
+}
+.dash-hero>*{position:relative;z-index:1;}
+.dash-hero h1{font-size:20px;font-weight:600;letter-spacing:-.02em;}
+.dash-hero p{margin-top:4px;font-size:13px;color:var(--muted-fg);}
+.dash-hero-row{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+@media(max-width:480px){.dash-hero-row{flex-direction:column;gap:12px;}}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted-fg);}
+.empty-state svg{opacity:.25;margin:0 auto 12px;display:block;}
+.empty-state h3{font-size:15px;font-weight:500;color:var(--fg);}
+.empty-state p{margin-top:6px;font-size:13px;}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="dash-layout">
+
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-head">
+    <div class="brand">
+      <div class="brand-logo"><img src=\"{% static 'novelux/images/logo.png' %}\" style="width: 100%; height: 100%; border-radius: 20%;"
+          onerror="this.style.background='hsl(14 62% 38%)';this.removeAttribute('src')" alt="Novelux" /></div>
+      <span>Novelux</span>
+    </div>
+    <button class="sidebar-close" onclick="closeSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+  </div>
+  <nav class="sidebar-nav">
+    <span class="nav-section-label">Overview</span>
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      Dashboard
+    </button>
+    <span class="nav-section-label">My Work</span>
+    <button class="nav-btn" onclick="showPage('my-books',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      My Books
+    </button>
+    <button class="nav-btn" onclick="showPage('create-story',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+      New Story
+    </button>
+    <button class="nav-btn" onclick="showPage('chapters',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+      Chapters
+    </button>
+    <button class="nav-btn" onclick="showPage('editor',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Write Chapter
+    </button>
+    <span class="nav-section-label">Performance</span>
+    <button class="nav-btn" onclick="showPage('analytics',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>
+      Analytics
+    </button>
+    <button class="nav-btn" onclick="showPage('earnings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Earnings
+    </button>
+    <span class="nav-section-label">Resources</span>
+    <a class="nav-btn" href="/content-guidelines/" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+      Content Guidelines
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+    <a class="nav-btn" href="/faq/" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+      Help Center
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+    <a class="nav-btn" href="/become-author/" target="_blank">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Author Guide
+      <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;opacity:.4"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+    </a>
+
+    <span class="nav-section-label">Account</span>
+    <button class="nav-btn" onclick="showPage('profile',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+      Profile
+    </button>
+    <button class="nav-btn" onclick="showPage('settings',this)">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="author-badge">
+      <div class="author-avatar">{{ display_name|first|upper }}</div>
+      <div class="author-info">
+        <p>{{ display_name }}</p>
+        <span>{% if is_verified %}✓ Verified Author{% else %}Author{% endif %}</span>
+      </div>
+    </div>
+    <a href="/author/onboarding/" style="display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;font-size:12px;color:var(--muted-fg);transition:color .15s;width:100%;" onmouseover="this.style.color='var(--fg)'" onmouseout="this.style.color='var(--muted-fg)'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+      Sign out
+    </a>
+  </div>
+</aside>
+
+<!-- overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main-area">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="openSidebar()"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg></button>
+      <span class="topbar-title" id="topbarTitle">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <!-- Notification bell -->
+      <div style="position:relative;">
+        <button class="icon-btn" id="notifBtn" title="Notifications" onclick="toggleNotifPanel()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span class="notif-badge hidden" id="notifBadge">0</span>
+        </button>
+      </div>
+
+      <!-- Notification panel -->
+      <div class="notif-overlay" id="notifOverlay" onclick="closeNotifPanel()"></div>
+      <div class="notif-panel" id="notifPanel">
+        <div class="notif-panel-head">
+          <h3>Notifications</h3>
+          <button class="notif-mark-all" onclick="markAllNotifRead()">Mark all read</button>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty">Loading…</div>
+        </div>
+        <div class="notif-footer">
+          <a onclick="closeNotifPanel();showPage('settings',document.querySelector('[onclick*=settings]'))">Notification settings →</a>
+        </div>
+      </div>
+      <button class="theme-toggle" id="themeToggle">
+        <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <a href="/" class="btn btn-outline btn-sm" title="Back to site">← Site</a>
+    </div>
+  </header>
+
+  <!-- ══════ PAGE: DASHBOARD ══════ -->
+  <div class="page active" id="page-dashboard">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Good {{ greeting_time }}, {{ display_name }} 👋</h1>
+          <p>Here's what's happening with your stories today.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="showPage('analytics',document.querySelector('[onclick*=analytics]'))">View Analytics</button>
+          <button class="btn btn-primary btn-sm" onclick="showPage('create-story',document.querySelector('[onclick*=create-story]'))">+ New Story</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Reads</div><div class="stat-val" id="stat-reads">—</div><div class="stat-change">All stories</div></div>
+        <div class="stat-card"><div class="stat-label">Followers</div><div class="stat-val" id="stat-followers">—</div><div class="stat-change">Readers following you</div></div>
+        <div class="stat-card"><div class="stat-label">Est. Earnings</div><div class="stat-val" id="stat-earnings">—</div><div class="stat-change">Pending: <span id="stat-pending">—</span></div></div>
+        <div class="stat-card"><div class="stat-label">Stories</div><div class="stat-val" id="stat-stories">—</div><div class="stat-change" id="stat-stories-sub">— published · — draft</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:24px;">
+        <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+          <!-- Activity chart -->
+          <div class="card">
+            <div class="card-head"><h2>Weekly Reads</h2><span style="font-size:12px;color:var(--muted-fg)">Last 7 days</span></div>
+            <div class="chart-ph" id="activityChart"></div>
+            <div class="chart-labels" id="chartLabels"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;margin-bottom:24px;">
+        <!-- Active stories -->
+        <div class="card">
+          <div class="card-head"><h2>Active Stories</h2><button class="btn btn-ghost" onclick="showPage('my-books',document.querySelector('[onclick*=my-books]'))">View all →</button></div>
+          <div class="card-body" style="padding:0;">
+            <div id="dashBookList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:20px;">
+        <!-- Recent activity -->
+        <div class="card">
+          <div class="card-head"><h2>Recent Activity</h2></div>
+          <div class="card-body" style="padding:0;">
+            <table class="data-table">
+              <thead><tr><th>Event</th><th>Story</th><th>Time</th></tr></thead>
+              <tbody id="recentActivityBody">
+                {% for s in stories|slice:":5" %}
+                <tr>
+                  <td><span class="badge badge-primary">Story</span></td>
+                  <td class="t-title">{{ s.title }}</td>
+                  <td style="color:var(--muted-fg)">{{ s.reads_fmt }} reads</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" style="text-align:center;color:var(--muted-fg);padding:24px;">No activity yet</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: MY BOOKS ══════ -->
+  <div class="page" id="page-my-books">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>My Books</h1><p>Manage all your stories in one place.</p></div>
+        <button class="btn btn-primary" onclick="showPage('create-story',document.querySelector('[onclick*=create-story]'))">+ New Story</button>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm active-filter" onclick="filterBooks('all',this)" id="filter-all">All (—)</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterBooks('published',this)" id="filter-published">Published (—)</button>
+        <button class="btn btn-ghost btn-sm" onclick="filterBooks('draft',this)" id="filter-draft">Draft (—)</button>
+      </div>
+      <div id="fullBookList"></div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CREATE STORY ══════ -->
+  <div class="page" id="page-create-story">
+    <div class="dash-hero">
+      <div><h1>Create New Story</h1><p>Tell us about your book before you start writing.</p></div>
+    </div>
+    <div class="inner-pad">
+      <!-- Step indicator -->
+      <div class="step-flow" id="createSteps">
+        <div class="step-item-flow"><div class="step-circle current" id="step-c1">1</div><span class="step-label-flow current">Story Details</span></div>
+        <div class="step-line"></div>
+        <div class="step-item-flow"><div class="step-circle" id="step-c2">2</div><span class="step-label-flow">Chapters</span></div>
+        <div class="step-line"></div>
+        <div class="step-item-flow"><div class="step-circle" id="step-c3">3</div><span class="step-label-flow">Publish</span></div>
+      </div>
+
+      <!-- Step 1: Story Details -->
+      <div id="create-step1">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Basic Information</h2></div>
+          <div class="card-body">
+            <div class="form-grid">
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Story Title <span class="req">*</span></label>
+                <input class="form-input" type="text" placeholder="e.g. Bound by Blood" id="storyTitle"/>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Synopsis / Hook <span class="req">*</span></label>
+                <textarea class="form-textarea" rows="3" placeholder="One compelling paragraph that makes a reader want to read chapter 1..." id="storySynopsis"></textarea>
+                <span class="form-hint">Max 300 characters. This appears on the novel listing.</span>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Full Description / Summary <span class="req">*</span></label>
+                <textarea class="form-textarea" rows="5" placeholder="A longer description — set the scene, introduce the main characters and conflict..." id="storyDesc"></textarea>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Gender <span class="req">*</span></label>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px;" id="genderGroup">
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px solid var(--border);border-radius:6px;font-size:13px;transition:all .15s;" class="gender-option">
+                    <input type="radio" name="storyGender" value="male" onchange="selectGender(this)" style="accent-color:var(--primary);width:16px;height:16px;"/>
+                    Male
+                  </label>
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px solid var(--border);border-radius:6px;font-size:13px;transition:all .15s;" class="gender-option">
+                    <input type="radio" name="storyGender" value="female" onchange="selectGender(this)" style="accent-color:var(--primary);width:16px;height:16px;"/>
+                    Female
+                  </label>
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1px solid var(--border);border-radius:6px;font-size:13px;transition:all .15s;" class="gender-option">
+                    <input type="radio" name="storyGender" value="prefer_not_to_say" onchange="selectGender(this)" style="accent-color:var(--primary);width:16px;height:16px;"/>
+                    Prefer not to say
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Genre &amp; Tags</h2></div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Genre <span class="req">*</span></label>
+              <div class="genre-grid" id="genreGrid">
+                <div style="color:var(--muted-fg);font-size:12px;padding:8px;">Loading genres…</div>
+              </div>
+              <span class="form-hint">Select one genre.</span>
+            </div>
+            <div class="form-group" style="margin-bottom:20px;">
+              <label class="form-label">Story Tone</label>
+              <div class="tone-grid" id="toneGrid">
+                <button class="tone-chip" onclick="selectTone(this)">Dark &amp; Gritty</button>
+                <button class="tone-chip" onclick="selectTone(this)">Light-hearted</button>
+                <button class="tone-chip" onclick="selectTone(this)">Slow Burn</button>
+                <button class="tone-chip" onclick="selectTone(this)">Action-packed</button>
+                <button class="tone-chip" onclick="selectTone(this)">Emotional</button>
+                <button class="tone-chip" onclick="selectTone(this)">Suspenseful</button>
+                <button class="tone-chip" onclick="selectTone(this)">Sweet &amp; Fluffy</button>
+                <button class="tone-chip" onclick="selectTone(this)">Angsty</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tags <span style="color:var(--muted-fg);font-weight:400;">(up to 10)</span></label>
+              <div class="tags-input-wrap" id="tagsWrap" onclick="document.getElementById('tagInput').focus()">
+                <input class="tags-real-input" id="tagInput" placeholder="Type to search tags…" oninput="searchTags(this.value)" onkeydown="handleTagInput(event)" autocomplete="off"/>
+              </div>
+              <div id="tagSuggestions" style="display:none;position:relative;z-index:10;border:1px solid var(--border);background:var(--card-bg);margin-top:2px;max-height:160px;overflow-y:auto;border-radius:4px;"></div>
+              <span class="form-hint">Search and select tags from the list — up to 10.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Characters</h2></div>
+          <div class="card-body">
+            <div id="characterList" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;"></div>
+            <button class="btn btn-outline btn-sm" onclick="addCharacter()">+ Add Character</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Story Settings</h2></div>
+          <div class="card-body">
+            <div class="form-grid two-col">
+              <div class="form-group">
+                <label class="form-label">Target Word Count</label>
+                <select class="form-select"><option>50,000 – 80,000</option><option>80,000 – 120,000</option><option>120,000+</option><option>Open-ended</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Update Schedule</label>
+                <input class="form-input" type="text" id="storyUpdateSchedule" placeholder="e.g. Mon/Wed/Fri"/>
+                <span class="form-hint">How often you plan to post new chapters.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Audience</label>
+                <select class="form-select"><option>General (13+)</option><option selected>Teen (13-17)</option><option>Young Adult (18+)</option><option>Mature (18+)</option></select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Language</label>
+                <select class="form-select"><option selected>English</option><option>French</option><option>Spanish</option><option>Portuguese</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;padding-bottom:40px;">
+          <button class="btn btn-outline" onclick="saveDraft()">Save as Draft</button>
+          <button class="btn btn-primary" onclick="goToStep2()">Next: Add Chapters →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Chapters placeholder (shown after step 1) -->
+      <div id="create-step2" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-head"><h2>Your story has been created!</h2></div>
+          <div class="card-body">
+            <p style="color:var(--muted-fg);margin-bottom:20px;">Now add your first chapter to get started. You can always come back to add more.</p>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-primary" onclick="showPage('editor',document.querySelector('[onclick*=editor]'))">✏️ Write Chapter 1</button>
+              <button class="btn btn-outline" onclick="showPage('chapters',document.querySelector('[onclick*=chapters]'))">Manage Chapters</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: CHAPTERS ══════ -->
+  <div class="page" id="page-chapters">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1>Chapter Manager</h1>
+          <p id="chapterBookLabel">Select a story · — chapters</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <select class="form-select" style="font-size:13px;height:36px;padding:0 10px;" id="bookSelector" onchange="updateChapterBook()">
+            {% for s in stories %}
+            <option value="{{ s.id }}">{{ s.title }}</option>
+            {% empty %}
+            <option>No stories yet</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="const sel=document.getElementById('bookSelector');const slug=sel?.options[sel?.selectedIndex]?.dataset?.slug||'';newChapter(slug);showPage('editor',document.querySelector('[onclick*=editor]'))">+ New Chapter</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;color:var(--muted-fg);">Drag to reorder</span>
+        <span style="flex:1;"></span>
+        <button class="btn btn-ghost btn-sm" onclick="bulkPublish()">Bulk publish</button>
+      </div>
+      <div class="chapter-list" id="chapterListEl"></div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: EDITOR ══════ -->
+  <div class="page" id="page-editor">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div>
+          <h1 id="editorChTitle">New Chapter</h1>
+          <p id="editorStoryLabel">Select a story · Auto-saving every 5 seconds</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-outline btn-sm" onclick="publishChapter()">Publish</button>
+          <button class="btn btn-primary btn-sm" onclick="manualSave()">Save Draft</button>
+        </div>
+      </div>
+    </div>
+    <div class="inner-pad" style="padding-bottom:40px;">
+      <!-- Hidden state for current chapter being edited -->
+      <input type="hidden" id="editorStorySlug" value=""/>
+      <input type="hidden" id="editorChapterNum" value=""/>
+
+      <div class="form-grid two-col" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label class="form-label">Chapter Title</label>
+          <input class="form-input" id="chapterTitleInput" value="" placeholder="Enter chapter title…" oninput="startSaveTimer()"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chapter Number</label>
+          <input class="form-input" id="chapterNumberInput" value="" type="number" min="1" oninput="startSaveTimer()"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Author's Note (optional)</label>
+        <input class="form-input" placeholder="A message to your readers for this chapter..." id="authorNote" oninput="startSaveTimer()"/>
+      </div>
+      <div class="editor-wrap">
+        <div class="editor-toolbar">
+          <button class="tool-btn" title="Bold" onclick="formatText('bold')"><b>B</b></button>
+          <button class="tool-btn" title="Italic" onclick="formatText('italic')"><i>I</i></button>
+          <button class="tool-btn" title="Underline" onclick="formatText('underline')"><u>U</u></button>
+          <div class="tool-sep"></div>
+          <button class="tool-btn" onclick="formatText('justifyLeft')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></button>
+          <button class="tool-btn" onclick="formatText('justifyCenter')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg></button>
+          <button class="tool-btn" onclick="formatText('justifyFull')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg></button>
+          <div class="tool-sep"></div>
+          <button class="tool-btn" onclick="insertScene()">— Scene —</button>
+          <div class="tool-sep"></div>
+          <select style="font-size:12px;background:none;border:none;color:var(--fg);cursor:pointer;height:28px;padding:0 4px;" onchange="changeFontSize(this)">
+            <option value="14px">14</option><option value="16px" selected>16</option><option value="18px">18</option><option value="20px">20</option>
+          </select>
+          <div class="tool-sep"></div>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted-fg)" id="wordCountBadge">0 words</span>
+        </div>
+        <div class="editor-area" id="editorArea" contenteditable="true" oninput="onEditorInput()" spellcheck="true">
+          <p>Start writing your chapter here…</p>
+        </div>
+        <div class="editor-footer">
+          <div class="save-indicator">
+            <div class="save-dot saved" id="saveDot"></div>
+            <span id="saveStatus">All changes saved</span>
+          </div>
+          <span id="editorWordCount">72 words · Est. 0 min read</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: ANALYTICS ══════ -->
+  <div class="page" id="page-analytics">
+    <div class="dash-hero">
+      <div><h1>Analytics</h1><p>Detailed performance across all your stories.</p></div>
+    </div>
+    <div class="inner-pad">
+      <div class="stat-grid" style="margin-bottom:32px;">
+        <div class="stat-card"><div class="stat-label">Total Reads</div><div class="stat-val" id="an-reads">—</div><div class="stat-change">All time</div></div>
+        <div class="stat-card"><div class="stat-label">Total Chapters</div><div class="stat-val" id="an-chapters">—</div><div class="stat-change" id="an-chapters-sub">Across — stories</div></div>
+        <div class="stat-card"><div class="stat-label">Followers</div><div class="stat-val" id="an-followers">—</div><div class="stat-change">Total readers following you</div></div>
+        <div class="stat-card"><div class="stat-label">Comments</div><div class="stat-val" id="an-comments">—</div><div class="stat-change">Across all stories</div></div>
+      </div>
+
+      <div class="analytics-grid">
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-head"><h2>Reads Over Time</h2><select style="font-size:12px;background:none;border:1px solid var(--border);color:var(--fg);height:28px;padding:0 8px;"><option>Last 30 days</option><option>Last 90 days</option></select></div>
+            <div class="chart-ph" id="analyticsChart"></div>
+            <div class="chart-labels" id="analyticsLabels"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Per-Chapter Performance</h2></div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Chapter</th><th>Reads</th><th>Completion</th><th>Comments</th></tr></thead>
+                <tbody id="chapterPerfTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="card-head"><h2>Audience</h2></div>
+            <div class="card-body">
+              <div id="audienceSection" style="display:flex;flex-direction:column;gap:12px;">
+                <div style="color:var(--muted-fg);font-size:13px;">Loading audience data…</div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Drop-off Points</h2></div>
+            <div class="card-body">
+              <p style="font-size:12px;color:var(--muted-fg);margin-bottom:12px;">Chapters where readers stop most often:</p>
+              <div id="dropoffSection" style="display:flex;flex-direction:column;gap:8px;">
+                <div style="color:var(--muted-fg);font-size:13px;">Loading…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: EARNINGS ══════ -->
+  <div class="page" id="page-earnings">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Earnings</h1><p>Your royalties and withdrawal history.</p></div>
+        <button class="btn btn-primary" onclick="showToast('Withdrawal request submitted!')">Request Withdrawal</button>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div class="earnings-overview">
+        <div class="earn-card featured" style="position:relative;overflow:hidden;">
+          <div style="position:absolute;inset:0;background-image:repeating-linear-gradient(-45deg,transparent,transparent 8px,color-mix(in srgb,var(--primary) 4%,transparent) 8px,color-mix(in srgb,var(--primary) 4%,transparent) 9px);pointer-events:none;"></div>
+          <div style="position:relative;z-index:1;">
+            <div class="earn-lbl">Available Balance</div>
+            <div class="earn-val">${{ pending_payout }}</div>
+            <div class="earn-sub">Ready to withdraw</div>
+          </div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-lbl">Tips Received</div>
+          <div class="earn-val">{{ tips_coins }} coins</div>
+          <div class="earn-sub">All time from readers</div>
+        </div>
+        <div class="earn-card">
+          <div class="earn-lbl">All Time Earnings</div>
+          <div class="earn-val">${{ total_earnings }}</div>
+          <div class="earn-sub">{{ contract_type|default:"—" }}</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Earnings by Story</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Story</th><th>Status</th><th>Reads</th><th>Chapters</th><th>Rating</th></tr></thead>
+            <tbody>
+              {% for s in stories %}
+              <tr>
+                <td class="t-title">{{ s.title }}</td>
+                <td><span class="badge {{ s.badge_class }}">{{ s.status }}</span></td>
+                <td>{{ s.reads_fmt }}</td>
+                <td>{{ s.total_chapters }}</td>
+                <td>{{ s.average_rating|floatformat:1 }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" style="text-align:center;color:var(--muted-fg);padding:24px;">No stories yet</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Withdrawal History</h2></div>
+        <div style="overflow-x:auto;">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for p in payouts %}
+              <tr>
+                <td style="color:var(--muted-fg)">{{ p.requested_at_fmt }}</td>
+                <td style="font-weight:500">${{ p.amount_usd }}</td>
+                <td>{{ p.payout_method|default:"—" }}</td>
+                <td><span class="badge {{ p.badge_class }}">{{ p.status }}</span></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" style="text-align:center;color:var(--muted-fg);padding:24px;">No withdrawals yet</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: PROFILE ══════ -->
+  <div class="page" id="page-profile">
+    <div class="dash-hero"><div><h1>Author Profile</h1><p>How readers see you.</p></div></div>
+    <div class="inner-pad">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Public Profile</h2></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+            <div style="width:72px;height:72px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:var(--primary-fg);font-size:28px;font-weight:600;flex-shrink:0;">A</div>
+            <div><button class="btn btn-outline btn-sm">Change Photo</button><p style="margin-top:6px;font-size:11px;color:var(--muted-fg);">JPG, PNG or GIF · Max 2MB</p></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group"><label class="form-label">Display Name</label><input class="form-input" value="{{ display_name }}"/></div>
+            <div class="form-group"><label class="form-label">Author Handle</label><input class="form-input" value="@{{ username }}"/></div>
+            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Bio</label><textarea class="form-textarea" rows="3">{{ bio }}</textarea></div>
+            <div class="form-group"><label class="form-label">Country</label><select class="form-select"><option selected>Nigeria</option><option>Ghana</option><option>Kenya</option><option>UK</option><option>USA</option></select></div>
+            <div class="form-group"><label class="form-label">Genres</label><input class="form-input" value="Romance, Drama, Thriller"/></div>
+          </div>
+          <div style="margin-top:20px;"><button class="btn btn-primary" onclick="showToast('Profile saved!')">Save Changes</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ PAGE: SETTINGS ══════ -->
+  <div class="page" id="page-settings">
+    <div class="dash-hero"><div><h1>Settings</h1><p>Account and notification preferences.</p></div></div>
+    <div class="inner-pad">
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Notifications</h2></div>
+        <div class="card-body">
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">New reader</p><p style="font-size:12px;color:var(--muted-fg)">When someone starts reading your story</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">Comments</p><p style="font-size:12px;color:var(--muted-fg)">When a reader leaves a comment</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" checked style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><p style="font-size:14px;font-weight:500;">Weekly summary</p><p style="font-size:12px;color:var(--muted-fg)">Email summary of your performance</p></div>
+              <label style="position:relative;display:inline-block;width:40px;height:22px;"><input type="checkbox" style="opacity:0;width:0;height:0;"/><span style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:22px;transition:.2s;"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-head"><h2>Account Security</h2></div>
+        <div class="card-body">
+          <div class="form-grid" style="margin-bottom:16px;">
+            <div class="form-group"><label class="form-label">Email</label><input class="form-input" value="{{ email }}" type="email"/></div>
+            <div class="form-group"><label class="form-label">Current Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+            <div class="form-group"><label class="form-label">New Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+            <div class="form-group"><label class="form-label">Confirm Password</label><input class="form-input" type="password" placeholder="••••••••"/></div>
+          </div>
+          <button class="btn btn-primary" onclick="showToast('Password updated!')">Update Password</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+</div><!-- /dash-layout -->
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+  <span id="toastMsg">Saved</span>
+</div>
+
+<script>
+const html = document.documentElement;
+document.getElementById('themeToggle').addEventListener('click',()=>{
+  const d=html.classList.contains('dark');
+  html.classList.toggle('dark',!d);html.classList.toggle('light',d);
+});
+html.classList.add('light');
+
+// Sidebar
+function openSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show');}
+function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
+
+// Page nav
+const pageTitles={dashboard:'Dashboard','my-books':'My Books','create-story':'New Story',chapters:'Chapters',editor:'Write Chapter',analytics:'Analytics',earnings:'Earnings',profile:'Profile',settings:'Settings'};
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  document.getElementById('topbarTitle').textContent=pageTitles[id]||id;
+  closeSidebar();
+  window.scrollTo(0,0);
+}
+
+// Toast
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Books data — populated by loadStories() via /api/stories/mine/
+const books=[];
+
+function renderDashBooks(){
+  const el=document.getElementById('dashBookList');
+  if(!el)return;
+  if(!books.length){el.innerHTML='<div class="empty-state"><h3>No stories yet</h3><p>Create your first story to get started.</p></div>';return;}
+  el.innerHTML=books.slice(0,3).map((b,i)=>`
+    <div class="book-row">
+      <div class="book-thumb" style="background:color-mix(in srgb,var(--primary) ${10+(i+1)*8}%,var(--muted));">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <div class="book-info">
+        <div class="book-title">${b.title}</div>
+        <div class="book-meta">${b.total_chapters} chapters · ${b.reads_fmt} reads · ${b.words_fmt} words</div>
+        <div style="margin-top:6px;"><div class="prog-bar" style="width:120px;"><div class="prog-fill" style="width:${b.status==='completed'?100:b.status==='ongoing'||b.status==='published'?70:30}%"></div></div></div>
+      </div>
+      <span class="badge ${b.badge_class}">${b.status}</span>
+    </div>`).join('');
+}
+
+function renderFullBooks(filter){
+  const el=document.getElementById('fullBookList');
+  const publishedStatuses=['published','ongoing','completed'];
+  const draftStatuses=['draft','paused'];
+  const list=filter==='published'?books.filter(b=>publishedStatuses.includes(b.status)):
+             filter==='draft'?books.filter(b=>draftStatuses.includes(b.status)):books;
+  if(!list.length){el.innerHTML='<div class="empty-state"><h3>No stories found</h3></div>';return;}
+  el.innerHTML=list.map((b,i)=>`
+    <div class="book-row">
+      <div class="book-thumb" style="background:color-mix(in srgb,var(--primary) ${10+(i+1)*8}%,var(--muted));">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      </div>
+      <div class="book-info">
+        <div class="book-title">${b.title}</div>
+        <div class="book-meta">${b.total_chapters} chapters · ${b.words_fmt} words · ${b.reads_fmt} reads</div>
+      </div>
+      <div class="book-actions">
+        <span class="badge ${b.badge_class}">${b.status}</span>
+        <button class="btn btn-ghost btn-sm" onclick="openStoryChapters('${b.slug}','${b.title.replace(/'/g,"\\'").replace(/"/g,'&quot;')}');showPage('chapters',document.querySelector('[onclick*=chapters]'))">Chapters</button>
+        <button class="btn btn-outline btn-sm" onclick="showPage('editor',document.querySelector('[onclick*=editor]'))">Edit</button>
+      </div>
+    </div>`).join('');
+}
+
+function filterBooks(f,btn){
+  document.querySelectorAll('.active-filter').forEach(b=>b.classList.remove('active-filter','btn-outline'));
+  if(btn){btn.classList.add('active-filter','btn-outline');}
+  renderFullBooks(f);
+}
+
+// Chapters
+// Chapters data — populated by loadChapters() via /api/stories/<slug>/chapters/
+let chapters=[];
+
+// Opens the chapters page for a specific story by slug
+function openStoryChapters(slug, title){
+  // Sync the selector dropdown to the correct story
+  const sel = document.getElementById('bookSelector');
+  if(sel){
+    for(let i = 0; i < sel.options.length; i++){
+      if(sel.options[i].dataset.slug === slug || sel.options[i].value === slug){
+        sel.selectedIndex = i;
+        break;
+      }
+    }
+  }
+  const label = document.getElementById('chapterBookLabel');
+  if(label) label.textContent = title + ' · loading…';
+
+  if(window._loadChapters) window._loadChapters(slug);
+}
+
+function loadStoryChapters(slug){
+  // Sync editor sub-label to currently selected story
+  const sel = document.getElementById('bookSelector');
+  const storyTitle = sel ? sel.options[sel.selectedIndex]?.text : '';
+  const editorLabel = document.getElementById('editorStoryLabel');
+  if(editorLabel && storyTitle) editorLabel.textContent = storyTitle + ' · Auto-saving every 5 seconds';
+
+  if(window._loadChapters) window._loadChapters(slug);
+}
+
+function renderChapters(){
+  const el=document.getElementById('chapterListEl');
+  if(!el)return;
+  if(!chapters.length){
+    el.innerHTML='<div class="empty-state"><h3>No chapters yet</h3><p>Start writing your first chapter.</p></div>';
+    return;
+  }
+  el.innerHTML=chapters.map(ch=>`
+    <div class="chapter-row" onclick="loadChapterIntoEditor(document.getElementById('bookSelector')?.dataset?.currentSlug||'',${ch.chapter_number},'${ch.title.replace(/'/g,"\\'")}');showPage('editor',document.querySelector('[onclick*=editor]'))">
+      <div class="ch-drag" onclick="event.stopPropagation()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+      </div>
+      <div class="ch-num">${ch.chapter_number}</div>
+      <div class="ch-info">
+        <div class="ch-title">${ch.title}</div>
+        <div class="ch-meta">${ch.words_fmt} words · ${ch.reads_fmt} reads</div>
+      </div>
+      <span class="badge ${ch.badge_class}">${ch.status}</span>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();loadChapterIntoEditor(document.getElementById('bookSelector')?.dataset?.currentSlug||'',${ch.chapter_number},'${ch.title.replace(/'/g,"\\'")}');showPage('editor',document.querySelector('[onclick*=editor]'))">Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();confirmDelete()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function confirmDelete(){
+  const slug  = document.getElementById('bookSelector')?.dataset?.currentSlug || '';
+  const chNum = prompt('Enter the chapter number to delete:');
+  if(!chNum || !slug) return;
+  if(!confirm(`Delete chapter ${chNum}? This cannot be undone.`)) return;
+
+  const token = document.querySelector('meta[name="nux-token"]')?.content || '';
+  fetch(`/api/chapters/${slug}/chapters/${chNum}/`, {
+    method: 'DELETE',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  .then(r => {
+    if(r.ok || r.status === 204){
+      showToast('Chapter deleted');
+      if(window._loadChapters) window._loadChapters(slug);
+    } else {
+      showToast('Delete failed — check permissions');
+    }
+  })
+  .catch(() => showToast('Network error'));
+}
+
+function saveDraft(){
+  // Called from the post-creation step 2 screen
+  showPage('editor', document.querySelector('[onclick*=editor]'));
+  const sel  = document.getElementById('bookSelector');
+  const slug = sel?.dataset?.currentSlug || sel?.options[sel?.selectedIndex]?.dataset?.slug || '';
+  if(slug) newChapter(slug);
+}
+
+function bulkPublish(){
+  const slug = document.getElementById('bookSelector')?.dataset?.currentSlug || '';
+  if(!slug){ showToast('Select a story first'); return; }
+  if(!confirm('Publish all draft chapters in this story?')) return;
+  const token = document.querySelector('meta[name="nux-token"]')?.content || '';
+  const drafts = chapters.filter(ch => ch.status === 'draft');
+  if(!drafts.length){ showToast('No draft chapters to publish'); return; }
+  Promise.all(drafts.map(ch =>
+    fetch(`/api/chapters/${slug}/chapters/${ch.chapter_number}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', ...(token?{Authorization:`Bearer ${token}`}:{}) },
+      body: JSON.stringify({ is_published: true }),
+    })
+  )).then(() => {
+    showToast(`${drafts.length} chapter(s) published!`);
+    if(window._loadChapters) window._loadChapters(slug);
+  }).catch(() => showToast('Some chapters failed to publish'));
+}
+  const sel = document.getElementById('bookSelector');
+  if(!sel) return;
+  const slug  = sel.options[sel.selectedIndex]?.dataset?.slug || sel.value;
+  const title = sel.options[sel.selectedIndex]?.text || '';
+  const label = document.getElementById('chapterBookLabel');
+  if(label) label.textContent = title + ' · loading…';
+  if(window._loadChapters) window._loadChapters(slug);
+}
+
+// Analytics chart
+function buildChart(elId, labelsId, data, labels){
+  const el=document.getElementById(elId);
+  const le=document.getElementById(labelsId);
+  if(!el)return;
+  const max=Math.max(...data);
+  el.innerHTML=data.map(v=>`<div class="chart-bar" style="height:${Math.round((v/max)*100)}%" title="${v.toLocaleString()} reads"></div>`).join('');
+  if(le)le.innerHTML=labels.map(l=>`<span>${l}</span>`).join('');
+}
+
+// Chapter performance table — uses real chapters injected from DB
+function buildChapterPerf(){
+  const el=document.getElementById('chapterPerfTable');
+  if(!el)return;
+  if(!chapters.length){
+    el.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted-fg);padding:24px;">No chapters yet</td></tr>';
+    return;
+  }
+  el.innerHTML=chapters.slice(0,10).map(ch=>`
+    <tr>
+      <td style="color:var(--muted-fg)">${ch.chapter_number}</td>
+      <td class="t-title">${ch.title}</td>
+      <td>${ch.reads_fmt}</td>
+      <td><span class="badge ${ch.badge_class}">${ch.status}</span></td>
+      <td>${ch.words_fmt}</td>
+    </tr>`).join('');
+}
+
+// Editor auto-save
+let saveTimer=null;
+function onEditorInput(){
+  updateWordCount();
+  startSaveTimer();
+}
+function startSaveTimer(){
+  const dot    = document.getElementById('saveDot');
+  const status = document.getElementById('saveStatus');
+  if(!dot) return;
+  dot.className   = 'save-dot saving';
+  if(status) status.textContent = 'Unsaved changes…';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    // Only auto-save if the chapter has been loaded (has a slug)
+    if(_editorSlug()) {
+      manualSave();
+    } else {
+      dot.className = 'save-dot saved';
+      if(status) status.textContent = 'Ready';
+    }
+  }, 3000); // 3s debounce — less aggressive than before
+}
+function updateWordCount(){
+  const el=document.getElementById('editorArea');
+  const badge=document.getElementById('editorWordCount');
+  if(!el||!badge)return;
+  const words=el.innerText.trim().split(/\s+/).filter(Boolean).length;
+  const mins=Math.max(1,Math.round(words/200));
+  badge.textContent=words.toLocaleString()+' words · Est. '+mins+' min read';
+  document.getElementById('wordCountBadge').textContent=words.toLocaleString()+' words';
+}
+function saveToStorage(){ manualSave(); } // auto-save now uses the API
+// ── Editor state ─────────────────────────────────────────────────────────
+function _editorSlug(){ return document.getElementById('editorStorySlug')?.value || ''; }
+function _editorChNum(){ return document.getElementById('editorChapterNum')?.value || ''; }
+function _editorHeaders(){
+  const token = document.querySelector('meta[name="nux-token"]')?.content || '';
+  return { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) };
+}
+
+// Load a chapter's real data into the editor
+function loadChapterIntoEditor(storySlug, chapterNumber, chapterTitle){
+  const slug = storySlug || _editorSlug();
+  if(!slug || !chapterNumber){ return; }
+
+  // Set state
+  document.getElementById('editorStorySlug').value  = slug;
+  document.getElementById('editorChapterNum').value = chapterNumber;
+
+  // Update header
+  document.getElementById('editorChTitle').textContent    = chapterTitle || `Chapter ${chapterNumber}`;
+  document.getElementById('editorStoryLabel').textContent = slug + ' · Auto-saving every 5 seconds';
+
+  // Show loading state
+  const area = document.getElementById('editorArea');
+  area.innerHTML = '<p style="color:var(--muted-fg)">Loading chapter…</p>';
+  area.contentEditable = 'false';
+
+  const setSaveStatus = (msg, saved=true) => {
+    const dot = document.getElementById('saveDot');
+    const st  = document.getElementById('saveStatus');
+    if(dot){ dot.className = 'save-dot ' + (saved ? 'saved' : 'saving'); }
+    if(st) st.textContent = msg;
+  };
+
+  setSaveStatus('Loading…', false);
+
+  fetch(`/api/chapters/${slug}/chapters/${chapterNumber}/`, { headers: _editorHeaders() })
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(ch => {
+      document.getElementById('chapterTitleInput').value  = ch.title || '';
+      document.getElementById('chapterNumberInput').value = ch.chapter_number || chapterNumber;
+      document.getElementById('authorNote').value         = ch.authors_note || ch.author_note || '';
+      area.innerHTML     = ch.content || '<p></p>';
+      area.contentEditable = 'true';
+      updateWordCount();
+      setSaveStatus('All changes saved');
+    })
+    .catch(() => {
+      area.innerHTML = '<p>Could not load chapter. Check your connection.</p>';
+      area.contentEditable = 'true';
+      setSaveStatus('Load failed', false);
+    });
+}
+
+// New blank chapter
+function newChapter(storySlug){
+  document.getElementById('editorStorySlug').value  = storySlug || '';
+  document.getElementById('editorChapterNum').value = '';
+  document.getElementById('chapterTitleInput').value  = '';
+  document.getElementById('chapterNumberInput').value = '';
+  document.getElementById('authorNote').value         = '';
+  document.getElementById('editorArea').innerHTML     = '<p></p>';
+  document.getElementById('editorChTitle').textContent = 'New Chapter';
+  if(storySlug) document.getElementById('editorStoryLabel').textContent = storySlug + ' · Auto-saving every 5 seconds';
+  updateWordCount();
+}
+
+function loadFromStorage(){ /* replaced by loadChapterIntoEditor — no-op */ }
+
+// Save draft via API (PATCH if existing, POST if new)
+async function manualSave(){
+  const slug    = _editorSlug();
+  const chNum   = _editorChNum();
+  const title   = document.getElementById('chapterTitleInput').value.trim();
+  const content = document.getElementById('editorArea').innerHTML;
+  const note    = document.getElementById('authorNote').value.trim();
+  const number  = parseInt(document.getElementById('chapterNumberInput').value) || 1;
+
+  if(!slug){ showToast('Select a story first'); return; }
+
+  const setSaveStatus = (msg, saved=true) => {
+    const dot = document.getElementById('saveDot');
+    const st  = document.getElementById('saveStatus');
+    if(dot) dot.className = 'save-dot ' + (saved ? 'saved' : 'saving');
+    if(st)  st.textContent = msg;
+  };
+  setSaveStatus('Saving…', false);
+
+  const body = { title, content, chapter_number: number, is_published: false };
+  if(note) body.authors_note = note;
+
+  try {
+    let res;
+    if(chNum){
+      // Existing chapter — PATCH
+      res = await fetch(`/api/chapters/${slug}/chapters/${chNum}/`, {
+        method: 'PATCH',
+        headers: _editorHeaders(),
+        body: JSON.stringify(body),
+      });
+    } else {
+      // New chapter — POST
+      res = await fetch(`/api/chapters/${slug}/chapters/`, {
+        method: 'POST',
+        headers: _editorHeaders(),
+        body: JSON.stringify(body),
+      });
+    }
+
+    if(res.ok){
+      const data = await res.json();
+      document.getElementById('editorChapterNum').value = data.chapter_number;
+      setSaveStatus('All changes saved · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+      showToast('Draft saved!');
+      // Refresh chapter list
+      if(window._loadChapters) window._loadChapters(slug);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setSaveStatus('Save failed', false);
+      showToast(err?.detail || err?.title?.[0] || 'Failed to save');
+    }
+  } catch(e) {
+    setSaveStatus('Save failed', false);
+    showToast('Network error — check connection');
+  }
+}
+
+// Publish chapter via API
+async function publishChapter(){
+  const slug  = _editorSlug();
+  const chNum = _editorChNum();
+  if(!slug){ showToast('Select a story first'); return; }
+
+  // Save content first, then publish
+  const title   = document.getElementById('chapterTitleInput').value.trim();
+  const content = document.getElementById('editorArea').innerHTML;
+  const note    = document.getElementById('authorNote').value.trim();
+  const number  = parseInt(document.getElementById('chapterNumberInput').value) || 1;
+
+  const body = { title, content, chapter_number: number, is_published: true };
+  if(note) body.authors_note = note;
+
+  try {
+    const method = chNum ? 'PATCH' : 'POST';
+    const url    = chNum
+      ? `/api/chapters/${slug}/chapters/${chNum}/`
+      : `/api/chapters/${slug}/chapters/`;
+
+    const res = await fetch(url, {
+      method,
+      headers: _editorHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    if(res.ok){
+      const data = await res.json();
+      document.getElementById('editorChapterNum').value = data.chapter_number;
+      document.getElementById('saveDot').className = 'save-dot saved';
+      document.getElementById('saveStatus').textContent = 'Published';
+      showToast('Chapter published! 🎉');
+      if(window._loadChapters) window._loadChapters(slug);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(err?.detail || 'Failed to publish');
+    }
+  } catch(e) {
+    showToast('Network error — check connection');
+  }
+}
+function formatText(cmd){document.execCommand(cmd,false,null);document.getElementById('editorArea').focus();}
+function insertScene(){document.execCommand('insertHTML',false,'<p style="text-align:center;color:var(--muted-fg);letter-spacing:.3em;font-size:12px;">· · ·</p><p><br></p>');}
+function changeFontSize(sel){document.getElementById('editorArea').style.fontSize=sel.value;}
+
+// Genre & Tone
+function selectTone(btn){btn.classList.toggle('selected');}
+
+function selectGender(radio){
+  document.querySelectorAll('.gender-option').forEach(lbl => {
+    lbl.style.borderColor = 'var(--border)';
+    lbl.style.background  = '';
+    lbl.style.color       = '';
+    lbl.style.fontWeight  = '';
+  });
+  const chosen = radio.closest('.gender-option');
+  if(chosen){
+    chosen.style.borderColor = 'var(--primary)';
+    chosen.style.background  = 'color-mix(in srgb,var(--primary) 10%,transparent)';
+    chosen.style.color       = 'var(--primary)';
+    chosen.style.fontWeight  = '500';
+  }
+}
+
+// ── Genre & Tag data — fetched from DB ────────────────────────────────────
+let allGenres = [];
+let allTags   = [];
+let selectedGenreId = null;
+const selectedTagIds = new Set();
+const tags = []; // displayed tag names (kept for chip rendering)
+
+function fetchGenresAndTags(){
+  const ACCESS = document.querySelector('meta[name="nux-token"]')?.content || '';
+  const headers = ACCESS ? {Authorization:`Bearer ${ACCESS}`} : {};
+
+  // Fetch genres
+  fetch('/api/stories/genres/', {headers})
+    .then(r => r.ok ? r.json() : {results:[]})
+    .then(data => {
+      allGenres = data.results || data || [];
+      renderGenreGrid();
+    })
+    .catch(() => {
+      // Fallback to hardcoded if API unreachable
+      allGenres = [
+        {id:1,name:'Romance'},{id:2,name:'Fantasy'},{id:3,name:'Mystery'},
+        {id:4,name:'Drama'},{id:5,name:'Thriller'},{id:6,name:'Werewolf'},
+        {id:7,name:'Billionaire'},{id:8,name:'Mafia'},{id:9,name:'Sci-Fi'},
+        {id:10,name:'Horror'},{id:11,name:'Historical'},{id:12,name:'Comedy'},
+      ];
+      renderGenreGrid();
+    });
+
+  // Fetch tags
+  fetch('/api/stories/tags/', {headers})
+    .then(r => r.ok ? r.json() : {results:[]})
+    .then(data => { allTags = data.results || data || []; })
+    .catch(() => { allTags = []; });
+}
+
+function renderGenreGrid(){
+  const grid = document.getElementById('genreGrid');
+  if(!grid) return;
+  if(!allGenres.length){
+    grid.innerHTML = '<div style="color:var(--muted-fg);font-size:12px;padding:8px;">No genres available</div>';
+    return;
+  }
+  grid.innerHTML = allGenres.map(g =>
+    `<button class="genre-choice" data-id="${g.id}" onclick="selectGenre(this)">${g.name}</button>`
+  ).join('');
+}
+
+function selectGenre(btn){
+  document.querySelectorAll('.genre-choice').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedGenreId = btn.dataset.id;
+}
+
+// ── Tag search & multi-select ─────────────────────────────────────────────
+function searchTags(query){
+  const box = document.getElementById('tagSuggestions');
+  if(!box) return;
+  const q = query.trim().toLowerCase();
+  const matches = allTags.filter(t =>
+    t.name.toLowerCase().includes(q) && !selectedTagIds.has(t.id)
+  ).slice(0, 20);
+
+  if(!q && !matches.length){ box.style.display='none'; return; }
+
+  box.style.display = matches.length ? 'block' : 'none';
+  box.innerHTML = matches.map(t =>
+    `<div onclick="addTagFromSuggestion(${t.id},'${t.name.replace(/'/g,"\\'")}',this)"
+      style="padding:8px 12px;cursor:pointer;font-size:13px;transition:background .1s;"
+      onmouseover="this.style.background='color-mix(in srgb,var(--primary) 8%,transparent)'"
+      onmouseout="this.style.background=''">${t.name}</div>`
+  ).join('') || `<div style="padding:8px 12px;font-size:12px;color:var(--muted-fg);">No tags found</div>`;
+}
+
+function addTagFromSuggestion(id, name){
+  if(selectedTagIds.has(id) || selectedTagIds.size >= 10) return;
+  selectedTagIds.add(id);
+  tags.push(name);
+  renderTags();
+  const input = document.getElementById('tagInput');
+  if(input){ input.value = ''; }
+  const box = document.getElementById('tagSuggestions');
+  if(box) box.style.display = 'none';
+}
+
+function handleTagInput(e){
+  if(e.key === 'Escape'){
+    const box = document.getElementById('tagSuggestions');
+    if(box) box.style.display = 'none';
+  }
+}
+
+// Close tag suggestions when clicking outside
+document.addEventListener('click', e => {
+  if(!e.target.closest('#tagsWrap') && !e.target.closest('#tagSuggestions')){
+    const box = document.getElementById('tagSuggestions');
+    if(box) box.style.display = 'none';
+  }
+});
+
+// Characters
+let charCount=0;
+function addCharacter(){
+  charCount++;
+  const list=document.getElementById('characterList');
+  const div=document.createElement('div');
+  div.className='card';div.style.padding='16px';
+  div.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg)">Character ${charCount}</span>
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.card').remove()">Remove</button>
+    </div>
+    <div class="form-grid two-col">
+      <div class="form-group"><label class="form-label">Name</label><input class="form-input" placeholder="Character name"/></div>
+      <div class="form-group"><label class="form-label">Role</label><select class="form-select"><option>Protagonist</option><option>Antagonist</option><option>Love Interest</option><option>Side Character</option><option>Mentor</option></select></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Description</label><textarea class="form-textarea" rows="2" placeholder="Physical appearance, personality, backstory..."></textarea></div>
+    </div>`;
+  list.appendChild(div);
+}
+
+function renderTags(){
+  const wrap  = document.getElementById('tagsWrap');
+  const input = document.getElementById('tagInput');
+  if(!wrap) return;
+  wrap.querySelectorAll('.tag-chip').forEach(el => el.remove());
+  tags.forEach((name, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${name}<button onclick="removeTag(${i})"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>`;
+    wrap.insertBefore(chip, input);
+  });
+}
+function removeTag(i){
+  const name = tags[i];
+  // Also remove from selectedTagIds
+  const tag = allTags.find(t => t.name === name);
+  if(tag) selectedTagIds.delete(tag.id);
+  tags.splice(i, 1);
+  renderTags();
+}
+
+// Step flow
+function goToStep2(){
+  const title = document.getElementById('storyTitle').value.trim();
+  if(!title){ showToast('Please enter a story title first'); return; }
+  if(!selectedGenreId){ showToast('Please select a genre'); return; }
+
+  const genderRadio = document.querySelector('input[name="storyGender"]:checked');
+  if(!genderRadio){ showToast('Please select a gender'); return; }
+  const gender = genderRadio.value;
+
+  const updateSchedule = (document.getElementById('storyUpdateSchedule')?.value || '').trim();
+
+  const ACCESS = document.querySelector('meta[name="nux-token"]')?.content || '';
+  if(!ACCESS){ showToast('Not authenticated'); return; }
+
+  const btn = document.querySelector('[onclick="goToStep2()"]');
+  if(btn){ btn.disabled = true; btn.textContent = 'Creating…'; }
+
+  fetch('/api/stories/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${ACCESS}`,
+    },
+    body: JSON.stringify({
+      title,
+      gender,
+      genre:            selectedGenreId,
+      tag_ids:          [...selectedTagIds],
+      update_schedule:  updateSchedule || null,
+      status:           'draft',
+    }),
+  })
+  .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+  .then(data => {
+    // Reload stories from API so the new story appears with correct data
+    if(window.noveluxAPI) window.noveluxAPI.fetch('/stories/mine/').then(res => {
+      if(!res) return;
+      const list = res.results || res;
+      books.length = 0;
+      list.forEach(s => books.push({
+        id: s.id, title: s.title, slug: s.slug,
+        status: s.status || 'draft',
+        total_chapters: s.total_chapters || 0,
+        reads_fmt: (s.total_views||0) >= 1000 ? (s.total_views/1000).toFixed(1)+'K' : String(s.total_views||0),
+        words_fmt: (s.word_count||0).toLocaleString(),
+        badge_class: ['published','ongoing','completed'].includes(s.status) ? 'badge-green' : 'badge-yellow',
+      }));
+      renderDashBooks(); renderFullBooks();
+    });
+
+    document.getElementById('create-step1').style.display = 'none';
+    document.getElementById('create-step2').style.display = 'block';
+    document.getElementById('step-c1').className = 'step-circle done';
+    document.querySelector('#createSteps .step-line').className = 'step-line done';
+    document.getElementById('step-c2').className = 'step-circle current';
+    showToast(`Story "${title}" created!`);
+  })
+  .catch(err => {
+    const msg = err?.detail || err?.title?.[0] || err?.gender?.[0] || 'Failed to create story';
+    showToast(msg);
+    if(btn){ btn.disabled = false; btn.textContent = 'Next: Add Chapters →'; }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// NOTIFICATION SYSTEM
+// ══════════════════════════════════════════════════════════════════════════
+const NOTIF_TYPE_META = {
+  new_chapter:   { icon: '📖', color: '#6c63ff' },
+  tip_received:  { icon: '💰', color: '#22c55e' },
+  new_follower:  { icon: '👤', color: '#3b82f6' },
+  comment_reply: { icon: '💬', color: '#f59e0b' },
+  comment_like:  { icon: '❤️', color: '#ef4444' },
+  vote_result:   { icon: '🗳️', color: '#8b5cf6' },
+  bonus_earned:  { icon: '🎁', color: '#22c55e' },
+  system:        { icon: '🔔', color: '#64748b' },
+};
+
+function _notifHeaders(){
+  const ACCESS = document.querySelector('meta[name="nux-token"]')?.content || '';
+  return ACCESS ? { Authorization: `Bearer ${ACCESS}` } : {};
+}
+
+function timeAgo(dateStr){
+  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000);
+  if(diff < 60)  return 'just now';
+  if(diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if(diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return `${Math.floor(diff/86400)}d ago`;
+}
+
+// Fetch unread count and update badge
+function fetchUnreadCount(){
+  fetch('/api/notifications/unread/', { headers: _notifHeaders() })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      const count = data?.unread_count ?? data?.count ?? 0;
+      const badge = document.getElementById('notifBadge');
+      if(!badge) return;
+      if(count > 0){
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    })
+    .catch(() => {});
+}
+
+// Fetch and render notification list
+function fetchNotifications(){
+  const list = document.getElementById('notifList');
+  if(!list) return;
+  list.innerHTML = '<div class="notif-empty">Loading…</div>';
+
+  fetch('/api/notifications/', { headers: _notifHeaders() })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      const items = data?.results ?? data ?? [];
+      if(!items.length){
+        list.innerHTML = '<div class="notif-empty">You\'re all caught up 🎉</div>';
+        return;
+      }
+      list.innerHTML = items.map(n => {
+        const meta = NOTIF_TYPE_META[n.notification_type] || NOTIF_TYPE_META.system;
+        return `
+          <div class="notif-item ${n.is_read ? '' : 'unread'}" onclick="markNotifRead(${n.id}, this)">
+            <div class="notif-icon" style="background:${meta.color}22;">${meta.icon}</div>
+            <div class="notif-body">
+              <div class="notif-title">${n.title}</div>
+              <div class="notif-msg">${n.message}</div>
+              <div class="notif-time">${timeAgo(n.created_at)}</div>
+            </div>
+            ${n.is_read ? '' : '<div style="width:7px;height:7px;border-radius:50%;background:var(--primary);flex-shrink:0;margin-top:5px;"></div>'}
+          </div>`;
+      }).join('');
+    })
+    .catch(() => {
+      list.innerHTML = '<div class="notif-empty">Could not load notifications.</div>';
+    });
+}
+
+// Mark a single notification as read
+function markNotifRead(id, el){
+  fetch(`/api/notifications/${id}/read/`, {
+    method: 'POST',
+    headers: _notifHeaders(),
+  }).catch(() => {});
+  // Optimistic UI
+  el.classList.remove('unread');
+  const dot = el.querySelector('div[style*="border-radius:50%"]');
+  if(dot) dot.remove();
+  fetchUnreadCount();
+}
+
+// Mark all as read
+function markAllNotifRead(){
+  fetch('/api/notifications/mark-all-read/', {
+    method: 'POST',
+    headers: _notifHeaders(),
+  })
+  .then(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+    showToast('All notifications marked as read');
+  })
+  .catch(() => showToast('Failed to mark as read'));
+}
+
+// Toggle panel open/close
+function toggleNotifPanel(){
+  const panel   = document.getElementById('notifPanel');
+  const overlay = document.getElementById('notifOverlay');
+  const isOpen  = panel.classList.contains('open');
+  if(isOpen){
+    closeNotifPanel();
+  } else {
+    panel.classList.add('open');
+    overlay.classList.add('open');
+    fetchNotifications();   // always refresh on open
+    fetchUnreadCount();
+  }
+}
+
+function closeNotifPanel(){
+  document.getElementById('notifPanel')?.classList.remove('open');
+  document.getElementById('notifOverlay')?.classList.remove('open');
+}
+
+// Poll unread count every 60 seconds
+fetchUnreadCount();
+setInterval(fetchUnreadCount, 60_000);
+
+// ══════════════════════════════════════════════════════════════════════════
+// Init
+renderDashBooks();
+renderFullBooks();
+renderChapters();
+buildChapterPerf();
+loadFromStorage();
+updateWordCount();
+fetchGenresAndTags();
+
+// Charts get populated by loadStories() after API responds.
+// Placeholder weekly chart with empty data until a DailyView model exists.
+buildChart('activityChart','chartLabels',[0,0,0,0,0,0,0],
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']);
+</script>
+
+<!-- ══ NOVELUX DASHBOARD AUTH BRIDGE ══ -->
+<script>
+(function () {
+  // ── Read token from meta (injected by Django view) ─────────────────────
+  const meta   = n => document.querySelector('meta[name="' + n + '"]')?.content || '';
+  let ACCESS   = meta('nux-token');
+  const API    = meta('nux-api') || '/api';
+  const UNAME  = meta('nux-username');
+
+  // Populate author name in sidebar
+  document.querySelectorAll('.author-info p').forEach(el => el.textContent = UNAME);
+
+  // ── API fetch helper ──────────────────────────────────────────────────
+  async function apiFetch(endpoint, opts = {}) {
+    if (!ACCESS) { redirectToLogin(); return null; }
+
+    const res = await fetch(API + endpoint, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + ACCESS,
+        ...(opts.headers || {}),
+      },
+    });
+
+    if (res.status === 401) {
+      // Try silent token refresh
+      const refreshed = await silentRefresh();
+      if (!refreshed) { redirectToLogin(); return null; }
+      // Retry once
+      return apiFetch(endpoint, opts);
+    }
+
+    if (res.status === 204) return {};
+    return res.ok ? res.json() : null;
+  }
+
+  async function silentRefresh() {
+    try {
+      const res = await fetch('/auth/refresh-web/', { method: 'POST' });
+      if (!res.ok) return false;
+      // New token is in cookie — we can't read httpOnly cookie from JS.
+      // Reload the page to get a fresh token injected by Django.
+      window.location.reload();
+      return true;
+    } catch { return false; }
+  }
+
+  function redirectToLogin() {
+    window.location.href = '/login/?next=/dashboard/';
+  }
+
+  // ── Auto-save for the chapter editor ──────────────────────────────────
+  let _saveTimer;
+  window.initEditorAutoSave = function (storySlug, chapterNum) {
+    const editor = document.getElementById('chapterEditor');
+    if (!editor) return;
+
+    const draftKey = 'nux_draft_' + storySlug + '_ch' + chapterNum;
+    const saved    = localStorage.getItem(draftKey);
+    if (saved) editor.value = saved;
+
+    editor.addEventListener('input', () => {
+      localStorage.setItem(draftKey, editor.value);
+      setIndicator('Saving…', 'var(--muted-fg)');
+      clearTimeout(_saveTimer);
+      _saveTimer = setTimeout(() => _serverSave(storySlug, chapterNum, editor.value), 2500);
+    });
+  };
+
+  async function _serverSave(storySlug, chNum, content) {
+    const res = await apiFetch('/chapters/' + storySlug + '/' + chNum + '/draft/', {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
+    setIndicator(res ? 'Saved ✓' : 'Save failed', res ? 'hsl(142 60% 40%)' : 'hsl(0 70% 50%)');
+  }
+
+  function setIndicator(text, color) {
+    const el = document.getElementById('saveIndicator');
+    if (el) { el.textContent = text; el.style.color = color; }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+  function setElText(id, val) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function fmtNum(n) {
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  // ── 1. Load profile from /api/auth/me/ ───────────────────────────────
+  async function loadProfile() {
+    const data = await apiFetch('/auth/me/');
+    if (!data) return;
+
+    const name = data.username || UNAME || 'Author';
+    const initial = name.charAt(0).toUpperCase();
+    const bio = data.bio || '';
+    const email = data.email || '';
+    const avatar = data.avatar || '';
+
+    // Sidebar
+    document.querySelectorAll('.author-info p').forEach(el => el.textContent = name);
+    document.querySelectorAll('.author-avatar').forEach(el => {
+      if (avatar) {
+        el.innerHTML = `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      } else {
+        el.textContent = initial;
+      }
+    });
+
+    // Greeting
+    const greetEl = document.querySelector('.dash-hero h1');
+    if (greetEl) {
+      const hour = new Date().getHours();
+      const tod = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+      greetEl.textContent = `Good ${tod}, ${name} 👋`;
+    }
+
+    // Profile form
+    const dnInput = document.querySelector('input[value="{{ display_name }}"]');
+    if (dnInput) dnInput.value = name;
+    const handleInput = document.querySelector('input[value="@{{ username }}"]');
+    if (handleInput) handleInput.value = '@' + data.username;
+    const bioArea = document.querySelector('textarea.form-textarea');
+    if (bioArea) bioArea.value = bio;
+    const emailInput = document.querySelector('input[type="email"]');
+    if (emailInput) emailInput.value = email;
+
+    const followers = data.followers_count || 0;
+    document.querySelectorAll('#stat-followers, #an-followers').forEach(el => el.textContent = fmtNum(followers));
+
+    // Author profile earnings
+    const ap = data.author_profile || {};
+    const earnings = parseFloat(ap.total_earnings || 0).toFixed(2);
+    const pending  = parseFloat(ap.pending_payout  || 0).toFixed(2);
+    document.querySelectorAll('#stat-earnings').forEach(el => el.textContent = '$' + earnings);
+    document.querySelectorAll('#stat-pending').forEach(el  => el.textContent = '$' + pending);
+
+    // Earnings cards
+    document.querySelectorAll('.earn-val').forEach((el, i) => {
+      if (i === 0) el.textContent = '$' + pending;
+      if (i === 2) el.textContent = '$' + earnings;
+    });
+  }
+
+  // ── 2. Load stories from /api/stories/mine/ ──────────────────────────
+  async function loadStories() {
+    const data = await apiFetch('/stories/mine/');
+    if (!data) return;
+    const list = data.results || data;
+
+    // Map to the shape renderDashBooks / renderFullBooks expect
+    books.length = 0;
+    list.forEach(s => {
+      books.push({
+        id:             s.id,
+        title:          s.title,
+        slug:           s.slug,
+        status:         s.status || 'draft',
+        total_chapters: s.total_chapters || 0,
+        total_views:    s.total_views || 0,
+        average_rating: s.average_rating || 0,
+        total_comments: s.total_comments || 0,
+        word_count:     s.word_count || 0,
+        reads_fmt:      fmtNum(s.total_views || 0),
+        words_fmt:      (s.word_count || 0).toLocaleString(),
+        badge_class:    ['published','ongoing','completed'].includes(s.status)
+                          ? 'badge-green'
+                          : s.status === 'completed' ? 'badge-primary' : 'badge-yellow',
+      });
+    });
+
+    // Stat cards — overview + analytics page
+    const totalReads    = list.reduce((s, x) => s + (x.total_views    || 0), 0);
+    const totalChapters = list.reduce((s, x) => s + (x.total_chapters || 0), 0);
+    const totalComments = list.reduce((s, x) => s + (x.total_comments || 0), 0);
+    const published     = list.filter(x => ['published','ongoing','completed'].includes(x.status)).length;
+    const drafts        = list.filter(x => ['draft','paused'].includes(x.status)).length;
+
+    document.querySelectorAll('#stat-reads, #an-reads').forEach(el   => el.textContent = fmtNum(totalReads));
+    document.querySelectorAll('#stat-stories').forEach(el             => el.textContent = list.length);
+    document.querySelectorAll('#stat-chapters, #an-chapters').forEach(el => el.textContent = totalChapters);
+    document.querySelectorAll('#an-comments').forEach(el              => el.textContent = fmtNum(totalComments));
+    document.querySelectorAll('#an-chapters-sub').forEach(el          => el.textContent = `Across ${list.length} stories`);
+    document.querySelectorAll('#stat-stories-sub').forEach(el         => el.textContent = `${published} published · ${drafts} draft`);
+
+    // My Books filter buttons
+    const fa = document.getElementById('filter-all');
+    const fp = document.getElementById('filter-published');
+    const fd = document.getElementById('filter-draft');
+    if(fa) fa.textContent = `All (${list.length})`;
+    if(fp) fp.textContent = `Published (${published})`;
+    if(fd) fd.textContent = `Draft (${drafts})`;
+
+    renderDashBooks();
+    renderFullBooks();
+
+    // Story selector in chapters page
+    const sel = document.getElementById('bookSelector');
+    if (sel && list.length) {
+      sel.innerHTML = list.map(s =>
+        `<option value="${s.id}" data-slug="${s.slug}">${s.title}</option>`
+      ).join('');
+    }
+
+    // Analytics chart
+    if (list.length) {
+      const aData   = list.map(s => s.total_views || 0);
+      const aLabels = list.map(s => s.title.length > 12 ? s.title.slice(0,12)+'…' : s.title);
+      buildChart('analyticsChart', 'analyticsLabels', aData, aLabels);
+    }
+
+    // Analytics table
+    const tbody = document.getElementById('analyticsTableBody');
+    if (tbody) {
+      tbody.innerHTML = list.slice(0,10).map(s => `
+        <tr>
+          <td class="t-title">${s.title}</td>
+          <td><span class="badge ${['published','ongoing','completed'].includes(s.status)?'badge-green':'badge-yellow'}">${s.status}</span></td>
+          <td>${fmtNum(s.total_views||0)}</td>
+          <td>${s.total_chapters||0}</td>
+          <td>${parseFloat(s.average_rating||0).toFixed(1)}</td>
+          <td>${s.total_comments||0}</td>
+        </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted-fg);padding:24px;">No stories yet</td></tr>';
+    }
+
+    // Drop-off — compute from chapters with lowest reads relative to ch1
+    // (We'll populate this after loadChapters runs — store stories for later)
+    window._noveluxStories = list;
+
+    // Load chapters for first story
+    if (list.length) loadChapters(list[0].slug);
+  }
+
+  // ── 3. Load chapters via /api/stories/<slug>/chapters/ ────────────────
+  async function loadChapters(slug) {
+    if (!slug) return;
+
+    // Track current slug on the selector so chapter rows always have it
+    const sel = document.getElementById('bookSelector');
+    if (sel) {
+      for (let i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].dataset.slug === slug || sel.options[i].value === slug) {
+          sel.selectedIndex = i;
+          sel.options[i].dataset.slug = slug;
+          break;
+        }
+      }
+      sel.dataset.currentSlug = slug;
+    }
+
+    const data = await apiFetch(`/chapters/${slug}/chapters/`);
+    if (!data) return;
+    const list = data.results || data;
+
+    chapters.length = 0;
+    list.forEach(ch => {
+      chapters.push({
+        chapter_number: ch.chapter_number,
+        title:          ch.title,
+        words_fmt:      (ch.word_count || 0).toLocaleString(),
+        reads_fmt:      fmtNum(ch.views || ch.total_views || 0),
+        status:         ch.is_published ? 'published' : 'draft',
+        badge_class:    ch.is_published ? 'badge-green' : 'badge-yellow',
+      });
+    });
+
+    renderChapters();
+    buildChapterPerf();
+
+    const label = document.getElementById('chapterBookLabel');
+    if (label) label.textContent = `${slug} · ${chapters.length} chapters`;
+  }
+
+  // Make loadChapters available to the story selector
+  window._loadChapters = loadChapters;
+
+  // ── 4. Stat card element IDs — patch the HTML stat cards ─────────────
+  // Give the stat-val elements IDs so setElText can target them
+  (function tagStatCards() {
+    const statVals = document.querySelectorAll('.stat-val');
+    const ids = ['stat-reads','stat-followers','stat-earnings','stat-stories'];
+    statVals.forEach((el, i) => { if (ids[i] && !el.id) el.id = ids[i]; });
+
+    // Earnings page
+    const earnVals = document.querySelectorAll('.earn-val');
+    if (earnVals[0] && !earnVals[0].id) earnVals[0].id = 'stat-pending';
+    if (earnVals[2] && !earnVals[2].id) earnVals[2].id = 'stat-all-earnings';
+  })();
+
+  // ── Boot ─────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    loadProfile();
+    loadStories();
+  });
+
+  // Expose for use by other dashboard scripts
+  window.noveluxAPI = { fetch: apiFetch, loadChapters };
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+[tool.pyrefly]
+# Tell Pyrefly where to find project packages and venv packages
+search_path = [
+    ".",
+    "./venv/lib/python3.12/site-packages",
+]
+
+# Suppress false positives from Django's dynamic ORM and DRF patterns
+# - missing-attribute: Django model .objects, QuerySet chaining, etc.
+# - bad-override: DRF permission classes override BasePermission methods
+# - missing-import: Fallback for any remaining import resolution issues
+suppress_errors = [
+    "missing-attribute",
+    "bad-override",
+    "missing-import",
+]

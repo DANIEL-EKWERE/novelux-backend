@@ -1,0 +1,665 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark',t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(v){window._nuxTheme=v;localStorage.setItem('nux_theme',v);h.classList.toggle('dark',v==='dark');h.classList.toggle('light',v!=='dark');};
+})();
+</script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+
+{% if og.title %}
+  <title>{{ og.title }} — Read on Novelux</title>
+  <meta name="description" content="{{ og.description }}"/>
+  <link rel="canonical" href="{{ og.url }}"/>
+  <meta property="og:type"        content="{{ og.type }}"/>
+  <meta property="og:site_name"   content="Novelux"/>
+  <meta property="og:title"       content="{{ og.title }}"/>
+  <meta property="og:description" content="{{ og.description }}"/>
+  <meta property="og:url"         content="{{ og.url }}"/>
+  {% if og.image %}<meta property="og:image" content="{{ og.image }}"/>{% endif %}
+  <meta name="twitter:card"        content="summary_large_image"/>
+  <meta name="twitter:title"       content="{{ og.title }}"/>
+  <meta name="twitter:description" content="{{ og.description }}"/>
+  {% if og.image %}<meta name="twitter:image" content="{{ og.image }}"/>{% endif %}
+{% else %}
+  <title>Explore Stories — Novelux</title>
+  <meta name="description" content="Browse and preview thousands of free African and world-class novels on Novelux. Read the first chapter free — no sign-up required."/>
+  <link rel="canonical" href="https://novelux.app/explore/"/>
+  <meta property="og:type"        content="website"/>
+  <meta property="og:site_name"   content="Novelux"/>
+  <meta property="og:title"       content="Explore Stories — Novelux"/>
+  <meta property="og:description" content="Browse and preview thousands of free African and world-class novels on Novelux."/>
+  <meta property="og:url"         content="https://novelux.app/explore/"/>
+  <meta property="og:image"       content="{% static 'novelux/images/logo.png' %}"/>
+  <meta name="twitter:card"        content="summary"/>
+  <meta name="twitter:title"       content="Explore Stories — Novelux"/>
+  <meta name="twitter:description" content="Browse and preview thousands of free African and world-class novels on Novelux."/>
+  <meta name="twitter:image"       content="{% static 'novelux/images/logo.png' %}"/>
+{% endif %}
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 9%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 9%);
+  --primary: hsl(14 62% 38%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 96%);
+  --muted: hsl(0 0% 96%);
+  --muted-foreground: hsl(0 0% 45%);
+  --accent: hsl(0 0% 96%);
+  --border: hsl(0 0% 90%);
+  --card-bg: hsl(0 0% 99%);
+}
+html.dark {
+  --background: hsl(240 6% 6%);
+  --foreground: hsl(0 0% 90%);
+  --card: hsl(240 5% 9%);
+  --card-foreground: hsl(0 0% 90%);
+  --primary: hsl(14 62% 38%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(240 4% 14%);
+  --muted: hsl(240 4% 14%);
+  --muted-foreground: hsl(0 0% 50%);
+  --accent: hsl(240 4% 14%);
+  --border: hsl(240 4% 26%);
+  --card-bg: hsl(240 5% 9% / 0.3);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--background); scroll-behavior: smooth; }
+body { font-family: 'Geist', system-ui, sans-serif; color: var(--foreground); line-height: 1.5; overflow-x: hidden; }
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+/* ── NAV ──────────────────────────────────────────────────────────────────── */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: color-mix(in srgb, var(--background) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-inner {
+  max-width: 1280px; margin: 0 auto; padding: 0 24px;
+  height: 64px; display: flex; align-items: center; gap: 32px;
+}
+.nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+.nav-logo-box { width: 32px; height: 32px; border-radius: 8px; overflow: hidden; }
+.nav-logo-box img { width: 100%; height: 100%; object-fit: cover; }
+.nav-links { display: flex; gap: 24px; flex: 1; }
+.nav-links a { font-size: 14px; color: var(--muted-foreground); transition: color 0.15s; }
+.nav-links a:hover, .nav-links a.active { color: var(--foreground); }
+@media (max-width: 768px) { .nav-links { display: none; } }
+.nav-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 20px; height: 38px; border-radius: 6px;
+  background: var(--primary); color: var(--primary-foreground);
+  font-size: 14px; font-weight: 500; transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.9; }
+.btn-outline {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 18px; height: 38px; border-radius: 6px;
+  border: 1px solid var(--border); color: var(--foreground);
+  font-size: 14px; font-weight: 500; background: transparent; transition: background 0.15s;
+}
+.btn-outline:hover { background: var(--muted); }
+.theme-btn {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; color: var(--muted-foreground);
+  transition: background 0.15s;
+}
+.theme-btn:hover { background: var(--muted); }
+.hamburger {
+  display: none; width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); align-items: center; justify-content: center;
+  flex-direction: column; gap: 5px; color: var(--foreground);
+}
+@media (max-width: 768px) { .hamburger { display: flex; } }
+
+/* ── MOBILE DRAWER ──────────────────────────────────────────────────────────── */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.drawer-overlay.open { opacity: 1; pointer-events: auto; }
+.drawer {
+  position: fixed; top: 0; right: -320px; width: 300px; height: 100%;
+  background: var(--card); border-left: 1px solid var(--border);
+  z-index: 201; padding: 24px; display: flex; flex-direction: column; gap: 8px;
+  transition: right 0.25s;
+}
+.drawer.open { right: 0; }
+.drawer a { padding: 12px 0; font-size: 15px; border-bottom: 1px solid var(--border); display: block; }
+.drawer-close { align-self: flex-end; margin-bottom: 8px; font-size: 20px; color: var(--muted-foreground); }
+
+/* ── HERO ───────────────────────────────────────────────────────────────────── */
+.explore-hero {
+  max-width: 1280px; margin: 0 auto; padding: 56px 24px 32px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.explore-hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 700; letter-spacing: -0.02em; }
+.explore-hero p { font-size: 16px; color: var(--muted-foreground); }
+.explore-search {
+  margin-top: 8px; display: flex; gap: 10px; max-width: 520px;
+}
+.explore-search input {
+  flex: 1; height: 44px; padding: 0 16px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--foreground); font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color 0.15s;
+}
+.explore-search input:focus { border-color: var(--primary); }
+
+/* ── GENRE BAR ──────────────────────────────────────────────────────────────── */
+.genre-bar {
+  max-width: 1280px; margin: 0 auto; padding: 0 24px 24px;
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.genre-tab {
+  height: 32px; padding: 0 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted-foreground); font-size: 13px; transition: all 0.15s;
+}
+.genre-tab:hover { border-color: var(--primary); color: var(--primary); }
+.genre-tab.active { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+
+/* ── SECTIONS ────────────────────────────────────────────────────────────────── */
+.explore-main { max-width: 1280px; margin: 0 auto; padding: 0 0 80px; }
+.story-section { padding: 0 0 32px; }
+.section-header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 0 24px; margin-bottom: 16px;
+}
+.section-title { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.section-see-all {
+  font-size: 13px; color: var(--primary); cursor: pointer;
+  background: none; border: none; font-family: inherit; padding: 0;
+}
+.section-see-all:hover { text-decoration: underline; }
+.section-row {
+  display: flex; gap: 16px; overflow-x: auto; padding: 4px 24px 12px;
+  scrollbar-width: none;
+}
+.section-row::-webkit-scrollbar { display: none; }
+/* Search results flat grid */
+.story-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 28px 20px; padding: 0 24px;
+}
+.story-grid.hidden { display: none; }
+.story-sections.hidden { display: none; }
+.story-card { display: flex; flex-direction: column; cursor: pointer; flex-shrink: 0; width: 148px; }
+.story-grid .story-card { width: auto; }
+.story-cover-wrap {
+  position: relative; aspect-ratio: 3/4; overflow: hidden;
+  border: 1px solid var(--border); background: var(--muted);
+  border-radius: 4px; margin-bottom: 10px;
+  transition: box-shadow 0.2s;
+}
+.story-card:hover .story-cover-wrap {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+}
+.story-cover-wrap img {
+  width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s;
+}
+.story-card:hover .story-cover-wrap img { transform: scale(1.05); }
+.story-cover-placeholder {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--muted) 0%, var(--secondary) 100%);
+  color: var(--muted-foreground); font-size: 36px;
+}
+.story-badge {
+  position: absolute; top: 8px; left: 8px; padding: 2px 8px;
+  border-radius: 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  background: var(--primary); color: var(--primary-foreground); font-weight: 600;
+}
+.preview-btn {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.story-card:hover .preview-btn { opacity: 1; }
+.preview-btn span {
+  padding: 8px 18px; border-radius: 6px; background: var(--primary);
+  color: white; font-size: 13px; font-weight: 600;
+}
+.story-genre { font-size: 11px; color: var(--primary); font-weight: 500; margin-bottom: 3px; }
+.story-title {
+  font-size: 14px; font-weight: 500; line-height: 1.35; color: var(--foreground);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  transition: color 0.15s;
+}
+.story-card:hover .story-title { color: var(--primary); }
+.story-author { font-size: 11px; color: var(--muted-foreground); margin-top: 3px; }
+.story-meta { display: flex; gap: 8px; margin-top: 4px; align-items: center; }
+.story-rating { font-size: 11px; color: var(--muted-foreground); display: flex; align-items: center; gap: 2px; }
+.star-icon { color: var(--primary); fill: var(--primary); width: 11px; height: 11px; }
+
+/* ── NO RESULTS ──────────────────────────────────────────────────────────────── */
+.no-results {
+  grid-column: 1 / -1; text-align: center; padding: 60px 0;
+  color: var(--muted-foreground); font-size: 15px;
+}
+
+/* ── PREVIEW PANEL ───────────────────────────────────────────────────────────── */
+.preview-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 300; opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.preview-overlay.open { opacity: 1; pointer-events: auto; }
+.preview-panel {
+  position: fixed; top: 0; right: -560px; width: min(540px, 100vw);
+  height: 100%; background: var(--card); border-left: 1px solid var(--border);
+  z-index: 301; overflow-y: auto; display: flex; flex-direction: column;
+  transition: right 0.3s cubic-bezier(.4,0,.2,1);
+}
+.preview-panel.open { right: 0; }
+.preview-close {
+  position: sticky; top: 0; align-self: flex-end;
+  margin: 16px 16px 0; padding: 6px 10px; border-radius: 6px;
+  background: var(--muted); color: var(--foreground); font-size: 16px; line-height: 1;
+  z-index: 2;
+}
+.preview-close:hover { background: var(--accent); }
+.preview-cover-header {
+  padding: 0 24px 24px; display: flex; gap: 20px; align-items: flex-start;
+}
+.preview-cover {
+  width: 110px; flex-shrink: 0; aspect-ratio: 3/4; object-fit: cover;
+  border-radius: 4px; border: 1px solid var(--border); background: var(--muted);
+}
+.preview-cover-placeholder {
+  width: 110px; flex-shrink: 0; aspect-ratio: 3/4; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: var(--muted-foreground);
+}
+.preview-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.preview-genre-tag {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--primary); font-weight: 600;
+}
+.preview-title { font-size: 20px; font-weight: 700; line-height: 1.25; color: var(--foreground); }
+.preview-author { font-size: 13px; color: var(--muted-foreground); }
+.preview-stats { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 2px; }
+.preview-stat { font-size: 12px; color: var(--muted-foreground); display: flex; align-items: center; gap: 3px; }
+.preview-editors-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+  border-radius: 20px; background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary); font-size: 11px; font-weight: 600; margin-top: 4px; width: fit-content;
+}
+.preview-body { padding: 0 24px; flex: 1; }
+.preview-section-head {
+  font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted-foreground); margin-bottom: 10px; padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.preview-synopsis { font-size: 14px; line-height: 1.7; color: var(--foreground); }
+.chapter-wrap { margin-top: 4px; padding-bottom: 24px; }
+.chapter-content {
+  font-size: 15px; line-height: 1.9; color: var(--foreground);
+  white-space: pre-line; word-break: break-word;
+}
+.chapter-loading {
+  padding: 24px 0; text-align: center; color: var(--muted-foreground); font-size: 13px;
+  display: none;
+}
+.preview-cta {
+  padding: 24px; position: sticky; bottom: 0;
+  background: color-mix(in srgb, var(--card) 95%, transparent);
+  backdrop-filter: blur(8px); border-top: 1px solid var(--border);
+}
+.preview-cta .btn-primary { width: 100%; justify-content: center; height: 48px; font-size: 15px; }
+
+/* ── EMPTY STATE ─────────────────────────────────────────────────────────────── */
+.empty-hero {
+  max-width: 480px; margin: 80px auto; text-align: center; padding: 0 24px;
+  color: var(--muted-foreground);
+}
+.empty-hero h2 { font-size: 22px; color: var(--foreground); margin-bottom: 8px; }
+</style>
+</head>
+
+<body>
+<!-- ── NAV ───────────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a href="{% url 'novelux:index' %}" class="nav-brand">
+      <div class="nav-logo-box"><img src="{% static 'novelux/images/logo.png' %}" alt="Novelux"/></div>
+      <span>Novelux</span>
+    </a>
+    <div class="nav-links">
+      <a href="/explore/" class="active">Explore Stories</a>
+      <a href="/become-author/">Become an Author</a>
+      <a href="/articles/">Articles</a>
+      <a href="/faq/">FAQ</a>
+    </div>
+    <div class="nav-actions">
+      <button class="theme-btn" onclick="window._nuxSetTheme(window._nuxTheme==='dark'?'light':'dark')" aria-label="Toggle theme">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
+        </svg>
+      </button>
+      <a href="/download/apk/" class="btn-primary">Get the App</a>
+      <button class="hamburger" onclick="openDrawer()" aria-label="Menu">
+        <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="18" height="2" rx="1" fill="currentColor"/>
+          <rect y="6" width="18" height="2" rx="1" fill="currentColor"/>
+          <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile drawer -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="mobileDrawer">
+  <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  <a href="/explore/" onclick="closeDrawer()">Explore Stories</a>
+  <a href="/become-author/" onclick="closeDrawer()">Become an Author</a>
+  <a href="/articles/" onclick="closeDrawer()">Articles</a>
+  <a href="/faq/" onclick="closeDrawer()">Help Center</a>
+  <a href="/download/apk/" class="btn-primary" style="margin-top:16px;justify-content:center;">Get the App</a>
+</div>
+
+<!-- ── HERO ──────────────────────────────────────────────────────────────────── -->
+<div class="explore-hero">
+  <h1>Explore Stories</h1>
+  <p>Browse thousands of novels — preview the first chapter free, no sign-up needed.</p>
+  <div class="explore-search">
+    <input type="text" id="searchInput" placeholder="Search by title or author…" oninput="filterStories()" autocomplete="off"/>
+  </div>
+</div>
+
+<!-- ── GENRE TABS ──────────────────────────────────────────────────────────────── -->
+<div class="genre-bar" id="genreBar">
+  <button class="genre-tab active" data-genre="" onclick="setGenre(this, '')">All</button>
+  {% for genre in genres %}
+  <button class="genre-tab" data-genre="{{ genre }}" onclick="setGenre(this, '{{ genre }}')">{{ genre }}</button>
+  {% endfor %}
+</div>
+
+<!-- ── STORIES ─────────────────────────────────────────────────────────────────── -->
+<main class="explore-main">
+  <!-- Sectioned home view (shown when no search/genre filter active) -->
+  <div id="storySections" class="story-sections"></div>
+  <!-- Flat search/filter results grid -->
+  <div id="storyGrid" class="story-grid hidden"></div>
+</main>
+
+<!-- ── PREVIEW PANEL ──────────────────────────────────────────────────────────── -->
+<div class="preview-overlay" id="previewOverlay" onclick="closePreview()"></div>
+<div class="preview-panel" id="previewPanel">
+  <button class="preview-close" onclick="closePreview()">✕</button>
+
+  <div class="preview-cover-header" id="pvHeader"></div>
+
+  <div class="preview-body">
+    <p class="preview-section-head">Synopsis</p>
+    <p class="preview-synopsis" id="pvSynopsis"></p>
+
+    <p class="preview-section-head" id="pvChapterHead" style="display:none">Chapter 1 — Free Preview</p>
+    <div class="chapter-wrap" id="pvChapterWrap" style="display:none">
+      <div class="chapter-content" id="pvChapterContent"></div>
+    </div>
+    <div class="chapter-loading" id="pvLoading">Loading preview…</div>
+  </div>
+
+  <div class="preview-cta">
+    <a href="/download/apk/" class="btn-primary">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 16l-4-4h3V4h2v8h3l-4 4zM4 20h16v2H4z"/></svg>
+      Download App to Read More
+    </a>
+  </div>
+</div>
+
+<script>
+// ── Data ────────────────────────────────────────────────────────────────────────
+const SECTIONS = {{ sections_json|safe }};
+const STORIES  = {{ stories_json|safe }};   // flat list for search
+
+// Build a slug→story lookup across all sections + flat list
+const _bySlug = {};
+STORIES.forEach(s => { _bySlug[s.slug] = s; });
+SECTIONS.forEach(sec => sec.stories.forEach(s => { _bySlug[s.slug] = s; }));
+
+// ── State ───────────────────────────────────────────────────────────────────────
+let _genre       = '';
+let _search      = '';
+let _currentSlug = null;
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
+function fmtViews(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+function stars(r) {
+  const filled = Math.round(r);
+  return Array.from({length: 5}, (_, i) =>
+    `<svg class="star-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+      style="opacity:${i < filled ? 1 : 0.25}">
+      <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="currentColor"/>
+    </svg>`
+  ).join('');
+}
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function storyCardHtml(s) {
+  const img = s.cover_url
+    ? `<img src="${s.cover_url}" alt="${esc(s.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'story-cover-placeholder\\'>📖</div>'"/>`
+    : `<div class="story-cover-placeholder">📖</div>`;
+  const badge = s.is_editors_pick ? '<span class="story-badge">Pick</span>'
+              : s.is_featured     ? '<span class="story-badge">Featured</span>' : '';
+  return `<div class="story-card" onclick="openPreview('${s.slug}')" role="button" tabindex="0">
+    <div class="story-cover-wrap">${img}${badge}<div class="preview-btn"><span>Read</span></div></div>
+    <div class="story-genre">${esc(s.genre)}</div>
+    <div class="story-title">${esc(s.title)}</div>
+    <div class="story-author">by ${esc(s.author)}</div>
+    <div class="story-meta">
+      <span class="story-rating">${stars(s.average_rating)} ${s.average_rating.toFixed(1)}</span>
+    </div>
+  </div>`;
+}
+
+// ── Sections view ────────────────────────────────────────────────────────────────
+function renderSections(filterGenre) {
+  const secs = filterGenre
+    ? SECTIONS.filter(s => s.genre === filterGenre || s.title === filterGenre)
+    : SECTIONS;
+
+  const el = document.getElementById('storySections');
+  el.innerHTML = secs.map(sec => `
+    <div class="story-section">
+      <div class="section-header">
+        <span class="section-title">${esc(sec.title)}</span>
+        ${sec.genre ? `<button class="section-see-all" onclick="showGenreGrid('${esc(sec.genre)}')">See all →</button>` : ''}
+      </div>
+      <div class="section-row">${sec.stories.map(storyCardHtml).join('')}</div>
+    </div>`).join('');
+}
+
+// ── Search / flat grid ───────────────────────────────────────────────────────────
+function renderGrid(storiesToShow) {
+  const grid = document.getElementById('storyGrid');
+  if (!storiesToShow.length) {
+    grid.innerHTML = '<div class="no-results" style="padding:60px 0;text-align:center;color:var(--muted-foreground)">No stories found.</div>';
+    return;
+  }
+  grid.innerHTML = storiesToShow.map(storyCardHtml).join('');
+}
+
+function _showMode(mode) {  // 'sections' or 'grid'
+  document.getElementById('storySections').classList.toggle('hidden', mode !== 'sections');
+  document.getElementById('storyGrid').classList.toggle('hidden', mode !== 'grid');
+}
+
+function showGenreGrid(genre) {
+  _genre = genre;
+  // Highlight genre tab
+  document.querySelectorAll('.genre-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.genre === genre);
+  });
+  const filtered = STORIES.filter(s => s.genre === genre);
+  renderGrid(filtered);
+  _showMode('grid');
+}
+
+function setGenre(btn, genre) {
+  _genre = genre;
+  document.querySelectorAll('.genre-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _search = '';
+  document.getElementById('searchInput').value = '';
+
+  if (!genre) {
+    renderSections('');
+    _showMode('sections');
+  } else {
+    showGenreGrid(genre);
+  }
+}
+
+function filterStories() {
+  _search = document.getElementById('searchInput').value.trim();
+  if (!_search) {
+    // Back to sections / genre view
+    if (_genre) {
+      renderSections(_genre);
+    } else {
+      renderSections('');
+    }
+    _showMode('sections');
+    return;
+  }
+  const q = _search.toLowerCase();
+  const filtered = STORIES.filter(s =>
+    s.title.toLowerCase().includes(q) || s.author.toLowerCase().includes(q)
+  );
+  renderGrid(filtered);
+  _showMode('grid');
+}
+
+// ── Preview panel ────────────────────────────────────────────────────────────────
+function openPreview(slug) {
+  const story = _bySlug[slug];
+  if (!story) return;
+  _currentSlug = slug;
+
+  // Scroll panel to top
+  const panel = document.getElementById('previewPanel');
+  panel.scrollTop = 0;
+
+  // Header
+  const coverHtml = story.cover_url
+    ? `<img class="preview-cover" src="${story.cover_url}" alt="${esc(story.title)}" onerror="this.outerHTML='<div class=\\'preview-cover-placeholder\\'>📖</div>'"/>`
+    : `<div class="preview-cover-placeholder">📖</div>`;
+  const editorsBadge = story.is_editors_pick
+    ? `<div class="preview-editors-badge"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></svg> Editor's Pick</div>` : '';
+
+  document.getElementById('pvHeader').innerHTML = `
+    ${coverHtml}
+    <div class="preview-info">
+      <div class="preview-genre-tag">${esc(story.genre)}</div>
+      <div class="preview-title">${esc(story.title)}</div>
+      <div class="preview-author">by ${esc(story.author)}</div>
+      <div class="preview-stats">
+        <span class="preview-stat">${stars(story.average_rating)} ${story.average_rating.toFixed(1)}</span>
+        <span class="preview-stat">📖 ${fmtViews(story.total_views)} reads</span>
+        <span class="preview-stat">📄 ${story.total_chapters} ch.</span>
+      </div>
+      ${editorsBadge}
+    </div>`;
+
+  document.getElementById('pvSynopsis').textContent = story.synopsis || 'No synopsis available.';
+
+  const chapterHead    = document.getElementById('pvChapterHead');
+  const chapterWrap    = document.getElementById('pvChapterWrap');
+  const chapterContent = document.getElementById('pvChapterContent');
+  const loadingEl      = document.getElementById('pvLoading');
+
+  if (story.chapter_excerpt) {
+    chapterHead.textContent  = (story.chapter_title ? story.chapter_title : 'Chapter 1') + ' — Free Preview';
+    chapterHead.style.display  = '';
+    chapterContent.textContent = story.chapter_excerpt;
+    chapterWrap.style.display  = '';
+    loadingEl.style.display    = 'none';
+  } else {
+    chapterHead.style.display = 'none';
+    chapterWrap.style.display = 'none';
+    loadingEl.style.display   = 'block';
+    loadingEl.textContent     = 'Loading chapter…';
+
+    fetch(`/explore/${slug}/chapter/`)
+      .then(r => r.json())
+      .then(data => {
+        if (slug !== _currentSlug) return;
+        loadingEl.style.display = 'none';
+        if (data.excerpt) {
+          story.chapter_excerpt = data.excerpt;
+          story.chapter_title   = data.title;
+          chapterHead.textContent = (data.title || `Chapter ${data.chapter_number || 1}`) + ' — Free Preview';
+          chapterHead.style.display  = '';
+          chapterContent.textContent = data.excerpt;
+          chapterWrap.style.display  = '';
+        }
+      })
+      .catch(() => {
+        if (slug === _currentSlug) loadingEl.style.display = 'none';
+      });
+  }
+
+  document.getElementById('previewOverlay').classList.add('open');
+  panel.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  history.replaceState(null, '', `/explore/${slug}/`);
+}
+
+function closePreview() {
+  document.getElementById('previewOverlay').classList.remove('open');
+  document.getElementById('previewPanel').classList.remove('open');
+  document.body.style.overflow = '';
+  _currentSlug = null;
+  history.replaceState(null, '', '/explore/');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+
+// ── Mobile drawer ────────────────────────────────────────────────────────────────
+function openDrawer() {
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('mobileDrawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('mobileDrawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────────
+renderSections('');
+
+// Auto-open preview if URL is /explore/<slug>/
+{% if open_slug %}openPreview('{{ open_slug }}');{% endif %}
+</script>
+</body>
+</html>

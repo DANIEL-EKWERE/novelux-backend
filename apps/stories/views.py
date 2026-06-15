@@ -1099,9 +1099,9 @@ class ExploreTabView(APIView):
 
     # Tag slugs used to scope genre tabs
     _TAG_MAP = {
-        'werewolf':    ['werewolf', 'alpha', 'luna'],
-        'billionaire': ['billionaire', 'ceo-office', 'tycoon', 'ceo'],
-        'suspense':    ['suspense-horror', 'thriller', 'mystery', 'horror', 'suspense'],
+        'werewolf':    ['werewolf', 'alpha', 'luna', 'alpha-male', 'shifter', 'supernatural', 'paranormal'],
+        'billionaire': ['billionaire', 'ceo-office', 'tycoon', 'ceo', 'CEO', 'arranged-marriage', 'royal-family'],
+        'suspense':    ['suspense-horror', 'thriller', 'mystery', 'horror', 'suspense', 'mystery-thriller'],
     }
 
     # Short Fics sub-genre groupings: (slug, emoji, tag_slugs_to_match)
@@ -1247,7 +1247,11 @@ class ExploreTabView(APIView):
 
     def _genre_tab(self, request, qs, tab):
         tag_slugs = self._TAG_MAP[tab]
-        gqs = qs.filter(tags__slug__in=tag_slugs).distinct()
+        # Match stories tagged with these slugs OR filed under the matching genre
+        # (genre name is matched case-insensitively so "Werewolf" == "werewolf")
+        gqs = qs.filter(
+            Q(tags__slug__in=tag_slugs) | Q(genre__name__iexact=tab)
+        ).distinct()
 
         cutoff = now() - timedelta(days=60)
 

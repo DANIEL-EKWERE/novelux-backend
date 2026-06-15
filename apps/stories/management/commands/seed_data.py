@@ -27,7 +27,8 @@ class Command(BaseCommand):
         ]
         created = 0
         for name in genres:
-            _, c = Genre.objects.get_or_create(name=name, defaults={'slug': slugify(name)})
+            slug = slugify(name)
+            _, c = Genre.objects.get_or_create(slug=slug, defaults={'name': name})
             if c:
                 created += 1
         self.stdout.write(f'  Genres: {created} created')
@@ -41,10 +42,22 @@ class Command(BaseCommand):
             'mafia', 'CEO', 'arranged-marriage', 'royal-family', 'time-travel',
             'mystery-thriller', 'supernatural', 'found-family', 'coming-of-age',
             'war', 'survival', 'harem', 'reverse-harem', 'slice-of-life',
+            # Werewolf tab tags
+            'werewolf', 'alpha', 'luna', 'shifter', 'paranormal',
+            # Billionaire tab tags
+            'billionaire', 'tycoon', 'ceo-office',
+            # Suspense tab tags
+            'suspense', 'thriller', 'horror', 'mystery',
+            # General
+            'romance', 'drama', 'action', 'comedy',
+            # Short fics
+            'family-drama', 'reborn', 'after-death', 'rebirth',
+            'crime', 'mob', 'betrayal', 'abuse',
         ]
         created = 0
         for name in tags:
-            _, c = Tag.objects.get_or_create(name=name, defaults={'slug': slugify(name)})
+            slug = slugify(name)
+            _, c = Tag.objects.get_or_create(slug=slug, defaults={'name': name})
             if c:
                 created += 1
         self.stdout.write(f'  Tags: {created} created')

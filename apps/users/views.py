@@ -182,8 +182,8 @@ class PublicProfileView(generics.RetrieveAPIView):
         from apps.stories.models import Story
         from django.db.models import Sum
         stories_qs = Story.objects.filter(
-            author=user, status='published'
-        ).select_related('genre').prefetch_related('tags').order_by('-total_views')
+            author=user,
+        ).exclude(status='draft').select_related('genre').prefetch_related('tags').order_by('-total_views')
 
         agg = stories_qs.aggregate(
             total_words=Sum('word_count'),

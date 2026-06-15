@@ -56,6 +56,7 @@ urlpatterns = [
     # CE account moderation
     path('ce/suspicious-accounts/', views.CESuspiciousAccountsView.as_view(), name='ce-suspicious-accounts'),
     path('ce/ip-accounts/<str:ip>/', views.CEIPAccountsView.as_view(), name='ce-ip-accounts'),
+    path('ce/device-accounts/<str:device_id>/', views.CEDeviceAccountsView.as_view(), name='ce-device-accounts'),
     path('ce/users/', views.CEUserSearchView.as_view(), name='ce-user-search'),
     path('ce/users/<int:pk>/ban/', views.ce_ban_user, name='ce-ban-user'),
     path('ce/users/<int:pk>/unban/', views.ce_unban_user, name='ce-unban-user'),

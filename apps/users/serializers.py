@@ -29,6 +29,27 @@ class NoveluXTokenObtainPairSerializer(TokenObtainPairSerializer):
 class NoveluXTokenObtainPairView(TokenObtainPairView):
     serializer_class = NoveluXTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            device_id = request.data.get('device_id', '').strip()
+            platform  = request.data.get('platform', '').strip().lower()
+            if device_id:
+                try:
+                    from .models import UserDevice
+                    from django.contrib.auth import get_user_model
+                    _User = get_user_model()
+                    email = request.data.get('email', '')
+                    user  = _User.objects.filter(email=email).first()
+                    if user:
+                        UserDevice.objects.update_or_create(
+                            user=user, device_id=device_id,
+                            defaults={'platform': platform},
+                        )
+                except Exception:
+                    pass
+        return response
+
 
 class RegisterSerializer(BaseRegisterSerializer):
     username    = serializers.CharField(required=True)
@@ -74,6 +95,16 @@ class RegisterSerializer(BaseRegisterSerializer):
         user.role = self.cleaned_data.get('role', User.ROLE_READER)
         user.registration_ip = ip
         user.save()
+
+        # Track device ID if provided
+        device_id = request.data.get('device_id', '').strip()
+        platform  = request.data.get('platform', '').strip().lower()
+        if device_id:
+            from .models import UserDevice
+            UserDevice.objects.update_or_create(
+                user=user, device_id=device_id,
+                defaults={'platform': platform},
+            )
 
         if user.role == User.ROLE_AUTHOR:
             AuthorProfile.objects.get_or_create(user=user)

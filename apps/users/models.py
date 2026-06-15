@@ -1131,3 +1131,31 @@ class FCMDevice(models.Model):
 
     # def __str__(self):
     #     return f'FCM Token for {self.user.first_name}'
+
+
+class UserDevice(models.Model):
+    """Tracks every physical device a user has logged in from."""
+    PLATFORM_ANDROID = 'android'
+    PLATFORM_IOS     = 'ios'
+    PLATFORM_CHOICES = [
+        (PLATFORM_ANDROID, 'Android'),
+        (PLATFORM_IOS,     'iOS'),
+    ]
+
+    user       = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='devices',
+    )
+    device_id  = models.CharField(max_length=255, db_index=True)
+    platform   = models.CharField(max_length=10, choices=PLATFORM_CHOICES, blank=True)
+    first_seen = models.DateTimeField(auto_now_add=True)
+    last_seen  = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table       = 'user_devices'
+        unique_together = [('user', 'device_id')]
+        ordering        = ['-last_seen']
+
+    def __str__(self):
+        return f'{self.user.username} — {self.platform} — {self.device_id[:16]}'

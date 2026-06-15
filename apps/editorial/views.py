@@ -3108,6 +3108,10 @@ def se_story_panel(request, slug):
             'updated_at':        story.updated_at.isoformat(),
             'cover_image':       request.build_absolute_uri(story.cover_image.url) if story.cover_image else None,
             'rank_by_views':     rank,
+            'is_editors_pick':          story.is_editors_pick,
+            'editors_pick_expires_at':  story.editors_pick_expires_at.isoformat() if story.editors_pick_expires_at else None,
+            'is_featured':              story.is_featured,
+            'featured_expires_at':      story.featured_expires_at.isoformat() if story.featured_expires_at else None,
         },
         'chapters': {
             'total':     chapter_stats['total'] or 0,
@@ -3246,7 +3250,23 @@ def se_edit_story(request, slug):
         except (TypeError, ValueError):
             story.chapters_per_week = None
 
-    # Promotion section flags are CE-only; SE cannot set them
+    # SE-level promotion flags: editor's pick and featured
+    import datetime as _dt
+    try:
+        promotion_days = max(1, min(90, int(request.data.get('promotion_days', 7))))
+    except (TypeError, ValueError):
+        promotion_days = 7
+
+    se_promo_map = {
+        'is_editors_pick': 'editors_pick_expires_at',
+        'is_featured':     'featured_expires_at',
+    }
+    for bool_field, expiry_field in se_promo_map.items():
+        if bool_field in request.data:
+            enabled = str(request.data[bool_field]).lower() in ('true', '1', 'yes')
+            setattr(story, bool_field, enabled)
+            setattr(story, expiry_field,
+                    timezone.now() + _dt.timedelta(days=promotion_days) if enabled else None)
 
     if 'cover_image' in request.FILES:
         import os
@@ -3687,13 +3707,40 @@ def _user_summary(u):
 
 class CESuspiciousAccountsView(APIView):
     """GET /api/editorial/ce/suspicious-accounts/
-    Returns groups of accounts that share a registration IP."""
+    Returns groups of accounts that share a registration IP or a device ID.
+    Query params: ?mode=ip (default) | ?mode=device
+    """
     permission_classes = [IsCE]
 
     def get(self, request):
         from django.db.models import Count
-        from apps.users.models import User as _User
+        from apps.users.models import User as _User, UserDevice
 
+        mode = request.query_params.get('mode', 'ip')
+
+        if mode == 'device':
+            # Group by device_id — find devices used by more than one account
+            dup_devices = (
+                UserDevice.objects.values('device_id')
+                .annotate(cnt=Count('user_id', distinct=True))
+                .filter(cnt__gt=1)
+                .order_by('-cnt')
+            )
+            groups = []
+            for row in dup_devices:
+                device_id = row['device_id']
+                user_ids  = UserDevice.objects.filter(device_id=device_id).values_list('user_id', flat=True)
+                users     = _User.objects.filter(pk__in=user_ids).order_by('date_joined')
+                platform  = UserDevice.objects.filter(device_id=device_id).values_list('platform', flat=True).first() or ''
+                groups.append({
+                    'device_id': device_id,
+                    'platform':  platform,
+                    'count':     row['cnt'],
+                    'accounts':  [_user_summary(u) for u in users],
+                })
+            return Response({'mode': 'device', 'count': len(groups), 'results': groups})
+
+        # Default: group by IP
         dup_ips = (
             _User.objects.exclude(registration_ip=None)
             .values('registration_ip')
@@ -3712,7 +3759,7 @@ class CESuspiciousAccountsView(APIView):
             })
 
         groups.sort(key=lambda g: g['count'], reverse=True)
-        return Response({'count': len(groups), 'results': groups})
+        return Response({'mode': 'ip', 'count': len(groups), 'results': groups})
 
 
 class CEIPAccountsView(APIView):
@@ -3727,6 +3774,24 @@ class CEIPAccountsView(APIView):
             'ip':       ip,
             'count':    users.count(),
             'accounts': [_user_summary(u) for u in users],
+        })
+
+
+class CEDeviceAccountsView(APIView):
+    """GET /api/editorial/ce/device-accounts/<device_id>/
+    All accounts that have logged in from a specific device ID."""
+    permission_classes = [IsCE]
+
+    def get(self, request, device_id):
+        from apps.users.models import UserDevice, User as _User
+        entries  = UserDevice.objects.filter(device_id=device_id).select_related('user').order_by('first_seen')
+        users    = [e.user for e in entries]
+        platform = entries.first().platform if entries.exists() else ''
+        return Response({
+            'device_id': device_id,
+            'platform':  platform,
+            'count':     len(users),
+            'accounts':  [_user_summary(u) for u in users],
         })
 
 

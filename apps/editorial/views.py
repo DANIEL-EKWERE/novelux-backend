@@ -1904,7 +1904,7 @@ class SEStoryQueueView(generics.ListAPIView):
         from apps.editorial.models import ContractApplication
 
         stories = Story.objects.filter(
-            contract_status='under_review',
+            contract_status__in=['under_review', 'rejected'],
             author__editor_link__assigned_se=request.user,
         ).select_related('author').prefetch_related('chapters').order_by('-updated_at')
 
@@ -1921,10 +1921,12 @@ class SEStoryQueueView(generics.ListAPIView):
                 app_status = app.status
                 app_id = app.id
                 se_note = app.se_note
+                rejection_reason = app.rejection_reason if hasattr(app, 'rejection_reason') else app.se_note
             except ContractApplication.DoesNotExist:
                 app_status = 'pending'
                 app_id = None
                 se_note = ''
+                rejection_reason = ''
 
             data.append({
                 'id':              s.id,
@@ -1945,9 +1947,10 @@ class SEStoryQueueView(generics.ListAPIView):
                     'email':        s.author.email,
                 },
                 'application': {
-                    'id':     app_id,
-                    'status': app_status,
-                    'note':   se_note,
+                    'id':              app_id,
+                    'status':          app_status,
+                    'note':            se_note,
+                    'rejection_reason': rejection_reason,
                 },
                 'chapters': chapters,
                 'submitted_at': s.updated_at,

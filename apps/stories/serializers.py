@@ -36,6 +36,7 @@ class StoryListSerializer(serializers.ModelSerializer):
     tags               = TagSerializer(many=True, read_only=True)
     all_chapters_count = serializers.SerializerMethodField()
     can_apply_contract = serializers.SerializerMethodField()
+    rejection_reason   = serializers.SerializerMethodField()
 
     class Meta:
         model  = Story
@@ -46,6 +47,7 @@ class StoryListSerializer(serializers.ModelSerializer):
             'average_rating', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',
             'free_until', 'is_free_download',
             'all_chapters_count', 'contract_status', 'contract_eligible', 'can_apply_contract',
+            'rejection_reason',
         ]
 
     def get_all_chapters_count(self, obj):
@@ -54,6 +56,17 @@ class StoryListSerializer(serializers.ModelSerializer):
     def get_can_apply_contract(self, obj):
         """True when threshold is hit and author hasn't applied yet."""
         return obj.contract_eligible and obj.contract_status == 'none'
+
+    def get_rejection_reason(self, obj):
+        """Return the rejection reason when the story's contract was rejected."""
+        if obj.contract_status != 'rejected':
+            return None
+        try:
+            app = obj.contract_application
+            # CE rejection stores in rejection_reason; SE rejection stores in se_note
+            return app.rejection_reason or app.se_note or None
+        except Exception:
+            return None
 
 class StoryDetailSerializer(serializers.ModelSerializer):
     author          = PublicUserSerializer(read_only=True)

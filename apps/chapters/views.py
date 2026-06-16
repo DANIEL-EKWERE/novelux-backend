@@ -175,7 +175,9 @@ class ChapterListCreateView(generics.ListCreateAPIView):
         qs    = Chapter.objects.filter(story=story, is_published=True)
         if self.request.user.is_authenticated and story.author == self.request.user:
             qs = Chapter.objects.filter(story=story)
-        return qs
+        order = self.request.query_params.get('order', 'asc')
+        ordering = '-chapter_number' if order == 'desc' else 'chapter_number'
+        return qs.order_by(ordering)
 
     def perform_create(self, serializer):
         from rest_framework.exceptions import PermissionDenied, ValidationError

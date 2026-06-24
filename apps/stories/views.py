@@ -473,20 +473,36 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         from .models import StoryDailyStats, UserStoryInteraction
 
         instance = self.get_object()
-        Story.objects.filter(pk=instance.pk).update(total_views=F('total_views') + 1)
 
-        # Record daily view (powers time-windowed rankings)
-        today = date.today()
-        StoryDailyStats.objects.get_or_create(story=instance, date=today)
-        StoryDailyStats.objects.filter(story=instance, date=today).update(
-            views=F('views') + 1
-        )
-
-        # Record user interaction (powers recommendations)
+        # Determine if this is a first-time view to prevent count inflation
+        already_viewed = False
         if request.user.is_authenticated:
-            UserStoryInteraction.objects.update_or_create(
+            interaction, created = UserStoryInteraction.objects.get_or_create(
                 user=request.user, story=instance,
                 defaults={'viewed': True},
+            )
+            if not created:
+                already_viewed = interaction.viewed
+                if not interaction.viewed:
+                    interaction.viewed = True
+                    interaction.save(update_fields=['viewed', 'last_seen'])
+        else:
+            # Best-effort deduplication for anonymous users via session
+            viewed_key = 'viewed_stories'
+            viewed_stories = request.session.get(viewed_key, [])
+            if instance.pk in viewed_stories:
+                already_viewed = True
+            else:
+                viewed_stories.append(instance.pk)
+                request.session[viewed_key] = viewed_stories
+                request.session.modified = True
+
+        if not already_viewed:
+            Story.objects.filter(pk=instance.pk).update(total_views=F('total_views') + 1)
+            today = date.today()
+            StoryDailyStats.objects.get_or_create(story=instance, date=today)
+            StoryDailyStats.objects.filter(story=instance, date=today).update(
+                views=F('views') + 1
             )
 
         serializer = self.get_serializer(instance)

@@ -2989,6 +2989,178 @@ def invite_resend(request, pk):
 
     return Response({'ok': True, 'email_sent': email_sent})    
 
+def _kyc_detail(kyc, request):
+    """Serialise an AuthorKYC for SE / CE review dashboards."""
+    def _url(field):
+        return request.build_absolute_uri(field.url) if field else None
+
+    return {
+        'id':                   kyc.pk,
+        'author_id':            kyc.user_id,
+        'author_username':      kyc.user.username,
+        'status':               kyc.status,
+        'id_type':              kyc.id_type,
+        'full_name':            kyc.full_name,
+        'date_of_birth':        str(kyc.date_of_birth) if kyc.date_of_birth else None,
+        'id_number':            kyc.id_number,
+        'country':              kyc.country,
+        'id_front':             _url(kyc.id_front),
+        'id_back':              _url(kyc.id_back),
+        # OCR
+        'ocr_name':             kyc.ocr_name,
+        'ocr_dob':              str(kyc.ocr_dob) if kyc.ocr_dob else None,
+        'ocr_id_number':        kyc.ocr_id_number,
+        # Match indicators
+        'name_match_score':     kyc.name_match_score,   # 0-100
+        'dob_match':            kyc.dob_match,
+        'overall_match_score':  kyc.overall_match_score,
+        'age_valid':            kyc.age_valid,
+        # Review
+        'rejection_reason':     kyc.rejection_reason,
+        'admin_notes':          kyc.admin_notes,
+        'submitted_at':         kyc.submitted_at,
+        'reviewed_at':          kyc.reviewed_at,
+    }
+
+
+# ── SE directory (public — for contract application SE picker) ─────────────
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def se_list(request):
+    """
+    GET /api/editorial/se-list/
+    Returns all active SEs that authors can choose from when applying for a contract.
+    Includes each SE's current author load so the app can optionally display it.
+    Also includes a 'random' option representing platform auto-assignment.
+    """
+    _User = get_user_model()
+
+    ses = _User.objects.filter(role='se').annotate(
+        author_count=models.Count('sourced_authors')
+    ).order_by('author_count', 'username')
+
+    data = []
+    for se in ses:
+        pen = ''
+        try:
+            pen = se.author_profile.pen_name or ''
+        except AttributeError:
+            pass
+        data.append({
+            'id':           se.pk,
+            'username':     se.username,
+            'display_name': pen.strip() if pen.strip() else se.username,
+            'avatar':       request.build_absolute_uri(se.avatar.url) if se.avatar else None,
+            'bio':          se.bio,
+            'author_count': se.author_count,
+        })
+
+    # Append the 'let platform decide' sentinel option
+    data.append({
+        'id':           'random',
+        'username':     'random',
+        'display_name': 'Let the platform assign an editor for me',
+        'avatar':       None,
+        'bio':          'The platform will automatically assign the best available Senior Editor for your work.',
+        'author_count': None,
+    })
+
+    return Response(data)
+
+
+def _link_author_to_se(author, se, method, notes=''):
+    """
+    Create or update an AuthorEditorLink.
+    Returns (link, se) — se may be None if random assignment has no SEs available.
+    """
+    _User = get_user_model()
+
+    if se is None and method in (AuthorEditorLink.LINK_AUTO, AuthorEditorLink.LINK_CHOSEN):
+        # Pick the SE with the fewest active authors
+        se = (
+            _User.objects
+            .filter(role='se')
+            .annotate(author_count=models.Count('sourced_authors'))
+            .order_by('author_count', '?')
+            .first()
+        )
+
+    link, created = AuthorEditorLink.objects.update_or_create(
+        author=author,
+        defaults={
+            'assigned_se': se,
+            'link_method': method,
+            'notes': notes,
+        },
+    )
+    return link, se
+
+
+class SEKYCListView(generics.ListAPIView):
+    """GET /api/editorial/kyc/  — SE lists KYC submissions for their assigned authors."""
+    permission_classes = [IsSEOrAbove]
+
+    def list(self, request, *args, **kwargs):
+        from apps.users.models import AuthorKYC
+        from apps.editorial.models import AuthorEditorLink
+
+        author_ids = AuthorEditorLink.objects.filter(
+            editor=request.user
+        ).values_list('author_id', flat=True)
+
+        status_filter = request.query_params.get('status')
+        qs = AuthorKYC.objects.filter(user_id__in=author_ids).select_related('user')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        qs = qs.order_by('-submitted_at')
+
+        return Response([_kyc_detail(k, request) for k in qs])
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_review_kyc(request, pk):
+    """
+    POST /api/editorial/kyc/<id>/se-review/
+    SE approves or rejects a KYC from one of their assigned authors.
+    Body: { "action": "approve"|"reject", "note": "...", "rejection_reason": "..." }
+    """
+    from apps.users.models import AuthorKYC
+    from apps.editorial.models import AuthorEditorLink
+
+    kyc = get_object_or_404(AuthorKYC, pk=pk, status=AuthorKYC.STATUS_REVIEW)
+
+    # SE can only review their own authors
+    if not AuthorEditorLink.objects.filter(editor=request.user, author=kyc.user).exists():
+        return Response({'detail': 'This author is not assigned to you.'}, status=403)
+
+    action = request.data.get('action', '').strip()
+    if action not in ('approve', 'reject'):
+        return Response({'detail': "action must be 'approve' or 'reject'"}, status=400)
+
+    kyc.status           = AuthorKYC.STATUS_APPROVED if action == 'approve' else AuthorKYC.STATUS_REJECTED
+    kyc.rejection_reason = request.data.get('rejection_reason', '').strip()
+    kyc.admin_notes      = request.data.get('note', '').strip()
+    kyc.reviewed_by      = request.user
+    kyc.reviewed_at      = timezone.now()
+    kyc.save(update_fields=[
+        'status', 'rejection_reason', 'admin_notes', 'reviewed_by', 'reviewed_at'
+    ])
+
+    try:
+        from apps.notifications.services import create_notification
+        if action == 'approve':
+            msg = 'Your identity verification has been approved.'
+        else:
+            msg = f'Your identity verification was not approved. {kyc.rejection_reason}'
+        create_notification(kyc.user, 'kyc_update', msg)
+    except Exception:
+        pass
+
+    return Response({'ok': True, 'status': kyc.status})
+
+
 @api_view(['POST'])
 @permission_classes([IsCE])
 def ce_review_kyc(request, pk):
@@ -3002,17 +3174,21 @@ def ce_review_kyc(request, pk):
     if action not in ('approve', 'reject'):
         return Response({'detail': "action must be 'approve' or 'reject'"}, status=400)
 
-    kyc.status      = AuthorKYC.STATUS_APPROVED if action == 'approve' else AuthorKYC.STATUS_REJECTED
-    kyc.admin_notes = note
-    kyc.reviewed_at = timezone.now()
-    kyc.save(update_fields=['status', 'admin_notes', 'reviewed_at'])
+    kyc.status           = AuthorKYC.STATUS_APPROVED if action == 'approve' else AuthorKYC.STATUS_REJECTED
+    kyc.rejection_reason = request.data.get('rejection_reason', '').strip()
+    kyc.admin_notes      = note
+    kyc.reviewed_by      = request.user
+    kyc.reviewed_at      = timezone.now()
+    kyc.save(update_fields=[
+        'status', 'rejection_reason', 'admin_notes', 'reviewed_by', 'reviewed_at'
+    ])
 
     try:
         from apps.notifications.services import create_notification
         msg = (
             'Your identity verification has been approved.'
             if action == 'approve'
-            else f'Your identity verification was rejected. {note}'
+            else f'Your identity verification was not approved. {kyc.rejection_reason}'
         )
         create_notification(kyc.user, 'kyc_update', msg)
     except Exception:
@@ -3139,9 +3315,12 @@ def se_story_panel(request, slug):
             'contract_type':  profile.get_contract_type_display() if profile else '',
             'contract_signed_at': profile.contract_signed_at.isoformat() if profile and profile.contract_signed_at else None,
             # Balance: only shown when SE-approved for the current month AND today >= 6th
+            # earnings_pool = full 50% (author receives 25%; remaining 25% covers bonus pool + platform)
             'balance_visible':    profile.balance_is_visible() if profile else False,
-            'total_earnings':     float(profile.total_earnings) if profile and profile.balance_is_visible() else None,
+            'earnings_pool':      round(float(profile.total_earnings) * 2, 2) if profile and profile.balance_is_visible() else None,
+            'author_payout':      float(profile.total_earnings) if profile and profile.balance_is_visible() else None,
             'pending_payout':     float(profile.pending_payout) if profile and profile.balance_is_visible() else None,
+            'completion_bonus':   float(profile.completion_bonus) if profile else 0,
             'balance_approved_at': profile.balance_approved_at.isoformat() if profile and profile.balance_approved_at else None,
             'balance_approved_by': profile.balance_approved_by.username if profile and profile.balance_approved_by else None,
             'kyc_status':     kyc.status if kyc else 'not_submitted',
@@ -3181,11 +3360,44 @@ def se_approve_author_balance(request, author_id):
     profile.save(update_fields=['balance_approved_at', 'balance_approved_by'])
 
     return Response({
-        'ok':             True,
-        'author':         profile.user.username,
-        'approved_at':    profile.balance_approved_at.isoformat(),
-        'total_earnings': float(profile.total_earnings),
-        'pending_payout': float(profile.pending_payout),
+        'ok':              True,
+        'author':          profile.user.username,
+        'approved_at':     profile.balance_approved_at.isoformat(),
+        'earnings_pool':   round(float(profile.total_earnings) * 2, 2),
+        'author_payout':   float(profile.total_earnings),
+        'pending_payout':  float(profile.pending_payout),
+        'completion_bonus': float(profile.completion_bonus),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_award_completion_bonus(request, author_id):
+    """POST /api/editorial/author-balance/<author_id>/award-bonus/
+    SE/CE manually awards a completion bonus to an author.
+    Body: { "amount": 150.00, "notes": "Completed 100-chapter milestone" }
+    """
+    from apps.users.models import AuthorProfile
+    from decimal import Decimal, InvalidOperation
+
+    raw = request.data.get('amount')
+    try:
+        amount = Decimal(str(raw))
+        if amount <= 0:
+            raise ValueError
+    except (TypeError, ValueError, InvalidOperation):
+        return Response({'detail': 'A positive amount is required.'}, status=400)
+
+    profile = get_object_or_404(AuthorProfile, user_id=author_id)
+    profile.completion_bonus += amount
+    profile.save(update_fields=['completion_bonus'])
+
+    return Response({
+        'ok':               True,
+        'author':           profile.user.username,
+        'amount_awarded':   float(amount),
+        'completion_bonus': float(profile.completion_bonus),
+        'notes':            request.data.get('notes', ''),
     })
 
 
@@ -3388,8 +3600,10 @@ def se_author_balances(request):
             'username':          p.user.username,
             'pen_name':          p.pen_name,
             'balance_visible':   visible,
-            'total_earnings':    float(p.total_earnings) if visible else None,
+            'earnings_pool':     round(float(p.total_earnings) * 2, 2) if visible else None,
+            'author_payout':     float(p.total_earnings) if visible else None,
             'pending_payout':    float(p.pending_payout) if visible else None,
+            'completion_bonus':  float(p.completion_bonus),
             'balance_approved_at': p.balance_approved_at.isoformat() if p.balance_approved_at else None,
             'approved_this_month': (
                 p.balance_approved_at is not None
@@ -3998,10 +4212,13 @@ class CESEPerformanceView(APIView):
         from apps.stories.models import Story
         from apps.editorial.models import ContractApplication, AuthorEditorLink as AEL
 
+        from apps.users.models import AuthorProfile
+        from django.db.models import Sum, Avg as DAvg
+
         ses = _User.objects.filter(role='se', is_active=True).order_by('username')
         result = []
         for se in ses:
-            author_ids = AEL.objects.filter(assigned_se=se).values_list('author_id', flat=True)
+            author_ids = list(AEL.objects.filter(assigned_se=se).values_list('author_id', flat=True))
             total_authors    = len(author_ids)
             contracted_books = Story.objects.filter(
                 author_id__in=author_ids, contract_status='signed'
@@ -4012,21 +4229,50 @@ class CESEPerformanceView(APIView):
             ).count()
             promotion_reqs   = se.promotion_requests.filter(status='pending').count()
 
+            # Earnings & performance of SE's author roster
+            earnings_agg = AuthorProfile.objects.filter(user_id__in=author_ids).aggregate(
+                total=Sum('total_earnings'),
+                pending=Sum('pending_payout'),
+            )
+            author_earnings_total   = float(earnings_agg['total'] or 0)
+            author_earnings_pending = float(earnings_agg['pending'] or 0)
+
+            # Story performance across the SE's roster
+            story_perf = Story.objects.filter(author_id__in=author_ids).aggregate(
+                total_views=Sum('total_views'),
+                total_unlocks=Sum('total_unlocks'),
+                avg_rating=DAvg('average_rating'),
+            )
+
             result.append({
-                'id':              se.id,
-                'username':        se.username,
-                'full_name':       se.get_full_name() or se.username,
-                'email':           se.email,
-                'total_authors':   total_authors,
-                'total_stories':   total_stories,
+                'id':               se.id,
+                'username':         se.username,
+                'display_name':     se.get_full_name() or se.username,
+                'email':            se.email,
+                'is_active':        se.is_active,
+                # Roster
+                'total_authors':    total_authors,
+                'total_stories':    total_stories,
                 'contracted_books': contracted_books,
-                'pending_reviews': pending_apps,
-                'promotion_reqs':  promotion_reqs,
-                'is_active':       se.is_active,
+                # Queue
+                'pending_reviews':  pending_apps,
+                'promotion_reqs':   promotion_reqs,
+                # Earnings (50% pool visible to CE)
+                'earnings_pool':    round(author_earnings_total * 2, 2),
+                'author_payout':    author_earnings_total,
+                'earnings_pending': round(author_earnings_pending * 2, 2),
+                # Performance
+                'total_views':      story_perf['total_views'] or 0,
+                'total_unlocks':    story_perf['total_unlocks'] or 0,
+                'avg_rating':       round(float(story_perf['avg_rating'] or 0), 2),
             })
 
-        result.sort(key=lambda x: x['contracted_books'], reverse=True)
-        return Response({'results': result})
+        sort_by = request.query_params.get('sort', 'contracted_books')
+        reverse = request.query_params.get('order', 'desc') != 'asc'
+        if sort_by in ('contracted_books', 'total_authors', 'earnings_pool', 'total_views', 'avg_rating'):
+            result.sort(key=lambda x: x[sort_by], reverse=reverse)
+
+        return Response({'count': len(result), 'results': result})
 
 
 # ── Books Browser ──────────────────────────────────────────────────────────────
@@ -4047,34 +4293,68 @@ class CEBooksView(APIView):
         if search:
             qs = qs.filter(Q(title__icontains=search) | Q(author__username__icontains=search))
 
-        qs = qs.order_by('-total_views')
+        sort_by = request.query_params.get('sort', 'views')
+        sort_map = {
+            'views':    '-total_views',
+            'earnings': '-author__author_profile__total_earnings',
+            'unlocks':  '-total_unlocks',
+            'chapters': '-total_chapters',
+            'rating':   '-average_rating',
+            'recent':   '-created_at',
+        }
+        qs = qs.order_by(sort_map.get(sort_by, '-total_views'))
+
         page     = max(1, int(request.query_params.get('page', 1)))
         per_page = 20
         total    = qs.count()
-        stories  = qs[(page - 1) * per_page: page * per_page]
+        stories  = qs.select_related(
+            'author__author_profile', 'author__editor_link__assigned_se', 'genre'
+        )[(page - 1) * per_page: page * per_page]
 
         data = []
         for s in stories:
             se_name = ''
             try:
-                link = s.author.editor_link
-                se_name = link.assigned_se.get_full_name() or link.assigned_se.username if link.assigned_se else ''
+                link    = s.author.editor_link
+                se_name = link.assigned_se.username if link.assigned_se else ''
             except Exception:
                 pass
+
+            # Estimated coin revenue: unlocks × average coin cost per chapter
+            try:
+                avg_coin_cost = s.chapters.filter(is_locked=True).aggregate(
+                    avg=models.Avg('coin_cost')
+                )['avg'] or 0
+                coin_revenue_est = round(float(s.total_unlocks * avg_coin_cost), 2)
+            except Exception:
+                coin_revenue_est = 0
+
+            try:
+                author_earnings = float(s.author.author_profile.total_earnings)
+            except Exception:
+                author_earnings = 0
+
             data.append({
-                'id':              s.id,
-                'slug':            s.slug,
-                'title':           s.title,
-                'cover_image':     request.build_absolute_uri(s.cover_image.url) if s.cover_image else None,
-                'author':          s.author.username,
-                'author_id':       s.author.id,
-                'se':              se_name,
-                'status':          s.status,
-                'contract_status': s.contract_status,
-                'total_views':     s.total_views,
-                'total_chapters':  s.total_chapters,
-                'word_count':      s.word_count,
-                'created_at':      s.created_at.isoformat(),
+                'id':               s.id,
+                'slug':             s.slug,
+                'title':            s.title,
+                'cover_image':      request.build_absolute_uri(s.cover_image.url) if s.cover_image else None,
+                'author':           s.author.username,
+                'author_id':        s.author.id,
+                'genre':            s.genre.name if s.genre else '',
+                'se':               se_name,
+                'status':           s.status,
+                'contract_status':  s.contract_status,
+                'total_views':      s.total_views,
+                'total_chapters':   s.total_chapters,
+                'total_unlocks':    s.total_unlocks,
+                'total_comments':   s.total_comments,
+                'average_rating':   float(s.average_rating),
+                'word_count':       s.word_count,
+                'coin_revenue_est': coin_revenue_est,
+                'author_earnings':  author_earnings,
+                'created_at':       s.created_at.isoformat(),
+                'published_at':     s.published_at.isoformat() if s.published_at else None,
             })
 
         return Response({'total': total, 'page': page, 'results': data})
@@ -4168,17 +4448,33 @@ class CERevenueView(APIView):
         coin_revenue    = Purchase.objects.filter(status='completed', purchase_type='coin_pack').aggregate(t=Sum('amount_paid_usd'))['t'] or 0
         sub_revenue     = Purchase.objects.filter(status='completed', purchase_type='subscription').aggregate(t=Sum('amount_paid_usd'))['t'] or 0
 
-        # Author earnings
-        author_earnings = AuthorProfile.objects.aggregate(
-            total=Sum('total_earnings'), pending=Sum('pending_payout')
+        # Author earnings — pool = 50% (stored value is 25% author share; platform holds 2x)
+        author_agg = AuthorProfile.objects.aggregate(
+            total=Sum('total_earnings'),
+            pending=Sum('pending_payout'),
+            bonus=Sum('completion_bonus'),
         )
+        author_total   = float(author_agg['total'] or 0)
+        author_pending = float(author_agg['pending'] or 0)
+        bonus_total    = float(author_agg['bonus'] or 0)
 
         # Top 10 earners
-        top_earners = list(
+        top_earners_qs = list(
             AuthorProfile.objects.select_related('user')
             .order_by('-total_earnings')[:10]
-            .values('user__id', 'user__username', 'total_earnings', 'pending_payout', 'contract_type')
+            .values('user__id', 'user__username', 'total_earnings', 'pending_payout',
+                    'completion_bonus', 'contract_type')
         )
+        top_earners = [
+            {
+                **e,
+                'earnings_pool': round(float(e['total_earnings']) * 2, 2),
+                'author_payout': float(e['total_earnings']),
+                'pending_payout': float(e['pending_payout']),
+                'completion_bonus': float(e['completion_bonus']),
+            }
+            for e in top_earners_qs
+        ]
 
         # Pending payouts
         pending_payouts = list(
@@ -4190,14 +4486,18 @@ class CERevenueView(APIView):
         )
 
         return Response({
-            'total_revenue':   float(total_revenue),
-            'coin_revenue':    float(coin_revenue),
-            'sub_revenue':     float(sub_revenue),
-            'author_earnings_total':   float(author_earnings['total'] or 0),
-            'author_earnings_pending': float(author_earnings['pending'] or 0),
-            'monthly_revenue': monthly_rev,
-            'top_earners':     top_earners,
-            'pending_payouts': pending_payouts,
+            'total_revenue':        float(total_revenue),
+            'coin_revenue':         float(coin_revenue),
+            'sub_revenue':          float(sub_revenue),
+            # earnings_pool = full 50% visible to CE; author_payout = 25% paid out
+            'earnings_pool_total':   round(author_total * 2, 2),
+            'author_payout_total':   author_total,
+            'earnings_pool_pending': round(author_pending * 2, 2),
+            'author_payout_pending': author_pending,
+            'completion_bonus_total': bonus_total,
+            'monthly_revenue':       monthly_rev,
+            'top_earners':           top_earners,
+            'pending_payouts':       pending_payouts,
         })
 
 
@@ -4228,8 +4528,10 @@ class CEAuthorBalancesView(APIView):
                 'author_id':         p.user_id,
                 'username':          p.user.username,
                 'balance_visible':   visible,
-                'total_earnings':    float(p.total_earnings) if visible or show_all else None,
+                'earnings_pool':     round(float(p.total_earnings) * 2, 2) if visible or show_all else None,
+                'author_payout':     float(p.total_earnings) if visible or show_all else None,
                 'pending_payout':    float(p.pending_payout) if visible or show_all else None,
+                'completion_bonus':  float(p.completion_bonus),
                 'balance_approved_at': p.balance_approved_at.isoformat() if p.balance_approved_at else None,
                 'balance_approved_by': p.balance_approved_by.username if p.balance_approved_by else None,
             })
@@ -4434,22 +4736,77 @@ def ce_dismiss_warning(request, pk):
 @api_view(['POST'])
 @permission_classes([IsCE])
 def ce_reassign_author(request, author_id):
-    """POST /api/editorial/ce/authors/<author_id>/reassign/
-    Body: { "se_id": <int> }"""
-    from apps.users.models import User as _User
-    from apps.editorial.models import AuthorEditorLink
+    """
+    POST /api/editorial/ce/authors/<author_id>/reassign/
 
-    author  = get_object_or_404(_User, pk=author_id, role='author')
-    se_id   = request.data.get('se_id')
-    new_se  = get_object_or_404(_User, pk=se_id, role='se') if se_id else None
+    Reassign an author to a different SE, or unassign them entirely.
+    Body:
+      { "se_id": 42, "reason": "optional note" }   → assign to SE #42
+      { "se_id": null, "reason": "..." }            → unassign (remove SE)
+    """
+    _User = get_user_model()
+
+    author = get_object_or_404(_User, pk=author_id, role='author')
+    se_id  = request.data.get('se_id')
+    reason = request.data.get('reason', '').strip()
+
+    new_se = None
+    if se_id is not None:
+        new_se = get_object_or_404(_User, pk=se_id, role='se')
 
     link, _ = AuthorEditorLink.objects.get_or_create(author=author)
     old_se  = link.assigned_se
-    link.assigned_se = new_se
-    link.save(update_fields=['assigned_se'])
+
+    if old_se == new_se:
+        return Response(
+            {'detail': 'Author is already assigned to this SE. No change made.'},
+            status=400,
+        )
+
+    link.assigned_se  = new_se
+    link.link_method  = AuthorEditorLink.LINK_MANUAL
+    link.notes        = (
+        f'Reassigned by CE {request.user.username} on {timezone.now().date()}'
+        + (f'. Reason: {reason}' if reason else '')
+        + f'. Previous SE: {old_se.username if old_se else "none"}.'
+    )
+    link.save(update_fields=['assigned_se', 'link_method', 'notes'])
+
+    # Also update any open ContractApplication for this author's stories
+    from apps.editorial.models import ContractApplication
+    ContractApplication.objects.filter(
+        author=author,
+        status=ContractApplication.STATUS_PENDING,
+    ).update(assigned_se=new_se)
+
+    # Notify all three parties
+    try:
+        from apps.notifications.services import create_notification
+        display = author.username
+        if new_se:
+            create_notification(
+                new_se,
+                'author_assigned',
+                f'Author {display} has been assigned to you by CE {request.user.username}.',
+            )
+        if old_se:
+            create_notification(
+                old_se,
+                'author_unassigned',
+                f'Author {display} has been reassigned away from you by CE {request.user.username}.',
+            )
+        msg = (
+            f'Your Senior Editor has been changed to {new_se.username}.'
+            if new_se else
+            'You have been unassigned from your Senior Editor. The CE will assign a new one shortly.'
+        )
+        create_notification(author, 'se_reassigned', msg)
+    except Exception:
+        pass
 
     return Response({
-        'detail': f'{author.username} reassigned to {new_se.username if new_se else "unassigned"}.',
+        'ok':     True,
+        'author': author.username,
         'old_se': old_se.username if old_se else None,
         'new_se': new_se.username if new_se else None,
     })
@@ -4918,4 +5275,377 @@ def ce_story_push(request, slug):
         'pushed': pushed,
     })
 
-    return Response({'detail': f'Request {action}.'})
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SE / CE  Promotion Slot Management
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _promotion_data(promo):
+    return {
+        'id':             promo.id,
+        'story_id':       promo.story_id,
+        'story_title':    promo.story.title,
+        'story_slug':     promo.story.slug,
+        'category':       promo.category,
+        'category_label': promo.get_category_display(),
+        'status':         promo.status,
+        'starts_at':      promo.starts_at.isoformat(),
+        'expires_at':     promo.expires_at.isoformat(),
+        'queue_position': promo.queue_position,
+        'se':             promo.se.username,
+    }
+
+
+class SEPromotionListCreateView(APIView):
+    """
+    GET  /api/editorial/promotions/          — list my promotions + slot usage
+    POST /api/editorial/promotions/          — add a story to a promotion slot
+         body: { story_id, category, starts_at, expires_at }
+    """
+    permission_classes = [IsSE]
+
+    def get(self, request):
+        from .models import StoryPromotion, PromotionSlotConfig, PROMOTION_CATEGORY_CHOICES
+        from django.utils.timezone import now
+
+        promos = (
+            StoryPromotion.objects
+            .filter(se=request.user)
+            .exclude(status=StoryPromotion.STATUS_EXPIRED)
+            .select_related('story')
+            .order_by('category', 'queue_position', 'created_at')
+        )
+
+        # Slot usage summary per category
+        slot_usage = []
+        for cat_slug, cat_label in PROMOTION_CATEGORY_CHOICES:
+            active = StoryPromotion.active_count(request.user, cat_slug)
+            limit  = StoryPromotion.get_slot_limit(request.user, cat_slug)
+            slot_usage.append({
+                'category':       cat_slug,
+                'category_label': cat_label,
+                'active':         active,
+                'limit':          limit,
+                'queued':         StoryPromotion.objects.filter(
+                    se=request.user, category=cat_slug, status=StoryPromotion.STATUS_QUEUED
+                ).count(),
+            })
+
+        return Response({
+            'slot_usage':  slot_usage,
+            'promotions':  [_promotion_data(p) for p in promos],
+        })
+
+    def post(self, request):
+        from .models import StoryPromotion
+        from apps.stories.models import Story
+        from django.utils.timezone import now
+        from django.utils.dateparse import parse_datetime
+
+        story_id   = request.data.get('story_id')
+        category   = request.data.get('category', '')
+        starts_raw = request.data.get('starts_at')
+        expires_raw= request.data.get('expires_at')
+
+        if not all([story_id, category, starts_raw, expires_raw]):
+            return Response({'detail': 'story_id, category, starts_at, expires_at are required.'}, status=400)
+
+        valid_cats = [c[0] for c in StoryPromotion._meta.get_field('category').choices]
+        if category not in valid_cats:
+            return Response({'detail': f'Invalid category. Choose from: {valid_cats}'}, status=400)
+
+        story = get_object_or_404(Story, pk=story_id)
+        starts_at  = parse_datetime(starts_raw)
+        expires_at = parse_datetime(expires_raw)
+
+        if not starts_at or not expires_at or expires_at <= starts_at:
+            return Response({'detail': 'Invalid date range.'}, status=400)
+
+        # Determine status: active if slot available AND starts now/past, else queued
+        slot_free = StoryPromotion.can_add_active(request.user, category)
+        is_future = starts_at > now()
+        status    = StoryPromotion.STATUS_ACTIVE if (slot_free and not is_future) else StoryPromotion.STATUS_QUEUED
+
+        # Queue position = count of existing queued + 1
+        queue_pos = 0
+        if status == StoryPromotion.STATUS_QUEUED:
+            queue_pos = StoryPromotion.objects.filter(
+                se=request.user, category=category, status=StoryPromotion.STATUS_QUEUED
+            ).count() + 1
+
+        promo = StoryPromotion.objects.create(
+            se=request.user, story=story, category=category,
+            status=status, starts_at=starts_at, expires_at=expires_at,
+            queue_position=queue_pos,
+        )
+        return Response(_promotion_data(promo), status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsSE])
+def se_remove_promotion(request, pk):
+    """DELETE /api/editorial/promotions/<pk>/ — remove own promotion."""
+    from .models import StoryPromotion
+    promo = get_object_or_404(StoryPromotion, pk=pk, se=request.user)
+    promo.delete()
+    return Response({'detail': 'Promotion removed.'}, status=204)
+
+
+# ── CE: view all + manage slot configs ───────────────────────────────────────
+
+class CEPromotionListView(APIView):
+    """GET /api/editorial/ce/promotions/ — all active/queued promotions across all SEs."""
+    permission_classes = [IsCE]
+
+    def get(self, request):
+        from .models import StoryPromotion
+        promos = (
+            StoryPromotion.objects
+            .exclude(status=StoryPromotion.STATUS_EXPIRED)
+            .select_related('story', 'se')
+            .order_by('category', 'se__username', 'queue_position')
+        )
+        return Response({'count': promos.count(), 'promotions': [_promotion_data(p) for p in promos]})
+
+
+@api_view(['DELETE'])
+@permission_classes([IsCE])
+def ce_remove_promotion(request, pk):
+    """DELETE /api/editorial/ce/promotions/<pk>/ — remove any SE promotion."""
+    from .models import StoryPromotion
+    promo = get_object_or_404(StoryPromotion, pk=pk)
+    promo.delete()
+    return Response({'detail': 'Promotion removed.'}, status=204)
+
+
+class CESlotConfigView(APIView):
+    """
+    GET  /api/editorial/ce/slot-configs/   — view all slot configs
+    POST /api/editorial/ce/slot-configs/   — set/update a slot limit
+         body: { category, slot_limit, se_id (optional — omit for global default) }
+    """
+    permission_classes = [IsCE]
+
+    def get(self, request):
+        from .models import PromotionSlotConfig, PROMOTION_CATEGORY_CHOICES
+        configs = list(
+            PromotionSlotConfig.objects.select_related('se', 'set_by')
+            .values('id', 'category', 'slot_limit', 'se__id', 'se__username',
+                    'set_by__username', 'updated_at')
+        )
+        # Fill in defaults for categories with no config
+        configured = {(c['category'], c['se__id']) for c in configs}
+        defaults = []
+        for cat_slug, cat_label in PROMOTION_CATEGORY_CHOICES:
+            if (cat_slug, None) not in configured:
+                defaults.append({'category': cat_slug, 'category_label': cat_label,
+                                  'slot_limit': 5, 'se': None, 'is_default': True})
+        return Response({'configs': configs, 'unconfigured_defaults': defaults})
+
+    def post(self, request):
+        from .models import PromotionSlotConfig
+        from apps.users.models import User as _User
+
+        category   = request.data.get('category', '')
+        slot_limit = request.data.get('slot_limit')
+        se_id      = request.data.get('se_id')   # null = global default
+
+        if not category or slot_limit is None:
+            return Response({'detail': 'category and slot_limit are required.'}, status=400)
+
+        try:
+            slot_limit = int(slot_limit)
+            if slot_limit < 1:
+                raise ValueError
+        except (TypeError, ValueError):
+            return Response({'detail': 'slot_limit must be a positive integer.'}, status=400)
+
+        se = None
+        if se_id:
+            se = get_object_or_404(_User, pk=se_id, role='se')
+
+        config, _ = PromotionSlotConfig.objects.update_or_create(
+            category=category, se=se,
+            defaults={'slot_limit': slot_limit, 'set_by': request.user},
+        )
+        return Response({
+            'id':         config.id,
+            'category':   config.category,
+            'slot_limit': config.slot_limit,
+            'se':         se.username if se else None,
+            'set_by':     request.user.username,
+        })
+
+
+
+# ── Chapter edit requests ──────────────────────────────────────────────────
+
+class SEChapterEditQueueView(generics.ListAPIView):
+    """GET /api/editorial/chapter-edits/  — SE sees pending chapter edits for their authors."""
+    permission_classes = [IsSEOrAbove]
+
+    def list(self, request, *args, **kwargs):
+        from apps.chapters.models import ChapterEditRequest
+        from apps.editorial.models import AuthorEditorLink
+
+        author_ids = AuthorEditorLink.objects.filter(
+            editor=request.user
+        ).values_list('author_id', flat=True)
+
+        status_filter = request.query_params.get('status', ChapterEditRequest.STATUS_PENDING)
+        qs = ChapterEditRequest.objects.filter(
+            author_id__in=author_ids, status=status_filter
+        ).select_related('chapter__story', 'author').order_by('-submitted_at')
+
+        data = []
+        for req in qs:
+            data.append({
+                'id':              req.pk,
+                'author':          req.author.username,
+                'story_title':     req.chapter.story.title,
+                'story_slug':      req.chapter.story.slug,
+                'chapter_number':  req.chapter.chapter_number,
+                'chapter_title':   req.chapter.title,
+                'pending_title':   req.pending_title,
+                'pending_content': req.pending_content,
+                'status':          req.status,
+                'se_note':         req.se_note,
+                'submitted_at':    req.submitted_at,
+                'reviewed_at':     req.reviewed_at,
+            })
+        return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_review_chapter_edit(request, pk):
+    """
+    POST /api/editorial/chapter-edits/<id>/review/
+    SE approves or rejects a chapter edit request.
+    Body: { "action": "approve"|"reject", "note": "..." }
+    """
+    from apps.chapters.models import ChapterEditRequest
+    from apps.editorial.models import AuthorEditorLink
+
+    edit_req = get_object_or_404(ChapterEditRequest, pk=pk,
+                                  status=ChapterEditRequest.STATUS_PENDING)
+
+    if not AuthorEditorLink.objects.filter(
+        editor=request.user, author=edit_req.author
+    ).exists():
+        return Response({'detail': 'This author is not assigned to you.'}, status=403)
+
+    action = request.data.get('action', '').strip()
+    if action not in ('approve', 'reject'):
+        return Response({'detail': "action must be 'approve' or 'reject'"}, status=400)
+
+    edit_req.status      = ChapterEditRequest.STATUS_APPROVED if action == 'approve' else ChapterEditRequest.STATUS_REJECTED
+    edit_req.se_note     = request.data.get('note', '').strip()
+    edit_req.reviewed_by = request.user
+    edit_req.reviewed_at = timezone.now()
+    edit_req.save(update_fields=['status', 'se_note', 'reviewed_by', 'reviewed_at'])
+
+    if action == 'approve':
+        chapter = edit_req.chapter
+        chapter.title   = edit_req.pending_title or chapter.title
+        chapter.content = edit_req.pending_content
+        chapter.save(update_fields=['title', 'content', 'updated_at'])
+
+    try:
+        from apps.notifications.services import create_notification
+        ch = edit_req.chapter
+        if action == 'approve':
+            msg = f'Your edit for "{ch.story.title}" Ch.{ch.chapter_number} has been approved and is now live.'
+        else:
+            note = edit_req.se_note
+            msg  = f'Your edit for "{ch.story.title}" Ch.{ch.chapter_number} was not approved. {note}'
+        create_notification(edit_req.author, 'chapter_edit_update', msg)
+    except Exception:
+        pass
+
+    return Response({'ok': True, 'status': edit_req.status})
+
+
+# ── Story cover change requests ────────────────────────────────────────────
+
+class SECoverRequestQueueView(generics.ListAPIView):
+    """GET /api/editorial/cover-requests/  — SE sees pending cover changes for their authors."""
+    permission_classes = [IsSEOrAbove]
+
+    def list(self, request, *args, **kwargs):
+        from apps.stories.models import StoryCoverRequest
+        from apps.editorial.models import AuthorEditorLink
+
+        author_ids = AuthorEditorLink.objects.filter(
+            editor=request.user
+        ).values_list('author_id', flat=True)
+
+        status_filter = request.query_params.get('status', StoryCoverRequest.STATUS_PENDING)
+        qs = StoryCoverRequest.objects.filter(
+            author_id__in=author_ids, status=status_filter
+        ).select_related('story', 'author').order_by('-submitted_at')
+
+        data = []
+        for req in qs:
+            data.append({
+                'id':            req.pk,
+                'author':        req.author.username,
+                'story_title':   req.story.title,
+                'story_slug':    req.story.slug,
+                'current_cover': request.build_absolute_uri(req.story.cover_image.url)
+                                 if req.story.cover_image else None,
+                'pending_cover': request.build_absolute_uri(req.pending_cover.url),
+                'status':        req.status,
+                'se_note':       req.se_note,
+                'submitted_at':  req.submitted_at,
+                'reviewed_at':   req.reviewed_at,
+            })
+        return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_review_cover_request(request, pk):
+    """
+    POST /api/editorial/cover-requests/<id>/review/
+    SE approves or rejects a story cover change.
+    Body: { "action": "approve"|"reject", "note": "..." }
+    """
+    from apps.stories.models import StoryCoverRequest
+    from apps.editorial.models import AuthorEditorLink
+
+    cover_req = get_object_or_404(StoryCoverRequest, pk=pk,
+                                   status=StoryCoverRequest.STATUS_PENDING)
+
+    if not AuthorEditorLink.objects.filter(
+        editor=request.user, author=cover_req.author
+    ).exists():
+        return Response({'detail': 'This author is not assigned to you.'}, status=403)
+
+    action = request.data.get('action', '').strip()
+    if action not in ('approve', 'reject'):
+        return Response({'detail': "action must be 'approve' or 'reject'"}, status=400)
+
+    cover_req.status      = StoryCoverRequest.STATUS_APPROVED if action == 'approve' else StoryCoverRequest.STATUS_REJECTED
+    cover_req.se_note     = request.data.get('note', '').strip()
+    cover_req.reviewed_by = request.user
+    cover_req.reviewed_at = timezone.now()
+    cover_req.save(update_fields=['status', 'se_note', 'reviewed_by', 'reviewed_at'])
+
+    if action == 'approve':
+        story = cover_req.story
+        story.cover_image = cover_req.pending_cover
+        story.save(update_fields=['cover_image'])
+
+    try:
+        from apps.notifications.services import create_notification
+        if action == 'approve':
+            msg = f'Your new cover for "{cover_req.story.title}" has been approved and is now live.'
+        else:
+            note = cover_req.se_note
+            msg  = f'Your cover change for "{cover_req.story.title}" was not approved. {note}'
+        create_notification(cover_req.author, 'cover_update', msg)
+    except Exception:
+        pass
+
+    return Response({'ok': True, 'status': cover_req.status})

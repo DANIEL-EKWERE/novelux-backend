@@ -87,3 +87,7 @@ django-ckeditor
 bleach
 
 django-anymail
+
+# KYC OCR
+pytesseract==0.3.13
+rapidfuzz==3.9.3

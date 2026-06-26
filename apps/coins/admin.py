@@ -18,8 +18,8 @@ class CoinPackageAdmin(admin.ModelAdmin):
 
 @admin.register(SubscriptionPlan)
 class SubscriptionPlanAdmin(admin.ModelAdmin):
-    list_display = ['label', 'price_usd', 'coins_per_month', 'discount_pct', 'is_active']
-    list_editable= ['is_active']
+    list_display  = ['label', 'original_price_usd', 'price_usd', 'coins_per_month', 'bonus_coins', 'discount_pct', 'duration_days', 'is_active']
+    list_editable = ['price_usd', 'original_price_usd', 'coins_per_month', 'bonus_coins', 'discount_pct', 'is_active']
 
 
 @admin.register(Purchase)

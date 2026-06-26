@@ -1,19 +1,30 @@
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import FeaturedAuthor, PromoBanner, Story, Genre, Tag, Bookmark, ReadingProgress, Rating
+from .models import FeaturedAuthor, PromoBanner, Story, Genre, Subgenre, Tag, Bookmark, ReadingProgress, Rating
 from apps.users.serializers import PublicUserSerializer
 
 
+class SubgenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = Subgenre
+        fields = ['id', 'name', 'slug', 'genre_id']
+
+
 class GenreSerializer(serializers.ModelSerializer):
+    subgenres = SubgenreSerializer(many=True, read_only=True)
+
     class Meta:
         model  = Genre
-        fields = ['id', 'name', 'slug', 'description', 'cover_image']
+        fields = ['id', 'name', 'slug', 'description', 'cover_image', 'subgenres']
 
 
 class TagSerializer(serializers.ModelSerializer):
+    genre_id   = serializers.IntegerField(source='genre.id',   read_only=True, allow_null=True)
+    genre_slug = serializers.CharField(source='genre.slug',    read_only=True, allow_null=True)
+
     class Meta:
         model  = Tag
-        fields = ['id', 'name', 'slug']
+        fields = ['id', 'name', 'slug', 'genre_id', 'genre_slug']
 
 
 # class StoryListSerializer(serializers.ModelSerializer):
@@ -33,6 +44,7 @@ class TagSerializer(serializers.ModelSerializer):
 class StoryListSerializer(serializers.ModelSerializer):
     author             = PublicUserSerializer(read_only=True)
     genre              = GenreSerializer(read_only=True)
+    subgenre           = SubgenreSerializer(read_only=True)
     tags               = TagSerializer(many=True, read_only=True)
     all_chapters_count = serializers.SerializerMethodField()
     can_apply_contract = serializers.SerializerMethodField()
@@ -42,7 +54,7 @@ class StoryListSerializer(serializers.ModelSerializer):
         model  = Story
         fields = [
             'id', 'title', 'slug', 'cover_image', 'synopsis', 'description', 'story_outline',
-            'author', 'genre', 'tags', 'language', 'status',
+            'author', 'genre', 'subgenre', 'tags', 'language', 'status',
             'total_views', 'total_chapters', 'total_comments', 'word_count', 'target_word_count',
             'average_rating', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',
             'free_until', 'is_free_download',
@@ -103,19 +115,25 @@ class StoryDetailSerializer(serializers.ModelSerializer):
 
 
 class StoryCreateUpdateSerializer(serializers.ModelSerializer):
-    tag_ids  = serializers.PrimaryKeyRelatedField(
-        queryset=Tag.objects.all(), many=True, write_only=True, required=True, source='tags'
+    tag_ids      = serializers.PrimaryKeyRelatedField(
+        queryset=Tag.objects.all(), many=True, write_only=True, required=False, source='tags'
     )
-    genre_id = serializers.PrimaryKeyRelatedField(
+    genre_id     = serializers.PrimaryKeyRelatedField(
         queryset=Genre.objects.all(), write_only=True, required=False, source='genre'
+    )
+    subgenre_id  = serializers.PrimaryKeyRelatedField(
+        queryset=Subgenre.objects.all(), write_only=True, required=False,
+        source='subgenre', allow_null=True,
     )
 
     class Meta:
         model  = Story
         fields = [
-            'title', 'synopsis', 'description', 'story_outline', 'cover_image', 'genre_id', 'tag_ids',
-            'language', 'status', 'is_exclusive', 'update_schedule', 'chapters_per_week', 'plot_summary', 'gender',
-            'target_word_count', 'target_audience', 'characters', 'external_link', 'lock_from_chapter',
+            'title', 'synopsis', 'description', 'story_outline', 'cover_image',
+            'genre_id', 'subgenre_id', 'tag_ids',
+            'language', 'status', 'is_exclusive', 'update_schedule', 'chapters_per_week',
+            'plot_summary', 'gender', 'target_word_count', 'target_audience',
+            'characters', 'external_link', 'lock_from_chapter',
         ]
 
     def validate_cover_image(self, value):
@@ -123,21 +141,22 @@ class StoryCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Cover image must not exceed 2MB.')
         return value
 
-    def validate_tags(self, value):
-        if not value:
-            raise serializers.ValidationError('Please select at least one tag for your story.')
-        return value
+    def validate(self, data):
+        genre    = data.get('genre')
+        subgenre = data.get('subgenre')
+        if subgenre and genre and subgenre.genre_id != genre.pk:
+            raise serializers.ValidationError(
+                {'subgenre_id': 'This subgenre does not belong to the selected genre.'}
+            )
+        return data
 
     def create(self, validated_data):
         import re
         tags = validated_data.pop('tags', [])
         validated_data['author'] = self.context['request'].user
 
-        # Strip ALL non-alphanumeric chars (apostrophes, quotes, etc.) before slugifying
         clean_title = re.sub(r"[^\w\s-]", "", validated_data['title'])
         base_slug   = slugify(clean_title) or 'story'
-
-        # Ensure uniqueness
         slug, n = base_slug, 1
         while Story.objects.filter(slug=slug).exists():
             slug = f"{base_slug}-{n}"

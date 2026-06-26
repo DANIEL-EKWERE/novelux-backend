@@ -680,10 +680,12 @@ class AuthorEditorLink(models.Model):
     LINK_CODE   = 'editor_code'
     LINK_MANUAL = 'manual'
     LINK_AUTO   = 'auto'
+    LINK_CHOSEN = 'author_chosen'   # author picked from the SE list at contract time
     LINK_CHOICES = [
         (LINK_CODE,   'Author used editor invite code'),
         (LINK_MANUAL, 'Manually assigned by CE / admin'),
         (LINK_AUTO,   'Auto-assigned by system'),
+        (LINK_CHOSEN, 'Author selected during contract application'),
     ]
 
     author      = models.OneToOneField(
@@ -1268,6 +1270,106 @@ class ExploreTabPin(models.Model):
 
     def __str__(self):
         return f'Pin [{self.tab}/{self.section}] {self.story.title} ({"on" if self.is_active else "off"})'
+
+
+# ─── SE Promotion Slot System ────────────────────────────────────────────────
+
+PROMOTION_CATEGORY_CHOICES = [
+    # Hot-tab home screen sections
+    ('featured',      'Featured For You'),
+    ('best-novel',    'Best Novel'),
+    ('trending',      'Trending Now'),
+    ('short-stories', 'Short Stories'),
+    ('ranking',       'Ranking'),
+    ('editors-pick',  "Editor's Pick"),
+    # Genre / explore tabs
+    ('werewolf',      'Werewolf'),
+    ('billionaire',   'Billionaire'),
+    ('short-fics',    'Short Fics'),
+    ('for-her',       'For Her'),
+    ('for-him',       'For Him'),
+    ('suspense',      'Suspense'),
+]
+
+
+class PromotionSlotConfig(models.Model):
+    """
+    Maximum active promotions an SE may hold per category.
+    se=None → global default for all SEs.
+    Per-SE row (se set) overrides the global default for that SE.
+    """
+    category   = models.CharField(max_length=30, choices=PROMOTION_CATEGORY_CHOICES)
+    slot_limit = models.PositiveSmallIntegerField(default=5)
+    se         = models.ForeignKey(
+        User, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='promo_slot_configs', limit_choices_to={'role': 'se'},
+    )
+    set_by     = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='promo_slot_configs_created',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table        = 'promotion_slot_configs'
+        unique_together = [('category', 'se')]
+
+    def __str__(self):
+        who = self.se.username if self.se else 'Global'
+        return f'{who} — {self.get_category_display()}: {self.slot_limit} slots'
+
+
+class StoryPromotion(models.Model):
+    STATUS_ACTIVE  = 'active'
+    STATUS_QUEUED  = 'queued'
+    STATUS_EXPIRED = 'expired'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE,  'Active'),
+        (STATUS_QUEUED,  'Queued'),
+        (STATUS_EXPIRED, 'Expired'),
+    ]
+
+    se             = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='story_promotions',
+        limit_choices_to={'role': 'se'},
+    )
+    story          = models.ForeignKey(
+        'stories.Story', on_delete=models.CASCADE, related_name='promotions',
+    )
+    category       = models.CharField(max_length=30, choices=PROMOTION_CATEGORY_CHOICES)
+    status         = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    starts_at      = models.DateTimeField()
+    expires_at     = models.DateTimeField()
+    queue_position = models.PositiveSmallIntegerField(default=0)
+    reminder_sent  = models.BooleanField(default=False)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'story_promotions'
+        ordering = ['queue_position', 'created_at']
+
+    def __str__(self):
+        return f'{self.se.username} → [{self.category}] {self.story.title} ({self.status})'
+
+    @classmethod
+    def get_slot_limit(cls, se, category):
+        try:
+            return PromotionSlotConfig.objects.get(se=se, category=category).slot_limit
+        except PromotionSlotConfig.DoesNotExist:
+            pass
+        try:
+            return PromotionSlotConfig.objects.get(se=None, category=category).slot_limit
+        except PromotionSlotConfig.DoesNotExist:
+            return 5
+
+    @classmethod
+    def active_count(cls, se, category):
+        return cls.objects.filter(se=se, category=category, status=cls.STATUS_ACTIVE).count()
+
+    @classmethod
+    def can_add_active(cls, se, category):
+        return cls.active_count(se, category) < cls.get_slot_limit(se, category)
 
 
 # ─── Author Messages / Complaints ────────────────────────────────────────────

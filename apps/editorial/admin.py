@@ -3,7 +3,7 @@ from .models import (
     EditorAssignment, AuthorEditorLink,
     #   ChapterReview,
     EditorialNote, ContentFlag, PolicyDecision, EditorialPolicy,
-    SystemNotice,
+    SystemNotice, PromotionSlotConfig, StoryPromotion,
 )
 
 
@@ -118,4 +118,24 @@ class SystemNoticeAdmin(admin.ModelAdmin):
     list_display  = ['notice_type', 'message', 'is_active', 'created_at']
     list_filter   = ['notice_type', 'is_active']
     list_editable = ['is_active']
+
+
+@admin.register(PromotionSlotConfig)
+class PromotionSlotConfigAdmin(admin.ModelAdmin):
+    list_display  = ['category', 'se', 'slot_limit', 'set_by', 'updated_at']
+    list_filter   = ['category']
+    list_editable = ['slot_limit']
+    search_fields = ['se__username', 'set_by__username']
+    raw_id_fields = ['se', 'set_by']
+
+
+@admin.register(StoryPromotion)
+class StoryPromotionAdmin(admin.ModelAdmin):
+    list_display  = ['story', 'se', 'category', 'status', 'starts_at', 'expires_at', 'queue_position', 'reminder_sent']
+    list_filter   = ['category', 'status']
+    list_editable = ['status', 'queue_position']
+    search_fields = ['story__title', 'se__username']
+    raw_id_fields = ['se', 'story']
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'expires_at'
 

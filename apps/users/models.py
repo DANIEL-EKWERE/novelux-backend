@@ -987,6 +987,7 @@ class AuthorProfile(models.Model):
     pen_name           = models.CharField(max_length=100, blank=True)
     total_earnings     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     pending_payout     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    completion_bonus   = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     contract_type      = models.CharField(max_length=20, choices=[('exclusive','Exclusive'),('non_exclusive','Non-Exclusive')], default='non_exclusive')
     has_contract       = models.BooleanField(
         default=False,
@@ -1053,24 +1054,32 @@ class AuthorKYC(models.Model):
         (PAY_PAYPAL, 'PayPal'),
     ]
 
-    STATUS_PENDING  = 'pending'
-    STATUS_APPROVED = 'approved'
-    STATUS_REJECTED = 'rejected'
-    STATUS_CHOICES  = [
-        (STATUS_PENDING,  'Pending Review'),
-        (STATUS_APPROVED, 'Approved'),
-        (STATUS_REJECTED, 'Rejected'),
+    STATUS_PENDING     = 'pending'
+    STATUS_PROCESSING  = 'processing'   # OCR running
+    STATUS_REVIEW      = 'under_review' # waiting for SE
+    STATUS_APPROVED    = 'approved'
+    STATUS_REJECTED    = 'rejected'
+    STATUS_CHOICES     = [
+        (STATUS_PENDING,    'Pending Submission'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_REVIEW,     'Under SE Review'),
+        (STATUS_APPROVED,   'Approved'),
+        (STATUS_REJECTED,   'Rejected'),
     ]
 
     user             = models.OneToOneField(User, on_delete=models.CASCADE, related_name='kyc')
     # ── Personal ─────────────────────────────────────────────────────────
     full_name        = models.CharField(max_length=150, help_text='Real name as on your ID document')
+    date_of_birth    = models.DateField(null=True, blank=True, help_text='DOB as on your ID document')
     phone            = models.CharField(max_length=30)
     contact_address  = models.CharField(max_length=255)
     country          = models.CharField(max_length=100)
     id_type          = models.CharField(max_length=20, choices=ID_CHOICES, default=ID_NATIONAL)
     id_number        = models.CharField(max_length=60)
-    id_document      = models.ImageField(upload_to='kyc/id_docs/', help_text='Photo of government-issued ID')
+    id_document      = models.ImageField(upload_to='kyc/id_docs/', blank=True, help_text='Legacy single-image field')
+    id_front         = models.ImageField(upload_to='kyc/fronts/', blank=True, help_text='Front of ID')
+    id_back          = models.ImageField(upload_to='kyc/backs/',  blank=True, null=True,
+                           help_text='Back of ID (not required for passport)')
     # ── Payment ──────────────────────────────────────────────────────────
     payment_method   = models.CharField(max_length=20, choices=PAY_CHOICES, default=PAY_BANK)
     account_holder   = models.CharField(max_length=150, blank=True)
@@ -1079,9 +1088,24 @@ class AuthorKYC(models.Model):
     swift_code       = models.CharField(max_length=11,  blank=True)
     bank_country     = models.CharField(max_length=100, blank=True)
     paypal_email     = models.EmailField(blank=True)
+    # ── OCR results ──────────────────────────────────────────────────────
+    ocr_name         = models.CharField(max_length=200, blank=True)
+    ocr_dob          = models.DateField(null=True, blank=True)
+    ocr_id_number    = models.CharField(max_length=100, blank=True)
+    ocr_raw          = models.JSONField(default=dict, blank=True)
+    # ── Match scores (0-100) ──────────────────────────────────────────────
+    name_match_score    = models.FloatField(null=True, blank=True)
+    dob_match           = models.BooleanField(null=True, blank=True)
+    overall_match_score = models.FloatField(null=True, blank=True)
+    age_valid           = models.BooleanField(null=True, blank=True)  # 18 <= age <= 50
     # ── Status ───────────────────────────────────────────────────────────
-    status           = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    status           = models.CharField(max_length=15, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    rejection_reason = models.TextField(blank=True)
     admin_notes      = models.TextField(blank=True)
+    reviewed_by      = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='kyc_reviews', limit_choices_to={'role__in': ['se', 'ce', 'admin']},
+    )
     submitted_at     = models.DateTimeField(auto_now_add=True)
     reviewed_at      = models.DateTimeField(null=True, blank=True)
 

@@ -131,9 +131,10 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 class AuthorProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model  = AuthorProfile
-        fields = ['pen_name', 'total_earnings', 'pending_payout',
+        fields = ['pen_name', 'total_earnings', 'pending_payout', 'completion_bonus',
                   'contract_type', 'is_verified', 'joined_as_author']
-        read_only_fields = ['total_earnings', 'pending_payout', 'is_verified', 'joined_as_author']
+        read_only_fields = ['total_earnings', 'pending_payout', 'completion_bonus',
+                            'is_verified', 'joined_as_author']
 
 
 class FCMDeviceSerializer(serializers.ModelSerializer):
@@ -147,12 +148,13 @@ class UserSerializer(serializers.ModelSerializer):
     author_profile    = AuthorProfileSerializer(read_only=True)
     followers_count   = serializers.SerializerMethodField()
     following_count   = serializers.SerializerMethodField()
+    display_name      = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
         fields = [
-            'id', 'username', 'first_name', 'last_name', 'email', 'role', 'avatar', 'bio',
-            'coin_balance', 'is_vip', 'vip_expires',
+            'id', 'username', 'display_name', 'first_name', 'last_name', 'email', 'role',
+            'avatar', 'bio', 'coin_balance', 'is_vip', 'vip_expires',
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
             'author_profile', 'followers_count', 'following_count', 'created_at',
@@ -166,19 +168,39 @@ class UserSerializer(serializers.ModelSerializer):
     def get_following_count(self, obj):
         return obj.following.count()
 
+    def get_display_name(self, obj):
+        try:
+            pen = obj.author_profile.pen_name
+            if pen and pen.strip():
+                return pen.strip()
+        except AttributeError:
+            pass
+        return obj.username
+
 
 class PublicUserSerializer(serializers.ModelSerializer):
     """Minimal public profile."""
     author_profile  = AuthorProfileSerializer(read_only=True)
     followers_count = serializers.SerializerMethodField()
+    display_name    = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
-        fields = ['id', 'username', 'avatar', 'bio', 'role',
+        fields = ['id', 'username', 'display_name', 'avatar', 'bio', 'role',
                   'reading_level', 'author_profile', 'followers_count']
 
     def get_followers_count(self, obj):
         return obj.followers.count()
+
+    def get_display_name(self, obj):
+        """Returns pen name if set, otherwise falls back to username."""
+        try:
+            pen = obj.author_profile.pen_name
+            if pen and pen.strip():
+                return pen.strip()
+        except AttributeError:
+            pass
+        return obj.username
 
 
 class UpdatePreferencesSerializer(serializers.ModelSerializer):

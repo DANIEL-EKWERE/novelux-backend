@@ -467,6 +467,63 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             return [IsAuthorOrReadOnly()]
         return [permissions.AllowAny()]
 
+    def update(self, request, *args, **kwargs):
+        story = self.get_object()
+        new_cover = request.FILES.get('cover_image')
+
+        # Intercept cover changes on published stories → queue for SE review
+        if new_cover and story.status == Story.STATUS_PUBLISHED:
+            return self._create_cover_request(request, story, new_cover)
+
+        # For non-cover PATCH fields (title, synopsis, etc.) allow direct edit
+        # but strip cover_image from data so it doesn't accidentally overwrite
+        if story.status == Story.STATUS_PUBLISHED and new_cover:
+            request.data._mutable = True
+            request.data.pop('cover_image', None)
+
+        return super().update(request, *args, **kwargs)
+
+    def _create_cover_request(self, request, story, cover_file):
+        from .models import StoryCoverRequest
+
+        # Only one pending cover request at a time per story
+        if StoryCoverRequest.objects.filter(
+            story=story, status=StoryCoverRequest.STATUS_PENDING
+        ).exists():
+            return Response(
+                {'detail': 'You already have a pending cover change in review.'},
+                status=400,
+            )
+
+        cover_req = StoryCoverRequest.objects.create(
+            story         = story,
+            author        = request.user,
+            pending_cover = cover_file,
+        )
+
+        try:
+            from apps.editorial.models import AuthorEditorLink
+            from apps.notifications.services import create_notification
+            link = AuthorEditorLink.objects.filter(
+                author=request.user
+            ).select_related('editor').first()
+            if link:
+                create_notification(
+                    link.editor,
+                    'cover_change_review',
+                    f'{request.user.username} submitted a new cover for '
+                    f'"{story.title}" — review required.',
+                )
+        except Exception:
+            pass
+
+        return Response({
+            'ok':     True,
+            'status': 'in_review',
+            'detail': 'Your new cover has been submitted for SE review. It will go live once approved.',
+            'cover_request_id': cover_req.pk,
+        }, status=202)
+
     def retrieve(self, request, *args, **kwargs):
         from datetime import date
         from django.db.models import F
@@ -604,10 +661,33 @@ class MyStoriesView(generics.ListAPIView):
                             .order_by('-created_at')
 
 
+def _promoted_qs(category):
+    """Return a Story queryset of active promoted stories for a category, or None."""
+    from django.utils.timezone import now as tz_now
+    try:
+        from apps.editorial.models import StoryPromotion
+        ids = list(
+            StoryPromotion.objects.filter(
+                category=category,
+                status=StoryPromotion.STATUS_ACTIVE,
+                starts_at__lte=tz_now(),
+                expires_at__gt=tz_now(),
+            ).values_list('story_id', flat=True)
+        )
+        if ids:
+            return Story.objects.filter(pk__in=ids).select_related('genre').prefetch_related('tags')
+    except Exception:
+        pass
+    return None
+
+
 class TrendingStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
+        promoted = _promoted_qs('trending')
+        if promoted is not None:
+            return promoted
         qs = published_stories().order_by('-total_views')
         return apply_gender_filter(qs, self.request.user)[:20]
 
@@ -616,6 +696,9 @@ class FeaturedStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
+        promoted = _promoted_qs('featured')
+        if promoted is not None:
+            return promoted
         qs = published_stories().filter(is_featured=True)
         return apply_gender_filter(qs, self.request.user)
 
@@ -682,6 +765,47 @@ class MyBookmarksView(generics.ListAPIView):
     def get_queryset(self):
         return Story.objects.filter(bookmarked_by__user=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        from django.db.models import Max
+        from apps.chapters.models import Chapter
+        from .models import UserStoryInteraction
+
+        qs        = self.get_queryset()
+        story_ids = list(qs.values_list('id', flat=True))
+
+        # Latest published chapter timestamp per story (single query)
+        latest_chapter_map = dict(
+            Chapter.objects.filter(story_id__in=story_ids, is_published=True)
+            .values('story_id')
+            .annotate(latest=Max('updated_at'))
+            .values_list('story_id', 'latest')
+        )
+
+        # User's last_seen per story (single query)
+        last_seen_map = dict(
+            UserStoryInteraction.objects.filter(
+                user=request.user, story_id__in=story_ids
+            ).values_list('story_id', 'last_seen')
+        )
+
+        serializer = self.get_serializer(qs, many=True)
+        data       = list(serializer.data)
+
+        for item in data:
+            sid            = item['id']
+            latest_chap_at = latest_chapter_map.get(sid)
+            last_seen_at   = last_seen_map.get(sid)
+
+            if latest_chap_at and last_seen_at:
+                item['has_update'] = latest_chap_at > last_seen_at
+            elif latest_chap_at and not last_seen_at:
+                # User bookmarked but never opened — treat any chapter as new
+                item['has_update'] = True
+            else:
+                item['has_update'] = False
+
+        return Response(data)
+
 
 class UpdateReadingProgressView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -706,15 +830,37 @@ class RateStoryView(generics.CreateAPIView):
 
 
 class GenreListView(generics.ListAPIView):
+    """GET /api/stories/genres/ — all genres with nested subgenres."""
     serializer_class = GenreSerializer
-    queryset         = Genre.objects.all()
+    queryset         = Genre.objects.prefetch_related('subgenres').all()
     pagination_class = None
+
+
+class SubgenreListView(generics.ListAPIView):
+    """GET /api/stories/subgenres/?genre=<slug> — subgenres for a specific genre."""
+    pagination_class = None
+
+    def get(self, request, *args, **kwargs):
+        from .models import Subgenre
+        from .serializers import SubgenreSerializer
+        genre_slug = request.query_params.get('genre')
+        qs = Subgenre.objects.select_related('genre').all()
+        if genre_slug:
+            qs = qs.filter(genre__slug=genre_slug)
+        return Response(SubgenreSerializer(qs, many=True).data)
 
 
 class TagListView(generics.ListAPIView):
+    """GET /api/stories/tags/?genre=<slug> — tropes/tags, optionally filtered by genre."""
     serializer_class = TagSerializer
-    queryset         = Tag.objects.all()
     pagination_class = None
+
+    def get_queryset(self):
+        genre_slug = self.request.query_params.get('genre')
+        qs = Tag.objects.select_related('genre').all()
+        if genre_slug:
+            qs = qs.filter(genre__slug=genre_slug)
+        return qs
 
 
 class PromoBannersView(APIView):
@@ -836,22 +982,63 @@ def apply_for_contract(request, slug):
         status=Chapter.STATUS_PENDING_REVIEW
     )
 
-    # Create ContractApplication and lock the story
+    # ── SE selection ─────────────────────────────────────────────────────────
+    # Three modes the author can pass in the request body:
+    #   se_selection = "code"   → editor_code field required (existing flow)
+    #   se_selection = "choose" → se_id field required (author picks from list)
+    #   se_selection = "random" → platform auto-assigns the SE with fewest authors
+    # If se_selection is omitted and the author already has an SE link, use it.
     from apps.editorial.models import ContractApplication, AuthorEditorLink
+    from apps.editorial.views import _link_author_to_se
 
-    def _resolve_se(author):
+    author       = request.user
+    se_selection = request.data.get('se_selection', '').strip()
+    assigned_se  = None
+
+    if se_selection == 'code':
+        editor_code = request.data.get('editor_code', '').strip()
+        if not editor_code:
+            return Response({'detail': 'editor_code is required when se_selection is "code".'}, status=400)
+        link, error = AuthorEditorLink.link_by_code(author, editor_code)
+        if error:
+            return Response({'detail': error}, status=400)
+        assigned_se = link.assigned_se
+
+    elif se_selection == 'choose':
+        se_id = request.data.get('se_id')
+        if not se_id:
+            return Response({'detail': 'se_id is required when se_selection is "choose".'}, status=400)
+        from django.contrib.auth import get_user_model
+        _User = get_user_model()
+        chosen_se = get_object_or_404(_User, pk=se_id, role='se')
+        link, assigned_se = _link_author_to_se(
+            author, chosen_se, AuthorEditorLink.LINK_CHOSEN,
+            notes=f'Author selected {chosen_se.username} during contract application.',
+        )
+
+    elif se_selection in ('random', 'auto', ''):
+        # If author already has an SE, keep it; otherwise auto-assign
         try:
-            link = AuthorEditorLink.objects.select_related('assigned_se').get(author=author)
-            return link.assigned_se
+            existing = AuthorEditorLink.objects.select_related('assigned_se').get(author=author)
+            assigned_se = existing.assigned_se
         except AuthorEditorLink.DoesNotExist:
-            return None
+            link, assigned_se = _link_author_to_se(
+                author, None, AuthorEditorLink.LINK_AUTO,
+                notes='Auto-assigned at contract application (author chose random).',
+            )
+    else:
+        return Response(
+            {'detail': 'se_selection must be "code", "choose", or "random".'},
+            status=400,
+        )
 
+    # ── Create ContractApplication and lock the story ──────────────────────
     ContractApplication.objects.get_or_create(
         story=story,
         defaults={
-            'author': request.user,
-            'assigned_se': _resolve_se(request.user),
-            'status': ContractApplication.STATUS_PENDING,
+            'author':      author,
+            'assigned_se': assigned_se,
+            'status':      ContractApplication.STATUS_PENDING,
         }
     )
 
@@ -859,11 +1046,15 @@ def apply_for_contract(request, slug):
 
     try:
         from apps.notifications.services import on_contract_applied
-        on_contract_applied(request.user, story)
+        on_contract_applied(author, story)
     except Exception:
         pass
 
-    return Response({'status': 'applied', 'contract_status': 'under_review'})
+    return Response({
+        'status':          'applied',
+        'contract_status': 'under_review',
+        'assigned_se':     assigned_se.username if assigned_se else None,
+    })
 
 
 # ── Update Calendar ────────────────────────────────────────────────────────────
@@ -1063,6 +1254,9 @@ class RankingsView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
+        promoted = _promoted_qs('ranking')
+        if promoted is not None:
+            return promoted
         period = self.request.query_params.get('period', 'all-time')
         qs     = published_stories()
 
@@ -1140,6 +1334,25 @@ class ExploreTabView(APIView):
             qs[:limit], many=True, context={'request': request}
         ).data
 
+    def _promoted_tab(self, tab, request):
+        """If active promotions exist for this tab, return a full-replace response."""
+        qs = _promoted_qs(tab)
+        if qs is None:
+            return None
+        items = list(qs[:20])
+        if not items:
+            return None
+        return Response({
+            'tab':      tab,
+            'layout':   'promoted',
+            'promoted': True,
+            'featured': self._s(items[0], request),
+            'stories':  self._sl(
+                Story.objects.filter(pk__in=[s.pk for s in items[1:]]).select_related('genre').prefetch_related('tags'),
+                request, limit=19,
+            ),
+        })
+
     def _pinned_ids(self, tab, section):
         """Return ordered list of story PKs pinned to this tab/section by CE/SE."""
         try:
@@ -1209,6 +1422,11 @@ class ExploreTabView(APIView):
     # ── main dispatch ─────────────────────────────────────────────────────────
 
     def get(self, request, tab):
+        # Full replace with SE-promoted stories when active promotions exist
+        promoted_response = self._promoted_tab(tab, request)
+        if promoted_response is not None:
+            return promoted_response
+
         qs = published_stories()
 
         if tab == 'short-fics':

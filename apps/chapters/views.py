@@ -254,10 +254,66 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def update(self, request, *args, **kwargs):
         self._story_contract_eligible = False
+        chapter = self.get_object()
+
+        # Intercept edits to published chapters — queue for SE review instead
+        if chapter.status == Chapter.STATUS_PUBLISHED:
+            return self._create_edit_request(request, chapter)
+
         response = super().update(request, *args, **kwargs)
         if self._story_contract_eligible:
             response.data['contract_eligible'] = True
         return response
+
+    def _create_edit_request(self, request, chapter):
+        from .models import ChapterEditRequest
+        from rest_framework.response import Response
+
+        new_content = request.data.get('content', '').strip()
+        new_title   = request.data.get('title', '').strip()
+
+        if not new_content:
+            return Response({'detail': 'content is required.'}, status=400)
+
+        # Only one pending request allowed at a time per chapter
+        if ChapterEditRequest.objects.filter(
+            chapter=chapter, status=ChapterEditRequest.STATUS_PENDING
+        ).exists():
+            return Response(
+                {'detail': 'You already have a pending edit in review for this chapter.'},
+                status=400,
+            )
+
+        edit_req = ChapterEditRequest.objects.create(
+            chapter        = chapter,
+            author         = request.user,
+            pending_title   = new_title or chapter.title,
+            pending_content = new_content,
+        )
+
+        # Notify the author's assigned SE
+        try:
+            from apps.editorial.models import AuthorEditorLink
+            from apps.notifications.services import create_notification
+            link = AuthorEditorLink.objects.filter(
+                author=request.user
+            ).select_related('editor').first()
+            if link:
+                create_notification(
+                    link.editor,
+                    'chapter_edit_review',
+                    f'{request.user.username} submitted an edit for '
+                    f'"{chapter.story.title}" Ch.{chapter.chapter_number} — review required.',
+                )
+        except Exception:
+            pass
+
+        return Response({
+            'ok':     True,
+            'status': 'in_review',
+            'detail': 'Your edit has been submitted for SE review. It will go live once approved.',
+            'edit_request_id': edit_req.pk,
+        }, status=202)
 
     def get_queryset(self):
         story = get_object_or_404(Story, slug=self.kwargs['story_slug'])

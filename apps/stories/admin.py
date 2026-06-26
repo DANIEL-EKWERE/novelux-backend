@@ -100,3 +100,14 @@ class UserStoryInteractionAdmin(admin.ModelAdmin):
     list_filter   = ['viewed', 'bookmarked', 'unlocked', 'completed']
     search_fields = ['user__username', 'story__title']
     readonly_fields = ['last_seen']
+
+
+from .models import StoryCoverRequest
+
+@admin.register(StoryCoverRequest)
+class StoryCoverRequestAdmin(admin.ModelAdmin):
+    list_display    = ['story', 'author', 'status', 'reviewed_by', 'submitted_at', 'reviewed_at']
+    list_filter     = ['status']
+    search_fields   = ['author__username', 'story__title']
+    readonly_fields = ['submitted_at', 'reviewed_at', 'author', 'story', 'pending_cover']
+    raw_id_fields   = ['reviewed_by']

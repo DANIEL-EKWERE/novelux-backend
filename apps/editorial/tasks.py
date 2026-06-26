@@ -395,6 +395,77 @@
 
 
 
+from celery import shared_task
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task
+def expire_promotions():
+    """Run hourly — deactivate expired promotions and activate next queued one."""
+    from django.utils.timezone import now
+    from .models import StoryPromotion
+
+    for promo in StoryPromotion.objects.filter(
+        status=StoryPromotion.STATUS_ACTIVE, expires_at__lte=now()
+    ).select_related('se', 'story'):
+        promo.status = StoryPromotion.STATUS_EXPIRED
+        promo.save(update_fields=['status', 'updated_at'])
+
+        next_q = (
+            StoryPromotion.objects
+            .filter(se=promo.se, category=promo.category, status=StoryPromotion.STATUS_QUEUED)
+            .order_by('queue_position', 'created_at')
+            .first()
+        )
+        if next_q:
+            duration          = promo.expires_at - promo.starts_at
+            next_q.status     = StoryPromotion.STATUS_ACTIVE
+            next_q.starts_at  = now()
+            next_q.expires_at = now() + duration
+            next_q.queue_position = 0
+            next_q.save(update_fields=['status', 'starts_at', 'expires_at', 'queue_position', 'updated_at'])
+            logger.info(f'Activated queued promotion: "{next_q.story.title}" [{next_q.category}]')
+
+
+@shared_task
+def send_promotion_reminders():
+    """Run daily — notify SEs 3 days before their active promotion expires."""
+    from datetime import timedelta
+    from django.utils.timezone import now
+    from .models import StoryPromotion
+    from apps.notifications.models import Notification
+    from apps.notifications.tasks import _send_push
+
+    target_date = (now() + timedelta(days=3)).date()
+    for promo in StoryPromotion.objects.filter(
+        status=StoryPromotion.STATUS_ACTIVE,
+        expires_at__date=target_date,
+        reminder_sent=False,
+    ).select_related('se', 'story'):
+        Notification.objects.create(
+            recipient=promo.se,
+            notification_type='system',
+            title='Promotion expiring in 3 days',
+            message=(
+                f'Your promotion for "{promo.story.title}" in '
+                f'{promo.get_category_display()} expires on '
+                f'{promo.expires_at.strftime("%b %d, %Y")}. '
+                'Queue a replacement or it will fall back to algorithmic results.'
+            ),
+            data={'promotion_id': promo.id, 'story_slug': promo.story.slug, 'category': promo.category},
+        )
+        _send_push(
+            promo.se,
+            title='⏰ Promotion expiring soon',
+            body=f'"{promo.story.title}" ({promo.get_category_display()}) expires in 3 days.',
+            data={'promotion_id': str(promo.id)},
+        )
+        promo.reminder_sent = True
+        promo.save(update_fields=['reminder_sent'])
+
+
 from django.core.mail import send_mail
 from django.conf import settings
 from django.template.loader import render_to_string

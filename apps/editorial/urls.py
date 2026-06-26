@@ -21,6 +21,7 @@ urlpatterns = [
     path('promotion-requests/', views.se_promotion_requests, name='se-promotion-requests'),
     path('author-balances/', views.se_author_balances, name='se-author-balances'),
     path('author-balance/<int:author_id>/approve/', views.se_approve_author_balance, name='se-approve-balance'),
+    path('author-balance/<int:author_id>/award-bonus/', views.se_award_completion_bonus, name='se-award-bonus'),
     # CE story review
     path('ce-story-queue/', views.CEStoryQueueView.as_view(), name='ce-story-queue'),
     path('ce-story-queue/<slug:slug>/', views.CEStoryDetailView.as_view(), name='ce-story-detail'),
@@ -31,7 +32,9 @@ urlpatterns = [
     path('ce-story-queue/<slug:slug>/edit/', views.ce_edit_story, name='ce-story-edit'),
     path('ce-story-queue/<slug:slug>/push/', views.ce_story_push, name='ce-story-push'),
     path('assign-author/', views.assign_author_to_se, name='assign-author'),
-    path('kyc/<int:pk>/review/', views.ce_review_kyc, name='ce-review-kyc'),
+    path('kyc/',                    views.SEKYCListView.as_view(),  name='se-kyc-list'),
+    path('kyc/<int:pk>/se-review/', views.se_review_kyc,           name='se-kyc-review'),
+    path('kyc/<int:pk>/review/',    views.ce_review_kyc,           name='ce-review-kyc'),
     # Chapter-level queue (kept for legacy)
     path('queue/', views.EditorialQueueView.as_view(), name='queue'),
     path('reviews/<int:pk>/', views.EditorialChapterDetailView.as_view(), name='review-detail'),
@@ -89,6 +92,20 @@ urlpatterns = [
     path('ce/promotion-requests/<int:pk>/review/', views.ce_review_promotion, name='ce-promotion-review'),
     path('ce/tab-pins/', views.CETabPinsView.as_view(), name='ce-tab-pins'),
     path('ce/tab-pins/<int:pk>/', views.ce_tab_pin_detail, name='ce-tab-pin-detail'),
+    # SE directory — for authors to browse/select an SE at contract time
+    path('se-list/', views.se_list, name='se-list'),
+    # SE chapter edit + cover change review
+    path('chapter-edits/',                    views.SEChapterEditQueueView.as_view(),  name='se-chapter-edit-queue'),
+    path('chapter-edits/<int:pk>/review/',    views.se_review_chapter_edit,           name='se-chapter-edit-review'),
+    path('cover-requests/',                   views.SECoverRequestQueueView.as_view(), name='se-cover-request-queue'),
+    path('cover-requests/<int:pk>/review/',   views.se_review_cover_request,          name='se-cover-request-review'),
+    # SE promotion slot management
+    path('promotions/', views.SEPromotionListCreateView.as_view(), name='se-promotions'),
+    path('promotions/<int:pk>/', views.se_remove_promotion, name='se-promotion-remove'),
+    # CE promotion oversight + slot config
+    path('ce/promotions/', views.CEPromotionListView.as_view(), name='ce-promotions'),
+    path('ce/promotions/<int:pk>/', views.ce_remove_promotion, name='ce-promotion-remove'),
+    path('ce/slot-configs/', views.CESlotConfigView.as_view(), name='ce-slot-configs'),
     # Author-facing & system
     path('announcements/', views.author_announcements, name='author-announcements'),
     path('system-notice/', views.system_notice, name='system-notice'),

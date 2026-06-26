@@ -440,3 +440,95 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+# ── KYC ───────────────────────────────────────────────────────────────────
+
+class KYCView(APIView):
+    """
+    GET  /api/users/kyc/         — author fetches their KYC status & data
+    POST /api/users/kyc/         — author submits / resubmits KYC
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def get(self, request):
+        from .models import AuthorKYC
+        try:
+            kyc = request.user.kyc
+        except AuthorKYC.DoesNotExist:
+            return Response({'status': 'not_submitted'})
+        return Response({
+            'id':               kyc.pk,
+            'status':           kyc.status,
+            'id_type':          kyc.id_type,
+            'full_name':        kyc.full_name,
+            'date_of_birth':    str(kyc.date_of_birth) if kyc.date_of_birth else None,
+            'id_number':        kyc.id_number,
+            'id_front':         request.build_absolute_uri(kyc.id_front.url) if kyc.id_front else None,
+            'id_back':          request.build_absolute_uri(kyc.id_back.url)  if kyc.id_back  else None,
+            'rejection_reason': kyc.rejection_reason,
+            'submitted_at':     kyc.submitted_at,
+            'reviewed_at':      kyc.reviewed_at,
+        })
+
+    def post(self, request):
+        from .models import AuthorKYC
+        data = request.data
+
+        try:
+            kyc = request.user.kyc
+            if kyc.status not in (AuthorKYC.STATUS_REJECTED, AuthorKYC.STATUS_PENDING):
+                return Response(
+                    {'detail': 'KYC already submitted. Contact support to resubmit.'},
+                    status=400,
+                )
+        except AuthorKYC.DoesNotExist:
+            kyc = AuthorKYC(user=request.user)
+
+        required = ['full_name', 'date_of_birth', 'phone', 'contact_address', 'country',
+                    'id_type', 'id_number']
+        missing = [f for f in required if not data.get(f)]
+        if missing:
+            return Response({'detail': f'Missing fields: {", ".join(missing)}'}, status=400)
+
+        id_type  = data.get('id_type')
+        id_front = request.FILES.get('id_front')
+        id_back  = request.FILES.get('id_back')
+
+        if not id_front:
+            return Response({'detail': 'id_front image is required.'}, status=400)
+        if id_type != AuthorKYC.ID_PASSPORT and not id_back and not kyc.id_back:
+            return Response({'detail': 'id_back is required for this ID type.'}, status=400)
+
+        kyc.full_name       = data['full_name']
+        kyc.date_of_birth   = data['date_of_birth']
+        kyc.phone           = data['phone']
+        kyc.contact_address = data['contact_address']
+        kyc.country         = data['country']
+        kyc.id_type         = id_type
+        kyc.id_number       = data['id_number']
+        if id_front:
+            kyc.id_front = id_front
+        if id_back:
+            kyc.id_back = id_back
+
+        for field in ['payment_method', 'account_holder', 'bank_name',
+                      'account_number', 'swift_code', 'bank_country', 'paypal_email']:
+            if data.get(field):
+                setattr(kyc, field, data[field])
+
+        kyc.status           = AuthorKYC.STATUS_PENDING
+        kyc.rejection_reason = ''
+        kyc.save()
+        return Response({'ok': True, 'id': kyc.pk, 'status': kyc.status}, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def kyc_app_redirect(request):
+    """
+    GET /api/users/kyc/app-redirect/
+    Returns the deep link for the mobile app's KYC screen.
+    """
+    return Response({'deep_link': 'novelux://author/kyc'})

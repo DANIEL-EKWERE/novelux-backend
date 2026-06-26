@@ -30,7 +30,7 @@ python manage.py collectstatic --no-input
 #python manage.py migrate chapters
 
 # 2. Run your seed script
-#python manage.py seed_data
+python manage.py seed_data
 
 # # Create the fix_word_counts management command
 # mkdir -p apps/chapters/management/commands

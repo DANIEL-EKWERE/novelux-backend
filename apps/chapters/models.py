@@ -895,6 +895,44 @@ class ChapterUnlock(models.Model):
         unique_together = ('user', 'chapter')
 
 
+class ChapterEditRequest(models.Model):
+    """
+    Holds a pending edit for a published chapter.
+    The live chapter is untouched until SE approves.
+    """
+    STATUS_PENDING  = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES  = [
+        (STATUS_PENDING,  'Pending SE Review'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
+    chapter         = models.ForeignKey(Chapter, on_delete=models.CASCADE,
+                          related_name='edit_requests')
+    author          = models.ForeignKey(User, on_delete=models.CASCADE,
+                          related_name='chapter_edit_requests')
+    pending_title   = models.CharField(max_length=255, blank=True)
+    pending_content = RichTextField()
+    status          = models.CharField(max_length=10, choices=STATUS_CHOICES,
+                          default=STATUS_PENDING, db_index=True)
+    se_note         = models.TextField(blank=True,
+                          help_text='SE feedback to the author on this edit.')
+    reviewed_by     = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                          related_name='chapter_edit_reviews',
+                          limit_choices_to={'role__in': ['se', 'ce']})
+    submitted_at    = models.DateTimeField(auto_now_add=True)
+    reviewed_at     = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'chapter_edit_requests'
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f'Edit request — {self.chapter} [{self.status}]'
+
+
 class FreeChapterSchedule(models.Model):
     """One free chapter per story per day for a user."""
     user       = models.ForeignKey(User, on_delete=models.CASCADE)

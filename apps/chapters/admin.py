@@ -49,3 +49,14 @@ class ChapterUnlockAdmin(admin.ModelAdmin):
     list_display   = ['user', 'chapter', 'coins_spent', 'created_at']
     search_fields  = ['user__username', 'chapter__title']
     readonly_fields = ['user', 'chapter', 'coins_spent', 'created_at']
+
+
+from .models import ChapterEditRequest
+
+@admin.register(ChapterEditRequest)
+class ChapterEditRequestAdmin(admin.ModelAdmin):
+    list_display    = ['chapter', 'author', 'status', 'reviewed_by', 'submitted_at', 'reviewed_at']
+    list_filter     = ['status']
+    search_fields   = ['author__username', 'chapter__title', 'chapter__story__title']
+    readonly_fields = ['submitted_at', 'reviewed_at', 'author', 'chapter', 'pending_content']
+    raw_id_fields   = ['reviewed_by']

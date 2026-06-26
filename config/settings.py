@@ -349,22 +349,43 @@ STRIPE_PUBLIC_KEY = config('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
 
+# ── In-App Purchase (IAP) ─────────────────────────────────────────────────────
+# Apple: shared secret from App Store Connect → My Apps → In-App Purchases
+APPLE_IAP_SHARED_SECRET = config('APPLE_IAP_SHARED_SECRET', default='')
+# Google: service account JSON key (paste full JSON as a single-line env var)
+GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = config('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', default='')
+GOOGLE_PLAY_PACKAGE_NAME = config('GOOGLE_PLAY_PACKAGE_NAME', default='com.novelux.app')
+
 # ── Coin System ──────────────────────────────────────────────────────────────
 COIN_PACKAGES = [
     {'id': 'coins_100',  'coins': 100,  'price_usd': 0.99,  'label': '100 Coins'},
-    {'id': 'coins_500',  'coins': 500,  'price_usd': 3.99,  'label': '500 Coins'},
-    {'id': 'coins_1200', 'coins': 1200, 'price_usd': 8.99,  'label': '1200 Coins'},
-    {'id': 'coins_2500', 'coins': 2500, 'price_usd': 14.99, 'label': '2500 Coins'},
-    {'id': 'coins_5000', 'coins': 5000, 'price_usd': 24.99, 'label': '5000 Coins'},
+    {'id': 'coins_500',  'coins': 500,  'price_usd': 4.99,  'label': '500 Coins'},
+    {'id': 'coins_1000', 'coins': 1000, 'price_usd': 9.99,  'label': '1,000 Coins'},
+    {'id': 'coins_2500', 'coins': 2500, 'price_usd': 24.99, 'label': '2,500 Coins'},
+    {'id': 'coins_5000', 'coins': 5000, 'price_usd': 49.99, 'label': '5,000 Coins'},
 ]
 
 SUBSCRIPTION_PLANS = [
-    {'id': 'vip_monthly', 'label': 'VIP Monthly', 'price_usd': 9.99,  'coins_per_month': 1000, 'discount_pct': 20},
-    {'id': 'vip_yearly',  'label': 'VIP Yearly',  'price_usd': 89.99, 'coins_per_month': 1200, 'discount_pct': 30},
+    {'id': 'vip_weekly',    'label': 'VIP Weekly',    'price_usd': 10.99,  'original_price_usd': 12.25,  'coins_per_month': 1375,  'bonus_coins': 25,  'discount_pct': 10, 'duration_days': 7},
+    {'id': 'vip_monthly',   'label': 'VIP Monthly',   'price_usd': 43.99,  'original_price_usd': 48.99,  'coins_per_month': 5500,  'bonus_coins': 100, 'discount_pct': 10, 'duration_days': 30},
+    {'id': 'vip_quarterly', 'label': 'VIP Quarterly', 'price_usd': 260.99, 'original_price_usd': 263.94, 'coins_per_month': 33000, 'bonus_coins': 200, 'discount_pct': 1,  'duration_days': 90},
+    {'id': 'vip_yearly',    'label': 'VIP Yearly',    'price_usd': 479.99, 'original_price_usd': 587.88, 'coins_per_month': 66000, 'bonus_coins': 300, 'discount_pct': 18, 'duration_days': 365},
 ]
 
-AUTHOR_REVENUE_SHARE = 0.30   # 30%
-TIP_AUTHOR_SHARE     = 0.30   # 30% of tip goes to author
+AUTHOR_REVENUE_SHARE = 0.25   # 25% paid out to author (50% pool held by platform)
+TIP_AUTHOR_SHARE     = 0.25   # 25% of tip goes to author
+
+# ── Celery Beat Schedule ──────────────────────────────────────────────────────
+CELERY_BEAT_SCHEDULE = {
+    'expire-promotions-hourly': {
+        'task':     'apps.editorial.tasks.expire_promotions',
+        'schedule': 3600,   # every hour
+    },
+    'send-promotion-reminders-daily': {
+        'task':     'apps.editorial.tasks.send_promotion_reminders',
+        'schedule': 86400,  # every 24 hours
+    },
+}
 
 # ── API Docs ─────────────────────────────────────────────────────────────────
 SPECTACULAR_SETTINGS = {

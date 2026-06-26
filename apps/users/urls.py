@@ -17,4 +17,6 @@ urlpatterns = [
     path('save-fcm-token/',            views.SaveFCMToken.as_view(), name='save-fcm-token'),
     path('google/',                    views.GoogleSignInView.as_view(),  name='google-signin'),
     path('preferences/',               views.UserPreferencesView.as_view(), name='user-preferences'),
+    path('kyc/',                       views.KYCView.as_view(),            name='kyc'),
+    path('kyc/app-redirect/',          views.kyc_app_redirect,             name='kyc-app-redirect'),
 ]

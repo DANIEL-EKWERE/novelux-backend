@@ -206,12 +206,32 @@ class Genre(models.Model):
         return self.name
 
 
+class Subgenre(models.Model):
+    """A specific subgenre that belongs to a top-level Genre."""
+    genre = models.ForeignKey(Genre, on_delete=models.CASCADE, related_name='subgenres')
+    name  = models.CharField(max_length=100, unique=True)
+    slug  = models.SlugField(unique=True, max_length=120)
+
+    class Meta:
+        db_table = 'subgenres'
+        ordering = ['name']
+
+    def __str__(self):
+        return f'{self.genre.name} → {self.name}'
+
+
 class Tag(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    slug = models.SlugField(unique=True)
+    name  = models.CharField(max_length=100, unique=True)
+    slug  = models.SlugField(unique=True, max_length=120)
+    genre = models.ForeignKey(
+        Genre, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tropes',
+        help_text='The genre this trope/tag is most associated with.',
+    )
 
     class Meta:
         db_table = 'tags'
+        ordering = ['name']
 
     def __str__(self):
         return self.name
@@ -266,6 +286,11 @@ class Story(models.Model):
     description     = models.TextField()
     cover_image     = models.ImageField(upload_to='covers/', blank=True, null=True)
     genre           = models.ForeignKey(Genre, on_delete=models.SET_NULL, null=True, related_name='stories')
+    subgenre        = models.ForeignKey(
+        Subgenre, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='stories',
+        help_text='Optional subgenre. Must belong to the selected genre.',
+    )
     tags            = models.ManyToManyField(Tag, blank=True, related_name='stories')
     language        = models.CharField(max_length=5, choices=LANG_CHOICES, default='en')
     status          = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_DRAFT)
@@ -526,3 +551,40 @@ class FeaturedAuthor(models.Model):
 
     def __str__(self):
         return f'Featured: {self.user.username}'
+
+
+class StoryCoverRequest(models.Model):
+    """
+    Holds a pending cover-image change for a published story.
+    The live cover_image is untouched until SE approves.
+    """
+    STATUS_PENDING  = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES  = [
+        (STATUS_PENDING,  'Pending SE Review'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+
+    story        = models.ForeignKey(Story, on_delete=models.CASCADE,
+                       related_name='cover_requests')
+    author       = models.ForeignKey(User, on_delete=models.CASCADE,
+                       related_name='cover_change_requests')
+    pending_cover = models.ImageField(upload_to='covers/pending/')
+    status       = models.CharField(max_length=10, choices=STATUS_CHOICES,
+                       default=STATUS_PENDING, db_index=True)
+    se_note      = models.TextField(blank=True,
+                       help_text='SE feedback to the author on this cover change.')
+    reviewed_by  = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                       related_name='cover_request_reviews',
+                       limit_choices_to={'role__in': ['se', 'ce']})
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at  = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'story_cover_requests'
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f'Cover request — {self.story.title} [{self.status}]'

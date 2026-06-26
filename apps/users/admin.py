@@ -110,14 +110,38 @@ class CoinTransactionAdmin(admin.ModelAdmin):
 
 @admin.register(AuthorKYC)
 class AuthorKYCAdmin(admin.ModelAdmin):
-    list_display   = ['user', 'full_name', 'id_type', 'payment_method', 'status', 'submitted_at']
-    list_filter    = ['status', 'id_type', 'payment_method']
-    search_fields  = ['user__username', 'user__email', 'full_name', 'id_number']
-    readonly_fields = ['submitted_at', 'id_document']
+    list_display    = ['user', 'full_name', 'id_type', 'status', 'overall_match_score',
+                       'age_valid', 'submitted_at', 'reviewed_by']
+    list_filter     = ['status', 'id_type', 'age_valid']
+    search_fields   = ['user__username', 'user__email', 'full_name', 'id_number']
+    readonly_fields = [
+        'submitted_at', 'reviewed_at', 'id_document',
+        'ocr_name', 'ocr_dob', 'ocr_id_number', 'ocr_raw',
+        'name_match_score', 'dob_match', 'overall_match_score', 'age_valid',
+    ]
     fieldsets = (
-        ('Personal', {'fields': ('user', 'full_name', 'phone', 'contact_address', 'country', 'id_type', 'id_number', 'id_document')}),
-        ('Payment',  {'fields': ('payment_method', 'account_holder', 'bank_name', 'account_number', 'swift_code', 'bank_country', 'paypal_email')}),
-        ('Review',   {'fields': ('status', 'admin_notes', 'submitted_at', 'reviewed_at')}),
+        ('Personal', {
+            'fields': ('user', 'full_name', 'date_of_birth', 'phone',
+                       'contact_address', 'country', 'id_type', 'id_number'),
+        }),
+        ('ID Images', {
+            'fields': ('id_front', 'id_back', 'id_document'),
+        }),
+        ('OCR Results', {
+            'fields': ('ocr_name', 'ocr_dob', 'ocr_id_number', 'ocr_raw'),
+            'classes': ('collapse',),
+        }),
+        ('Match Scores', {
+            'fields': ('name_match_score', 'dob_match', 'overall_match_score', 'age_valid'),
+        }),
+        ('Payment', {
+            'fields': ('payment_method', 'account_holder', 'bank_name',
+                       'account_number', 'swift_code', 'bank_country', 'paypal_email'),
+        }),
+        ('Review', {
+            'fields': ('status', 'rejection_reason', 'admin_notes',
+                       'reviewed_by', 'submitted_at', 'reviewed_at'),
+        }),
     )
 
     def save_model(self, request, obj, form, change):

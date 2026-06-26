@@ -28,17 +28,19 @@ class CoinPackage(models.Model):
 
 
 class SubscriptionPlan(models.Model):
-    plan_id           = models.CharField(max_length=50, unique=True)
-    label             = models.CharField(max_length=100)
-    price_usd         = models.DecimalField(max_digits=8, decimal_places=2)
-    coins_per_month   = models.PositiveIntegerField()
-    badge             = models.CharField(max_length=100, blank=True, null=True)
-    is_primary        = models.BooleanField(default=False)
-    sub_title          = models.CharField(max_length=200, blank=True,null=True)
-    discount_pct      = models.PositiveSmallIntegerField(default=0)
-    duration_days     = models.PositiveIntegerField(default=30)
-    stripe_price_id   = models.CharField(max_length=100, blank=True)
-    is_active         = models.BooleanField(default=True)
+    plan_id            = models.CharField(max_length=50, unique=True)
+    label              = models.CharField(max_length=100)
+    price_usd          = models.DecimalField(max_digits=8, decimal_places=2)
+    original_price_usd = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    coins_per_month    = models.PositiveIntegerField()
+    bonus_coins        = models.PositiveIntegerField(default=0)
+    badge              = models.CharField(max_length=100, blank=True, null=True)
+    is_primary         = models.BooleanField(default=False)
+    sub_title          = models.CharField(max_length=200, blank=True, null=True)
+    discount_pct       = models.PositiveSmallIntegerField(default=0)
+    duration_days      = models.PositiveIntegerField(default=30)
+    stripe_price_id    = models.CharField(max_length=100, blank=True)
+    is_active          = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'subscription_plans'
@@ -72,9 +74,10 @@ class Purchase(models.Model):
     subscription_plan = models.ForeignKey(SubscriptionPlan, on_delete=models.SET_NULL, null=True, blank=True)
     coins_granted     = models.PositiveIntegerField(default=0)
     amount_paid_usd   = models.DecimalField(max_digits=10, decimal_places=2)
-    stripe_payment_id = models.CharField(max_length=200, blank=True)
-    stripe_session_id = models.CharField(max_length=200, blank=True)
-    status            = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    stripe_payment_id  = models.CharField(max_length=200, blank=True)
+    stripe_session_id  = models.CharField(max_length=200, blank=True)
+    iap_transaction_id = models.CharField(max_length=200, blank=True, db_index=True)
+    status             = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
     created_at        = models.DateTimeField(auto_now_add=True)
     completed_at      = models.DateTimeField(blank=True, null=True)
 

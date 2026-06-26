@@ -13,6 +13,7 @@ urlpatterns = [
     path('african-folktale/',           views.AfricanFolktaleStoriesView.as_view()),
     path('bookmarks/',                  views.MyBookmarksView.as_view()),
     path('genres/',                     views.GenreListView.as_view()),
+    path('subgenres/',                  views.SubgenreListView.as_view()),
     path('tags/',                       views.TagListView.as_view()),
     path('banners/',           views.PromoBannersView.as_view(),      name='promo-banners'),
     path('short-stories/',     views.ShortStoriesView.as_view(),      name='short-stories'),

@@ -685,29 +685,251 @@ class ReadingScheduleView(APIView):
 
 
 class VerifyPurchaseView(APIView):
-     permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
-     def post(self, request):
-         product_id  = request.data.get('product_id')
-         receipt     = request.data.get('receipt')
-         platform    = request.data.get('platform', 'android')
-         purchase_id = request.data.get('purchase_id', '')
+    # Maps store product_id → coin pack details
+    COIN_PRODUCTS = {
+        'novelux_coins_100':  {'coins': 100,  'price': 0.99},
+        'novelux_coins_500':  {'coins': 500,  'price': 4.99},
+        'novelux_coins_1000': {'coins': 1000, 'price': 9.99},
+        'novelux_coins_2500': {'coins': 2500, 'price': 24.99},
+        'novelux_coins_5000': {'coins': 5000, 'price': 49.99},
+    }
 
-         # For subscriptions: activate VIP
-         if product_id in ['novelux_vip_monthly', 'novelux_vip_yearly', 'novelux_vip_weekly']:
-             request.user.is_vip = True
-             request.user.vip_plan = product_id
-             request.user.save()
-             return Response({'is_vip': True, 'plan_id': product_id})
+    # Maps store product_id → SubscriptionPlan.plan_id
+    VIP_PRODUCTS = {
+        'novelux_vip_weekly':    'vip_weekly',
+        'novelux_vip_monthly':   'vip_monthly',
+        'novelux_vip_quarterly': 'vip_quarterly',
+        'novelux_vip_yearly':    'vip_yearly',
+    }
 
-         # For coin packs: credit coins
-         coin_map = {
-             'novelux_coins_100':  100,
-             'novelux_coins_500':  500,
-             'novelux_coins_1200': 1200,
-             'novelux_coins_3000': 3000,
-         }
-         coins = coin_map.get(product_id, 0)
-         if coins > 0:
-             request.user.add_coins(coins)
-         return Response({'coins_granted': coins})
+    def post(self, request):
+        product_id     = request.data.get('product_id', '')
+        receipt        = request.data.get('receipt', '')        # iOS base64 receipt
+        purchase_token = request.data.get('purchase_token', '') # Android purchase token
+        platform       = request.data.get('platform', '').lower()
+
+        if not product_id or platform not in ('ios', 'android'):
+            return Response(
+                {'error': 'product_id and platform (ios/android) are required'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if platform == 'ios':
+            return self._handle_ios(request.user, product_id, receipt)
+        return self._handle_android(request.user, product_id, purchase_token)
+
+    # ── iOS ───────────────────────────────────────────────────────────────────
+
+    def _handle_ios(self, user, product_id, receipt):
+        result = self._verify_apple_receipt(receipt)
+        if result is None or result.get('status') != 0:
+            return Response(
+                {'error': 'Apple receipt verification failed'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        in_app   = result.get('receipt', {}).get('in_app', [])
+        latest   = result.get('latest_receipt_info', [])
+        all_txns = in_app + (latest if isinstance(latest, list) else [])
+
+        txn = next((t for t in all_txns if t.get('product_id') == product_id), None)
+        if txn is None:
+            return Response(
+                {'error': 'Product not found in receipt'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transaction_id = txn.get('transaction_id', '')
+        return self._grant(user, product_id, transaction_id)
+
+    def _verify_apple_receipt(self, receipt_data):
+        import requests as req
+        payload = {'receipt-data': receipt_data, 'exclude-old-transactions': True}
+        secret  = settings.APPLE_IAP_SHARED_SECRET
+        if secret:
+            payload['password'] = secret
+        try:
+            for url in [
+                'https://buy.itunes.apple.com/verifyReceipt',
+                'https://sandbox.itunes.apple.com/verifyReceipt',
+            ]:
+                r    = req.post(url, json=payload, timeout=10)
+                data = r.json()
+                if data.get('status') == 21007:
+                    continue   # sandbox receipt sent to production — retry sandbox
+                return data
+        except Exception:
+            return None
+        return None
+
+    # ── Android ───────────────────────────────────────────────────────────────
+
+    def _handle_android(self, user, product_id, purchase_token):
+        if not purchase_token:
+            return Response(
+                {'error': 'purchase_token is required for Android'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_sub = product_id in self.VIP_PRODUCTS
+        result = self._verify_google_purchase(product_id, purchase_token, is_sub)
+        if result is None:
+            return Response(
+                {'error': 'Google Play purchase verification failed'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if is_sub:
+            # paymentState: 1=received, 2=free trial
+            if result.get('paymentState', 0) not in (1, 2):
+                return Response(
+                    {'error': 'Subscription payment not complete'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # purchaseState: 0=purchased
+            if result.get('purchaseState', 1) != 0:
+                return Response(
+                    {'error': 'Purchase not completed'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        transaction_id = result.get('orderId', purchase_token)
+        self._acknowledge_google_purchase(product_id, purchase_token, is_sub)
+        return self._grant(user, product_id, transaction_id)
+
+    def _verify_google_purchase(self, product_id, purchase_token, is_subscription):
+        import json
+        from google.oauth2 import service_account
+        import google.auth.transport.requests
+
+        sa_json  = settings.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        package  = settings.GOOGLE_PLAY_PACKAGE_NAME
+        if not sa_json or not package:
+            return None
+        try:
+            creds = service_account.Credentials.from_service_account_info(
+                json.loads(sa_json),
+                scopes=['https://www.googleapis.com/auth/androidpublisher'],
+            )
+            session = google.auth.transport.requests.AuthorizedSession(creds)
+            base    = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}'
+            if is_subscription:
+                url = f'{base}/purchases/subscriptions/{product_id}/tokens/{purchase_token}'
+            else:
+                url = f'{base}/purchases/products/{product_id}/tokens/{purchase_token}'
+            r = session.get(url, timeout=10)
+            if r.status_code == 200:
+                return r.json()
+        except Exception:
+            pass
+        return None
+
+    def _acknowledge_google_purchase(self, product_id, purchase_token, is_subscription):
+        """Acknowledge within 3 days or Google auto-refunds."""
+        import json
+        from google.oauth2 import service_account
+        import google.auth.transport.requests
+
+        sa_json = settings.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+        package = settings.GOOGLE_PLAY_PACKAGE_NAME
+        if not sa_json or not package:
+            return
+        try:
+            creds = service_account.Credentials.from_service_account_info(
+                json.loads(sa_json),
+                scopes=['https://www.googleapis.com/auth/androidpublisher'],
+            )
+            session = google.auth.transport.requests.AuthorizedSession(creds)
+            base    = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}'
+            if is_subscription:
+                url = f'{base}/purchases/subscriptions/{product_id}/tokens/{purchase_token}:acknowledge'
+            else:
+                url = f'{base}/purchases/products/{product_id}/tokens/{purchase_token}:acknowledge'
+            session.post(url, json={}, timeout=10)
+        except Exception:
+            pass
+
+    # ── Grant ─────────────────────────────────────────────────────────────────
+
+    def _grant(self, user, product_id, transaction_id):
+        # Replay protection: reject a transaction ID we've already processed
+        if transaction_id and Purchase.objects.filter(iap_transaction_id=transaction_id).exists():
+            return Response(
+                {'error': 'This purchase has already been redeemed'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if product_id in self.COIN_PRODUCTS:
+            return self._grant_coins(user, product_id, transaction_id)
+        if product_id in self.VIP_PRODUCTS:
+            return self._grant_vip(user, product_id, transaction_id)
+
+        return Response(
+            {'error': f'Unknown product: {product_id}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def _grant_coins(self, user, product_id, transaction_id):
+        meta = self.COIN_PRODUCTS[product_id]
+        Purchase.objects.create(
+            user=user,
+            purchase_type=Purchase.TYPE_COIN_PACK,
+            coins_granted=meta['coins'],
+            amount_paid_usd=meta['price'],
+            iap_transaction_id=transaction_id,
+            status=Purchase.STATUS_COMPLETED,
+            completed_at=timezone.now(),
+        )
+        user.add_coins(meta['coins'], reason=f'IAP coin pack: {product_id}')
+        return Response({
+            'coins_granted': meta['coins'],
+            'new_balance': user.coin_balance,
+        })
+
+    def _grant_vip(self, user, product_id, transaction_id):
+        from datetime import timedelta
+        plan_id = self.VIP_PRODUCTS[product_id]
+        try:
+            plan = SubscriptionPlan.objects.get(plan_id=plan_id, is_active=True)
+        except SubscriptionPlan.DoesNotExist:
+            return Response(
+                {'error': 'Subscription plan not found'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        expires_at  = timezone.now() + timedelta(days=plan.duration_days)
+        total_coins = plan.coins_per_month + plan.bonus_coins
+
+        Purchase.objects.create(
+            user=user,
+            purchase_type=Purchase.TYPE_SUBSCRIPTION,
+            subscription_plan=plan,
+            coins_granted=total_coins,
+            amount_paid_usd=plan.price_usd,
+            iap_transaction_id=transaction_id,
+            status=Purchase.STATUS_COMPLETED,
+            completed_at=timezone.now(),
+        )
+        Subscription.objects.update_or_create(
+            user=user,
+            defaults={
+                'plan': plan,
+                'expires_at': expires_at,
+                'is_active': True,
+                'auto_renew': True,
+            },
+        )
+        user.is_vip    = True
+        user.vip_expires = expires_at
+        user.save(update_fields=['is_vip', 'vip_expires'])
+        user.add_coins(total_coins, reason=f'IAP VIP: {plan.label}')
+
+        return Response({
+            'is_vip': True,
+            'plan_id': plan_id,
+            'expires_at': expires_at.isoformat(),
+            'coins_granted': total_coins,
+        })

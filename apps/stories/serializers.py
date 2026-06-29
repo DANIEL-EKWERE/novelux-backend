@@ -1,7 +1,14 @@
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import FeaturedAuthor, PromoBanner, Story, Genre, Subgenre, Tag, Bookmark, ReadingProgress, Rating
+from .models import FeaturedAuthor, PromoBanner, Story, Genre, Subgenre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter
 from apps.users.serializers import PublicUserSerializer
+
+
+class StoryCharacterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = StoryCharacter
+        fields = ['id', 'name', 'role', 'age', 'gender', 'description', 'image', 'order']
+        read_only_fields = ['id']
 
 
 class SubgenreSerializer(serializers.ModelSerializer):
@@ -46,6 +53,7 @@ class StoryListSerializer(serializers.ModelSerializer):
     genre              = GenreSerializer(read_only=True)
     subgenre           = SubgenreSerializer(read_only=True)
     tags               = TagSerializer(many=True, read_only=True)
+    story_characters   = StoryCharacterSerializer(many=True, read_only=True)
     all_chapters_count = serializers.SerializerMethodField()
     can_apply_contract = serializers.SerializerMethodField()
     rejection_reason   = serializers.SerializerMethodField()
@@ -59,7 +67,7 @@ class StoryListSerializer(serializers.ModelSerializer):
             'average_rating', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',
             'free_until', 'is_free_download',
             'all_chapters_count', 'contract_status', 'contract_eligible', 'can_apply_contract',
-            'rejection_reason',
+            'rejection_reason', 'story_characters',
         ]
 
     def get_all_chapters_count(self, obj):
@@ -81,12 +89,13 @@ class StoryListSerializer(serializers.ModelSerializer):
             return None
 
 class StoryDetailSerializer(serializers.ModelSerializer):
-    author          = PublicUserSerializer(read_only=True)
-    genre           = GenreSerializer(read_only=True)
-    tags            = TagSerializer(many=True, read_only=True)
-    is_bookmarked   = serializers.SerializerMethodField()
-    user_rating     = serializers.SerializerMethodField()
-    reading_progress= serializers.SerializerMethodField()
+    author           = PublicUserSerializer(read_only=True)
+    genre            = GenreSerializer(read_only=True)
+    tags             = TagSerializer(many=True, read_only=True)
+    story_characters = StoryCharacterSerializer(many=True, read_only=True)
+    is_bookmarked    = serializers.SerializerMethodField()
+    user_rating      = serializers.SerializerMethodField()
+    reading_progress = serializers.SerializerMethodField()
 
     class Meta:
         model  = Story

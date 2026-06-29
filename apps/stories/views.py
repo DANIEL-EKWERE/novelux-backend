@@ -415,10 +415,10 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db.models import F
-from .models import BookRequest, PromoBanner, Story, Genre, Tag, Bookmark, ReadingProgress, Rating
+from .models import BookRequest, PromoBanner, Story, Genre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter
 from .serializers import (
     PromoBannerSerializer, PromoBannerSerializer, StoryListSerializer, StoryDetailSerializer, StoryCreateUpdateSerializer,
-    GenreSerializer, TagSerializer, RatingSerializer
+    GenreSerializer, TagSerializer, RatingSerializer, StoryCharacterSerializer
 )
 from .filters import StoryFilter
 from apps.users.permissions import IsAuthorOrReadOnly
@@ -936,6 +936,63 @@ class BookRequestView(APIView):
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
+
+# ── Story Characters ───────────────────────────────────────────────────────────
+
+class StoryCharactersView(APIView):
+    """
+    GET  /api/stories/<slug>/characters/  — list characters (public)
+    POST /api/stories/<slug>/characters/  — add a character (author only, multipart)
+    """
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get(self, request, slug):
+        story = get_object_or_404(Story, slug=slug)
+        chars = story.story_characters.all()
+        return Response(StoryCharacterSerializer(chars, many=True, context={'request': request}).data)
+
+    def post(self, request, slug):
+        story = get_object_or_404(Story, slug=slug, author=request.user)
+        serializer = StoryCharacterSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(story=story)
+        return Response(serializer.data, status=201)
+
+
+class StoryCharacterDetailView(APIView):
+    """
+    PATCH  /api/stories/<slug>/characters/<pk>/  — update a character (author only, multipart)
+    DELETE /api/stories/<slug>/characters/<pk>/  — delete a character (author only)
+    """
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_character(self, slug, pk, user):
+        return get_object_or_404(StoryCharacter, pk=pk, story__slug=slug, story__author=user)
+
+    def patch(self, request, slug, pk):
+        char = self._get_character(slug, pk, request.user)
+        serializer = StoryCharacterSerializer(
+            char, data=request.data, partial=True, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, slug, pk):
+        char = self._get_character(slug, pk, request.user)
+        if char.image:
+            char.image.delete(save=False)
+        char.delete()
+        return Response(status=204)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

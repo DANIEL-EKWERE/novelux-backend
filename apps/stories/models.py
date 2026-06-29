@@ -389,6 +389,34 @@ class Story(models.Model):
         return self.title
 
 
+class StoryCharacter(models.Model):
+    ROLE_CHOICES = [
+        ('protagonist', 'Protagonist'),
+        ('antagonist',  'Antagonist'),
+        ('supporting',  'Supporting'),
+        ('love_interest', 'Love Interest'),
+        ('mentor',      'Mentor'),
+        ('villain',     'Villain'),
+        ('other',       'Other'),
+    ]
+
+    story       = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='story_characters')
+    name        = models.CharField(max_length=100)
+    role        = models.CharField(max_length=20, choices=ROLE_CHOICES, blank=True, default='')
+    age         = models.PositiveSmallIntegerField(null=True, blank=True)
+    gender      = models.CharField(max_length=30, blank=True, default='')
+    description = models.TextField(blank=True, default='')
+    image       = models.ImageField(upload_to='characters/', blank=True, null=True)
+    order       = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        db_table = 'story_characters'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.name} ({self.story.title})'
+
+
 class Bookmark(models.Model):
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
     story      = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='bookmarked_by')

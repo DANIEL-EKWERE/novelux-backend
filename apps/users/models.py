@@ -822,6 +822,13 @@ class User(AbstractUser):
         db_index=True,
     )
 
+    # Unique public ID for author accounts, shown on dashboards and used for search.
+    author_code = models.CharField(
+        max_length=12, unique=True, blank=True, null=True,
+        help_text='Unique public ID for author accounts (e.g. A-NLX4K8P).',
+        db_index=True,
+    )
+
     # Reading stats
     total_chapters_read = models.PositiveIntegerField(default=0)
     reading_xp          = models.PositiveIntegerField(default=0)
@@ -907,6 +914,21 @@ class User(AbstractUser):
             if not User.objects.filter(editor_code=code).exists():
                 self.editor_code = code
                 self.save(update_fields=['editor_code'])
+                return code
+
+    def generate_author_code(self):
+        """Generate a unique public author code (e.g. A-NLX4K8P) for author accounts."""
+        import string
+        if self.role != self.ROLE_AUTHOR:
+            return None
+        if self.author_code:
+            return self.author_code
+        chars = string.ascii_uppercase + string.digits
+        while True:
+            code = 'A-' + ''.join(secrets.choice(chars) for _ in range(7))
+            if not User.objects.filter(author_code=code).exists():
+                self.author_code = code
+                self.save(update_fields=['author_code'])
                 return code
 
 

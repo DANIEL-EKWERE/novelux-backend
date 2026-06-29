@@ -344,6 +344,7 @@ class BecomeAuthorView(APIView):
         user.role = User.ROLE_AUTHOR
         user.save()
         AuthorProfile.objects.get_or_create(user=user)
+        user.generate_author_code()
 
         # Link to Senior Editor
         from apps.editorial.models import AuthorEditorLink

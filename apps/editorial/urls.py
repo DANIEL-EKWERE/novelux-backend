@@ -9,6 +9,7 @@ urlpatterns = [
     path('story-queue/<slug:slug>/', views.SEStoryDetailView.as_view(), name='story-detail'),
     path('story-queue/<slug:slug>/approve/', views.se_approve_story, name='story-approve'),
     path('story-queue/<slug:slug>/reject/', views.se_reject_story, name='story-reject'),
+    path('story-queue/<slug:slug>/reopen/', views.se_reopen_story, name='story-reopen'),
     path('story-queue/<slug:slug>/escalate/', views.se_escalate_story_to_ce, name='story-escalate'),
     path('story-queue/<slug:slug>/mark-complete/', views.se_mark_story_complete, name='story-mark-complete'),
     path('story-queue/<slug:slug>/set-lock/', views.se_set_lock_chapter, name='story-set-lock'),

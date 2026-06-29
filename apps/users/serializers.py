@@ -153,7 +153,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
         fields = [
-            'id', 'username', 'display_name', 'first_name', 'last_name', 'email', 'role',
+            'id', 'author_code', 'username', 'display_name', 'first_name', 'last_name', 'email', 'role',
             'avatar', 'bio', 'coin_balance', 'is_vip', 'vip_expires',
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
@@ -186,7 +186,7 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = User
-        fields = ['id', 'username', 'display_name', 'avatar', 'bio', 'role',
+        fields = ['id', 'author_code', 'username', 'display_name', 'avatar', 'bio', 'role',
                   'reading_level', 'author_profile', 'followers_count']
 
     def get_followers_count(self, obj):

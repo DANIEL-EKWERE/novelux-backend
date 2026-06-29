@@ -430,7 +430,7 @@ class StoryListCreateView(generics.ListCreateAPIView):
     queryset         = Story.objects.select_related('author', 'genre').prefetch_related('tags')
     filter_backends  = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_class  = StoryFilter
-    search_fields    = ['title', 'description', 'author__username', 'tags__name']
+    search_fields    = ['book_code', 'title', 'description', 'author__username', 'tags__name', 'author__author_code']
     ordering_fields  = ['created_at', 'total_views', 'average_rating', 'total_chapters', 'total_comments', 'word_count', 'total_tips', 'status']
     ordering         = ['-created_at']
 

@@ -53,7 +53,7 @@ class StoryListSerializer(serializers.ModelSerializer):
     class Meta:
         model  = Story
         fields = [
-            'id', 'title', 'slug', 'cover_image', 'synopsis', 'description', 'story_outline',
+            'id', 'book_code', 'title', 'slug', 'cover_image', 'synopsis', 'description', 'story_outline',
             'author', 'genre', 'subgenre', 'tags', 'language', 'status',
             'total_views', 'total_chapters', 'total_comments', 'word_count', 'target_word_count',
             'average_rating', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',

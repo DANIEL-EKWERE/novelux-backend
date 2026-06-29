@@ -1896,20 +1896,43 @@ User = get_user_model()
 # ─── Story-level SE review ────────────────────────────────────────────────────
 
 class SEStoryQueueView(generics.ListAPIView):
-    """GET /api/editorial/story-queue/ — stories awaiting SE review."""
+    """GET /api/editorial/story-queue/?status=&search=
+    Returns stories linked to this SE.
+    status param: 'pending' (under_review), 'rejected', or empty/all (both sections).
+    Each result includes a queue_section field: 'pending' | 'rejected'.
+    """
     permission_classes = [IsSE]
 
     def get(self, request, *args, **kwargs):
         from apps.stories.models import Story
         from apps.editorial.models import ContractApplication
+        from django.db.models import Q
 
-        stories = Story.objects.filter(
-            contract_status__in=['under_review', 'rejected'],
+        # Determine which contract statuses to fetch
+        status_param = request.query_params.get('status', '').strip().lower()
+        if status_param == 'pending':
+            status_filter = ['under_review']
+        elif status_param == 'rejected':
+            status_filter = ['rejected']
+        else:
+            status_filter = ['under_review', 'rejected']
+
+        qs = Story.objects.filter(
+            contract_status__in=status_filter,
             author__editor_link__assigned_se=request.user,
         ).select_related('author').prefetch_related('chapters').order_by('-updated_at')
 
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(book_code__iexact=search)
+                | Q(title__icontains=search)
+                | Q(author__username__icontains=search)
+                | Q(author__author_code__iexact=search)
+            )
+
         data = []
-        for s in stories:
+        for s in qs:
             chapters = list(
                 s.chapters.order_by('chapter_number').values(
                     'id', 'chapter_number', 'title', 'status',
@@ -1931,6 +1954,7 @@ class SEStoryQueueView(generics.ListAPIView):
             data.append({
                 'id':              s.id,
                 'slug':            s.slug,
+                'book_code':       s.book_code,
                 'title':           s.title,
                 'synopsis':        s.synopsis,
                 'description':     s.description,
@@ -1938,10 +1962,13 @@ class SEStoryQueueView(generics.ListAPIView):
                 'cover_image':     s.cover_image.url if s.cover_image else '',
                 'status':          s.status,
                 'contract_status': s.contract_status,
+                # Tells the frontend which tab/section this story belongs to
+                'queue_section':   'rejected' if s.contract_status == 'rejected' else 'pending',
                 'word_count':      s.word_count,
                 'total_chapters':  s.chapters.count(),
                 'author': {
                     'id':           s.author.id,
+                    'author_code':  s.author.author_code or '',
                     'username':     s.author.username,
                     'display_name': s.author.get_full_name() or s.author.username,
                     'email':        s.author.email,
@@ -1956,7 +1983,15 @@ class SEStoryQueueView(generics.ListAPIView):
                 'submitted_at': s.updated_at,
             })
 
-        return Response({'count': len(data), 'results': data})
+        pending_count  = sum(1 for d in data if d['queue_section'] == 'pending')
+        rejected_count = sum(1 for d in data if d['queue_section'] == 'rejected')
+
+        return Response({
+            'count':          len(data),
+            'pending_count':  pending_count,
+            'rejected_count': rejected_count,
+            'results':        data,
+        })
 
 
 class SEStoryDetailView(APIView):
@@ -1989,9 +2024,17 @@ class SEStoryDetailView(APIView):
         except ContractApplication.DoesNotExist:
             application = None
 
+        try:
+            app = story.contract_application
+            rejection_reason = app.rejection_reason or app.se_note or ''
+        except Exception:
+            rejection_reason = ''
+
         return Response({
             'id':                  story.id,
             'slug':                story.slug,
+            'book_code':           story.book_code,
+            'queue_section':       'rejected' if story.contract_status == 'rejected' else 'pending',
             'title':               story.title,
             'synopsis':            story.synopsis,
             'story_outline':       story.story_outline,
@@ -1999,6 +2042,7 @@ class SEStoryDetailView(APIView):
             'cover_image':         story.cover_image.url if story.cover_image else '',
             'status':              story.status,
             'contract_status':     story.contract_status,
+            'rejection_reason':    rejection_reason,
             'word_count':          story.word_count,
             'total_chapters':      story.chapters.count(),
             'tags':                list(story.tags.values('id', 'name')),
@@ -2010,6 +2054,7 @@ class SEStoryDetailView(APIView):
             'is_free_download':    story.is_free_download,
             'author': {
                 'id':           story.author.id,
+                'author_code':  story.author.author_code or '',
                 'username':     story.author.username,
                 'display_name': story.author.get_full_name() or story.author.username,
                 'email':        story.author.email,
@@ -2135,6 +2180,58 @@ def se_reject_story(request, slug):
         pass
 
     return Response({'status': action, 'story': story.slug})
+
+
+@api_view(['POST'])
+@permission_classes([IsSE])
+def se_reopen_story(request, slug):
+    """POST /api/editorial/story-queue/<slug>/reopen/
+    SE moves a rejected story back to under_review so it re-enters the review pipeline.
+    Optional body: { note: "reason for reopening" }
+    """
+    from apps.stories.models import Story
+    from apps.editorial.models import ContractApplication
+
+    story = get_object_or_404(
+        Story, slug=slug,
+        author__editor_link__assigned_se=request.user,
+        contract_status='rejected',
+    )
+
+    note = request.data.get('note', '').strip()
+
+    story.contract_status = 'under_review'
+    story.save(update_fields=['contract_status'])
+
+    try:
+        app = story.contract_application
+        app.status = ContractApplication.STATUS_SE_REVIEW
+        if note:
+            app.se_note = note
+        app.save(update_fields=['status', 'se_note'])
+    except ContractApplication.DoesNotExist:
+        ContractApplication.objects.create(
+            story=story,
+            author=story.author,
+            assigned_se=request.user,
+            status=ContractApplication.STATUS_SE_REVIEW,
+            se_note=note,
+        )
+
+    try:
+        from apps.notifications.services import create_notification
+        from apps.notifications.models import Notification
+        create_notification(
+            user=story.author,
+            notification_type=Notification.TYPE_SYSTEM,
+            title='Your story is under review again',
+            message=f'"{story.title}" has been reopened for review by your editor.',
+            data={'screen': 'my_books', 'slug': story.slug},
+        )
+    except Exception:
+        pass
+
+    return Response({'status': 'reopened', 'story': story.slug})
 
 
 @api_view(['POST'])
@@ -2275,13 +2372,23 @@ class CEStoryQueueView(APIView):
     def get(self, request):
         from apps.stories.models import Story
         from apps.editorial.models import ContractApplication
+        from django.db.models import Q
 
-        stories = Story.objects.filter(
+        qs = Story.objects.filter(
             contract_status='contract_sent',
         ).select_related('author').prefetch_related('chapters').order_by('-updated_at')
 
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(book_code__iexact=search)
+                | Q(title__icontains=search)
+                | Q(author__username__icontains=search)
+                | Q(author__author_code__iexact=search)
+            )
+
         data = []
-        for s in stories:
+        for s in qs:
             chapters = list(
                 s.chapters.order_by('chapter_number').values(
                     'id', 'chapter_number', 'title', 'status', 'word_count', 'created_at',
@@ -2308,6 +2415,7 @@ class CEStoryQueueView(APIView):
             data.append({
                 'id':              s.id,
                 'slug':            s.slug,
+                'book_code':       s.book_code,
                 'title':           s.title,
                 'synopsis':        s.synopsis,
                 'description':     s.description,
@@ -2319,6 +2427,7 @@ class CEStoryQueueView(APIView):
                 'total_chapters':  s.chapters.count(),
                 'author': {
                     'id':           s.author.id,
+                    'author_code':  s.author.author_code or '',
                     'username':     s.author.username,
                     'display_name': s.author.get_full_name() or s.author.username,
                     'email':        s.author.email,
@@ -3588,15 +3697,26 @@ def se_author_balances(request):
     from django.utils import timezone
 
     now = timezone.now()
+    from django.db.models import Q as _Q
+
     profiles = AuthorProfile.objects.filter(
         user__editor_link__assigned_se=request.user
     ).select_related('user', 'balance_approved_by')
+
+    search = request.query_params.get('search', '').strip()
+    if search:
+        profiles = profiles.filter(
+            _Q(user__username__icontains=search)
+            | _Q(user__author_code__iexact=search)
+            | _Q(pen_name__icontains=search)
+        )
 
     results = []
     for p in profiles:
         visible = p.balance_is_visible()
         results.append({
             'author_id':         p.user_id,
+            'author_code':       p.user.author_code or '',
             'username':          p.user.username,
             'pen_name':          p.pen_name,
             'balance_visible':   visible,
@@ -3625,13 +3745,25 @@ def se_my_stories(request):
     Lightweight list used for flag / promotion modals.
     """
     from apps.stories.models import Story
-    stories = Story.objects.filter(
+    from django.db.models import Q
+
+    qs = Story.objects.filter(
         author__editor_link__assigned_se=request.user,
     ).exclude(status=Story.STATUS_DRAFT)\
      .select_related('author')\
-     .order_by('-updated_at')\
-     .values('id', 'slug', 'title', 'contract_status')
-    return Response({'results': list(stories)})
+     .order_by('-updated_at')
+
+    search = request.query_params.get('search', '').strip()
+    if search:
+        qs = qs.filter(
+            Q(book_code__iexact=search)
+            | Q(title__icontains=search)
+            | Q(author__username__icontains=search)
+            | Q(author__author_code__iexact=search)
+        )
+
+    data = list(qs.values('id', 'slug', 'book_code', 'title', 'contract_status'))
+    return Response({'results': data})
 
 
 # ── SE Content Flag submission ─────────────────────────────────────────────────
@@ -3900,7 +4032,9 @@ class CEUserSearchView(APIView):
         if not q:
             return Response({'results': []})
         qs = _User.objects.filter(
-            Q(username__icontains=q) | Q(email__icontains=q)
+            Q(username__icontains=q)
+            | Q(email__icontains=q)
+            | Q(author_code__iexact=q)
         ).order_by('username')[:50]
         return Response({'results': [_user_summary(u) for u in qs]})
 
@@ -3908,6 +4042,7 @@ class CEUserSearchView(APIView):
 def _user_summary(u):
     return {
         'id':              u.id,
+        'author_code':     u.author_code or '',
         'username':        u.username,
         'email':           u.email,
         'role':            u.role,
@@ -4291,7 +4426,12 @@ class CEBooksView(APIView):
         if status:
             qs = qs.filter(status=status)
         if search:
-            qs = qs.filter(Q(title__icontains=search) | Q(author__username__icontains=search))
+            qs = qs.filter(
+                Q(book_code__iexact=search)
+                | Q(title__icontains=search)
+                | Q(author__username__icontains=search)
+                | Q(author__author_code__iexact=search)
+            )
 
         sort_by = request.query_params.get('sort', 'views')
         sort_map = {
@@ -4337,10 +4477,12 @@ class CEBooksView(APIView):
             data.append({
                 'id':               s.id,
                 'slug':             s.slug,
+                'book_code':        s.book_code,
                 'title':            s.title,
                 'cover_image':      request.build_absolute_uri(s.cover_image.url) if s.cover_image else None,
                 'author':           s.author.username,
                 'author_id':        s.author.id,
+                'author_code':      s.author.author_code or '',
                 'genre':            s.genre.name if s.genre else '',
                 'se':               se_name,
                 'status':           s.status,
@@ -4394,19 +4536,29 @@ class CEContractsView(APIView):
         from django.db.models import Q
 
         status = request.query_params.get('status', '')
+        search = request.query_params.get('search', '').strip()
         qs = ContractApplication.objects.select_related('story', 'author', 'assigned_se', 'ce_signed_by')
         if status:
             qs = qs.filter(status=status)
         else:
             qs = qs.order_by('-applied_at')
+        if search:
+            qs = qs.filter(
+                Q(story__book_code__iexact=search)
+                | Q(story__title__icontains=search)
+                | Q(author__username__icontains=search)
+                | Q(author__author_code__iexact=search)
+            )
 
         data = [{
             'id':               c.id,
             'story_slug':       c.story.slug,
+            'book_code':        c.story.book_code,
             'story_title':      c.story.title,
             'cover_image':      request.build_absolute_uri(c.story.cover_image.url) if c.story.cover_image else None,
             'author':           c.author.username,
             'author_id':        c.author.id,
+            'author_code':      c.author.author_code or '',
             'se':               c.assigned_se.username if c.assigned_se else '—',
             'status':           c.status,
             'contract_type':    c.contract_type,
@@ -4677,18 +4829,26 @@ class CEAuthorWarningsView(APIView):
 
     def get(self, request):
         from apps.editorial.models import AuthorWarning
+        from django.db.models import Q
         qs = AuthorWarning.objects.select_related('author', 'issued_by').filter(is_active=True)
         author_id = request.query_params.get('author_id')
         if author_id:
             qs = qs.filter(author_id=author_id)
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(author__username__icontains=search)
+                | Q(author__author_code__iexact=search)
+            )
         data = [{
-            'id':        w.id,
-            'author':    w.author.username,
-            'author_id': w.author.id,
-            'reason':    w.reason,
-            'details':   w.details,
-            'issued_by': w.issued_by.username if w.issued_by else '—',
-            'created_at': w.created_at.isoformat(),
+            'id':          w.id,
+            'author':      w.author.username,
+            'author_id':   w.author.id,
+            'author_code': w.author.author_code or '',
+            'reason':      w.reason,
+            'details':     w.details,
+            'issued_by':   w.issued_by.username if w.issued_by else '—',
+            'created_at':  w.created_at.isoformat(),
         } for w in qs]
         return Response({'count': len(data), 'results': data})
 

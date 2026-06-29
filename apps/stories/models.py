@@ -185,12 +185,21 @@
 #         return f'{self.title} (by {self.author or "unknown"})'
 
 
+import secrets as _secrets
+import string as _string
+
 from django.db import models
 from django.contrib.auth import get_user_model
 
 from config import settings
 
 User = get_user_model()
+
+_BOOK_CODE_CHARS = _string.ascii_uppercase + _string.digits
+
+
+def _gen_book_code():
+    return 'B-' + ''.join(_secrets.choice(_BOOK_CODE_CHARS) for _ in range(7))
 
 
 class Genre(models.Model):
@@ -349,6 +358,11 @@ class Story(models.Model):
         null=True, blank=True,
         help_text='If set, the story is temporarily free until this datetime.',
     )
+    book_code       = models.CharField(
+        max_length=12, unique=True, blank=True, db_index=True,
+        help_text='Short unique code for searching this book (e.g. B-NLX4K8P).',
+    )
+
     created_at      = models.DateTimeField(auto_now_add=True)
     updated_at      = models.DateTimeField(auto_now=True)
     published_at    = models.DateTimeField(blank=True, null=True)
@@ -361,6 +375,15 @@ class Story(models.Model):
             models.Index(fields=['genre', 'status']),
             models.Index(fields=['-total_views']),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.book_code:
+            while True:
+                code = _gen_book_code()
+                if not Story.objects.filter(book_code=code).exists():
+                    self.book_code = code
+                    break
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

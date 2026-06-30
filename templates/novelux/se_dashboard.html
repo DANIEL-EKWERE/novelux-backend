@@ -103,6 +103,11 @@ html.dark .brd{color:hsl(0 70% 65%);}
 .bpu{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
 .bgy{background:var(--muted);color:var(--muted-fg);}
 /* Story cards in queue */
+.search-wrap{position:relative;display:flex;align-items:center;}
+.search-wrap svg{position:absolute;left:9px;color:var(--muted-fg);pointer-events:none;flex-shrink:0;}
+.search-inp{height:32px;padding:0 10px 0 30px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:12px;outline:none;width:190px;transition:border-color .15s,width .2s;}
+.search-inp:focus{border-color:var(--role);width:220px;}
+@media(max-width:600px){.search-inp{width:130px;}.search-inp:focus{width:160px;}}
 .story-card{border:1px solid var(--border);background:var(--card);border-radius:8px;margin-bottom:12px;overflow:hidden;}
 .story-card:last-child{margin-bottom:0;}
 .story-head{padding:16px 18px;display:flex;align-items:flex-start;gap:14px;}
@@ -236,6 +241,11 @@ html.dark .brd{color:hsl(0 70% 65%);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
       Story Queue
       {% if pending_count %}<span class="nb-badge">{{ pending_count }}</span>{% endif %}
+    </button>
+    <button class="nbtn" id="nb-rejected" onclick="gp('rejected',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+      Rejected Stories
+      {% if rejected_count %}<span class="nb-badge">{{ rejected_count }}</span>{% endif %}
     </button>
     <button class="nbtn" id="nb-incoming" onclick="gp('incoming',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -452,7 +462,13 @@ html.dark .brd{color:hsl(0 70% 65%);}
         <h1>Story Queue</h1>
         <p>Stories from your linked authors that have hit the chapter threshold and need your review.</p>
       </div>
-      <span class="bdg brd" style="font-size:12px;padding:4px 10px;" id="queue-count-badge">{{ pending_count|default:"0" }} pending</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="bdg brd" style="font-size:12px;padding:4px 10px;" id="queue-count-badge">{{ pending_count|default:"0" }} pending</span>
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" id="q-queue" placeholder="Search queue…" oninput="searchQueue(this.value)">
+        </div>
+      </div>
     </div>
 
     <div id="story-queue-list">
@@ -466,6 +482,7 @@ html.dark .brd{color:hsl(0 70% 65%);}
                 <div>
                   <p class="story-title">{{ s.title }}</p>
                   <p class="story-sub">by {{ s.author.get_full_name|default:s.author.username }} ({{ s.author.email }}) · {{ s.chapters.count }} chapters · {{ s.word_count|default:"0" }} words</p>
+                  <p style="font-size:11px;color:var(--muted-fg);margin-bottom:4px;font-family:monospace;">Book: <strong>{{ s.book_code }}</strong>{% if s.author.author_code %} · Author: <strong>{{ s.author.author_code }}</strong>{% endif %}</p>
                   {% if s.synopsis %}<p style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px;font-style:italic;">{{ s.synopsis }}</p>{% endif %}
                   {% if s.description %}<p style="font-size:12px;color:var(--muted-fg);line-height:1.5;margin-bottom:4px;">{{ s.description|truncatechars:200 }}</p>{% endif %}
                   {% if s.tags.all %}
@@ -579,11 +596,100 @@ html.dark .brd{color:hsl(0 70% 65%);}
     </div>
   </div>
 
+  <!-- ── REJECTED STORIES ── -->
+  <div class="page" id="page-rejected">
+    <div class="ph ph-row">
+      <div>
+        <h1>Rejected Stories</h1>
+        <p>Stories you rejected. Edit and re-approve, or send back for revision.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="bdg brd" style="font-size:12px;padding:4px 10px;" id="rejected-count-badge">{{ rejected_count|default:"0" }} rejected</span>
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" id="q-rejected" placeholder="Search rejected…" oninput="searchRejected(this.value)">
+        </div>
+      </div>
+    </div>
+
+    <div id="rejected-queue-list">
+      {% if rejected_stories %}
+        {% for s in rejected_stories %}
+        <div class="story-card" id="rc-{{ s.id }}">
+          <div class="story-head">
+            {% if s.cover_image %}<img class="story-cover" src="{{ s.cover_image.url }}" alt="">{% else %}<div class="story-cover"></div>{% endif %}
+            <div class="story-meta">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                <div>
+                  <p class="story-title">{{ s.title }}</p>
+                  <p class="story-sub">by {{ s.author.get_full_name|default:s.author.username }} ({{ s.author.email }}) · {{ s.chapters.count }} chapters · {{ s.word_count|default:"0" }} words</p>
+                  <p style="font-size:11px;color:var(--muted-fg);margin-bottom:4px;font-family:monospace;">Book: <strong>{{ s.book_code }}</strong>{% if s.author.author_code %} · Author: <strong>{{ s.author.author_code }}</strong>{% endif %}</p>
+                  {% if s.contract_app.rejection_reason %}
+                  <p style="font-size:12px;color:hsl(0 68% 44%);line-height:1.5;margin-top:6px;"><strong>Rejection reason:</strong> {{ s.contract_app.rejection_reason }}</p>
+                  {% elif s.contract_app.se_note %}
+                  <p style="font-size:12px;color:hsl(0 68% 44%);line-height:1.5;margin-top:6px;"><strong>Rejection reason:</strong> {{ s.contract_app.se_note }}</p>
+                  {% endif %}
+                  {% if s.tags.all %}
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">
+                    {% for tag in s.tags.all %}<span style="padding:2px 9px;border-radius:20px;background:color-mix(in srgb,var(--role) 12%,var(--muted));font-size:10px;font-weight:500;color:var(--fg);">{{ tag.name }}</span>{% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+                <span class="bdg brd">Rejected</span>
+              </div>
+              <div class="story-actions">
+                <button class="btn bp bsm" onclick="approveStory('{{ s.slug }}','{{ s.title|escapejs }}')">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  Approve & Send to CE
+                </button>
+                <button class="btn byw bsm" onclick="requestRevision('{{ s.slug }}','{{ s.title|escapejs }}')">Send Back to Review</button>
+                <button class="btn bol bsm" onclick="openEditStory('{{ s.slug }}','{{ s.title|escapejs }}',{% if s.cover_image %}'{{ s.cover_image.url }}'{% else %}null{% endif %})">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit Story
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="ch-list">
+            <div class="ch-list-head" onclick="toggleChapters('rchaps-{{ s.id }}',this)">
+              <span>{{ s.chapters.count }} Chapter{{ s.chapters.count|pluralize }} — click to expand</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ch-items" id="rchaps-{{ s.id }}">
+              {% for ch in s.chapters_list %}
+              <div class="ch-row">
+                <span class="ch-num">{{ ch.chapter_number }}</span>
+                <span class="ch-title">{{ ch.title }}</span>
+                <span class="ch-wc">{{ ch.word_count|default:"—" }} words</span>
+                <span class="ch-status bdg {% if ch.status == 'pending_review' or ch.status == 'se_reviewing' %}byw2{% elif ch.status == 'se_approved' %}bgr{% elif ch.status == 'rejected' %}brd{% else %}bgy{% endif %}">{{ ch.status|title|cut:"_" }}</span>
+                <button class="ch-read-btn" onclick="readChapter({{ ch.id }},'{{ ch.title|escapejs }}')">Read</button>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          <h3>No rejected stories</h3>
+          <p>Stories you reject will appear here so you can revisit, edit, and re-approve them.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- ── INCOMING CHAPTERS ── -->
   <div class="page" id="page-incoming">
     <div class="ph ph-row">
       <div><h1>Incoming Chapters</h1><p>All chapters from your linked authors awaiting or under SE review.</p></div>
-      {% if incoming_count %}<span class="bdg brd" style="font-size:12px;padding:4px 10px;">{{ incoming_count }} pending</span>{% endif %}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        {% if incoming_count %}<span class="bdg brd" style="font-size:12px;padding:4px 10px;">{{ incoming_count }} pending</span>{% endif %}
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" id="q-incoming" placeholder="Search chapters…" oninput="searchIncoming(this.value)">
+        </div>
+      </div>
     </div>
 
     {% if incoming_chapters %}
@@ -625,7 +731,13 @@ html.dark .brd{color:hsl(0 70% 65%);}
 
   <!-- ── APPROVED STORIES ── -->
   <div class="page" id="page-approved">
-    <div class="ph"><h1>Contract Pipeline</h1><p>Stories you have approved and their current CE stage.</p></div>
+    <div class="ph ph-row">
+      <div><h1>Contract Pipeline</h1><p>Stories you have approved and their current CE stage.</p></div>
+      <div class="search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="q-pipeline" placeholder="Search pipeline…" oninput="searchPipeline(this.value)">
+      </div>
+    </div>
 
     {% if approved_stories %}
     <div style="margin-bottom:20px;">
@@ -639,6 +751,7 @@ html.dark .brd{color:hsl(0 70% 65%);}
               <div>
                 <p class="story-title">{{ s.title }}</p>
                 <p class="story-sub">by {{ s.author.get_full_name|default:s.author.username }} · {{ s.chapters_list|length }} chapter{{ s.chapters_list|length|pluralize }}</p>
+                <p style="font-size:11px;color:var(--muted-fg);margin-bottom:2px;font-family:monospace;">Book: <strong>{{ s.book_code }}</strong>{% if s.author.author_code %} · Author: <strong>{{ s.author.author_code }}</strong>{% endif %}</p>
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                 {% if s.contract_status == 'signed' %}
@@ -734,13 +847,19 @@ html.dark .brd{color:hsl(0 70% 65%);}
   <div class="page" id="page-authors">
     <div class="ph ph-row">
       <div><h1>My Authors</h1><p>Authors linked to you via your invite code or auto-assignment.</p></div>
-      <span class="bdg bpu" style="font-size:12px;padding:4px 10px;">{{ author_overview|length }} total</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="bdg bpu" style="font-size:12px;padding:4px 10px;">{{ author_overview|length }} total</span>
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" id="q-authors" placeholder="Search authors…" oninput="searchAuthors(this.value)">
+        </div>
+      </div>
     </div>
     {% if author_overview %}
     <div class="card">
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Author</th><th>Email</th></tr></thead>
+          <thead><tr><th>Author</th><th>Author Code</th><th>Email</th></tr></thead>
           <tbody>
           {% for a in author_overview %}
             <tr>
@@ -750,6 +869,7 @@ html.dark .brd{color:hsl(0 70% 65%);}
                   <span style="font-weight:500;">{{ a.get_full_name|default:a.username }}</span>
                 </div>
               </td>
+              <td style="font-family:monospace;font-size:12px;color:var(--muted-fg);">{{ a.author_code|default:"—" }}</td>
               <td style="color:var(--muted-fg);font-size:12px;">{{ a.email }}</td>
             </tr>
           {% endfor %}
@@ -885,11 +1005,15 @@ html.dark .brd{color:hsl(0 70% 65%);}
       </div>
     </div>
 
-    <!-- Filter bar -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+    <!-- Filter + search bar -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
       <button class="btn bo bsm blog-filter active" data-filter="all" onclick="filterBlogList('all',this)">All</button>
       <button class="btn bo bsm blog-filter" data-filter="published" onclick="filterBlogList('published',this)">Published</button>
       <button class="btn bo bsm blog-filter" data-filter="draft" onclick="filterBlogList('draft',this)">Drafts</button>
+      <div class="search-wrap" style="margin-left:auto;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="q-blog" placeholder="Search articles…" oninput="searchBlog(this.value)">
+      </div>
     </div>
 
     <div id="blog-list-grid" class="blog-grid"></div>
@@ -1220,6 +1344,10 @@ html.dark .brd{color:hsl(0 70% 65%);}
         <option value="resolved">Resolved</option>
       </select>
       <button class="btn bol bsm" onclick="loadMyFlags()">Refresh</button>
+      <div class="search-wrap" style="margin-left:auto;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="q-flags" placeholder="Search reports…" oninput="searchFlags(this.value)">
+      </div>
     </div>
 
     <div id="flags-list">
@@ -1234,10 +1362,16 @@ html.dark .brd{color:hsl(0 70% 65%);}
         <h1>Promotion Requests</h1>
         <p>Request your CE to promote a contracted book. Your CE will review and approve or reject the request.</p>
       </div>
-      <button class="btn bp bsm" onclick="openPromoModal()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-        New Request
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button class="btn bp bsm" onclick="openPromoModal()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          New Request
+        </button>
+        <div class="search-wrap">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input class="search-inp" id="q-promos" placeholder="Search requests…" oninput="searchPromos(this.value)">
+        </div>
+      </div>
     </div>
 
     <div id="promos-list">
@@ -1549,7 +1683,7 @@ function openSb()  { document.getElementById('sb').classList.add('open');  docum
 function closeSb() { document.getElementById('sb').classList.remove('open'); document.getElementById('ovl').classList.remove('show'); }
 
 // Pages
-const ptitles = { dashboard:'Dashboard', queue:'Story Queue', approved:'Approved Stories', authors:'My Authors', invite:'Invite Authors', profile:'Profile' };
+const ptitles = { dashboard:'Dashboard', queue:'Story Queue', rejected:'Rejected Stories', approved:'Approved Stories', authors:'My Authors', invite:'Invite Authors', profile:'Profile' };
 function gp(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + id)?.classList.add('active');
@@ -1592,15 +1726,40 @@ async function readChapter(id, title) {
 function closeModal() { document.getElementById('readModal').classList.remove('open'); }
 document.getElementById('readModal').addEventListener('click', e => { if (e.target === document.getElementById('readModal')) closeModal(); });
 
+// ── Search helpers ──────────────────────────────────────────────────────────
+function _searchDom(q, containerSel, itemSel, textFn) {
+  q = (q || '').trim().toLowerCase();
+  const container = document.querySelector(containerSel);
+  if (!container) return;
+  container.querySelectorAll(itemSel).forEach(el => {
+    el.style.display = (!q || textFn(el).toLowerCase().includes(q)) ? '' : 'none';
+  });
+}
+const _cardTxt = el => (el.querySelector('.story-title')?.textContent || '') + ' ' + (el.querySelector('.story-sub')?.textContent || '');
+const _rowTxt  = el => Array.from(el.querySelectorAll('td')).map(t => t.textContent).join(' ');
+
+function searchQueue(q)    { _searchDom(q, '#story-queue-list',    '.story-card', _cardTxt); }
+function searchRejected(q) { _searchDom(q, '#rejected-queue-list', '.story-card', _cardTxt); }
+function searchPipeline(q) { _searchDom(q, '#page-approved',       '.story-card', _cardTxt); }
+function searchIncoming(q) { _searchDom(q, '#page-incoming .tbl',  'tbody tr',    _rowTxt);  }
+function searchAuthors(q)  { _searchDom(q, '#page-authors .tbl',   'tbody tr',    _rowTxt);  }
+
 // Story actions
+function cardLocation(slug) {
+  if (document.querySelector(`#rejected-queue-list [onclick*="${slug}"]`)) return 'rejected';
+  if (document.querySelector(`#story-queue-list [onclick*="${slug}"]`)) return 'pending';
+  return null;
+}
+
 async function approveStory(slug, title) {
   const note = prompt(`Approve "${title}" and send to CE?\n\nOptional note for the author:`, '');
   if (note === null) return;
+  const loc = cardLocation(slug);
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/approve/', { note });
     toast('Story approved and sent to CE ✓');
     removeStoryCard(slug);
-    updateQueueBadge(-1);
+    if (loc === 'rejected') updateRejectedBadge(-1); else updateQueueBadge(-1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed to approve'));
   }
@@ -1609,11 +1768,12 @@ async function approveStory(slug, title) {
 async function requestRevision(slug, title) {
   const reason = prompt(`Request revisions on "${title}"?\n\nExplain what the author needs to fix:`);
   if (!reason) return;
+  const loc = cardLocation(slug);
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/reject/', { reason, action: 'revision' });
     toast('Revision requested — author notified.');
     removeStoryCard(slug);
-    updateQueueBadge(-1);
+    if (loc === 'rejected') updateRejectedBadge(-1); else updateQueueBadge(-1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed'));
   }
@@ -1648,13 +1808,17 @@ async function escalateToCE(slug, title) {
 
 function removeStoryCard(slug) {
   // Remove card from DOM — find by data attr not id (id uses pk not slug)
-  const cards = document.querySelectorAll('#story-queue-list .story-card');
+  const cards = document.querySelectorAll('#story-queue-list .story-card, #rejected-queue-list .story-card');
   cards.forEach(c => {
     if (c.querySelector(`[onclick*="${slug}"]`)) c.remove();
   });
   const list = document.getElementById('story-queue-list');
   if (list && !list.querySelector('.story-card')) {
     list.innerHTML = '<div class="empty"><h3>Queue is empty</h3><p>All stories reviewed.</p></div>';
+  }
+  const rlist = document.getElementById('rejected-queue-list');
+  if (rlist && !rlist.querySelector('.story-card')) {
+    rlist.innerHTML = '<div class="empty"><h3>No rejected stories</h3><p>Stories you reject will appear here so you can revisit, edit, and re-approve them.</p></div>';
   }
 }
 
@@ -1668,6 +1832,19 @@ function updateQueueBadge(delta) {
   if (_queueCount > 0) {
     if (existing) existing.textContent = _queueCount;
     else if (nb) { const s = document.createElement('span'); s.className = 'nb-badge'; s.textContent = _queueCount; nb.appendChild(s); }
+  } else if (existing) existing.remove();
+}
+
+let _rejectedCount = {{ rejected_count|default:0 }};
+function updateRejectedBadge(delta) {
+  _rejectedCount = Math.max(0, _rejectedCount + delta);
+  const badge = document.getElementById('rejected-count-badge');
+  if (badge) badge.textContent = _rejectedCount + ' rejected';
+  const nb = document.getElementById('nb-rejected');
+  const existing = nb?.querySelector('.nb-badge');
+  if (_rejectedCount > 0) {
+    if (existing) existing.textContent = _rejectedCount;
+    else if (nb) { const s = document.createElement('span'); s.className = 'nb-badge'; s.textContent = _rejectedCount; nb.appendChild(s); }
   } else if (existing) existing.remove();
 }
 
@@ -2310,11 +2487,15 @@ async function loadBlogList() {
   }
 }
 
+let _blogSearch = '';
+function searchBlog(q) { _blogSearch = q.trim().toLowerCase(); renderBlogList(); }
+
 function renderBlogList() {
   const grid  = document.getElementById('blog-list-grid');
   const empty = document.getElementById('blog-list-empty');
   let posts = _blogPosts;
   if (_blogFilterStatus !== 'all') posts = posts.filter(p => p.status === _blogFilterStatus);
+  if (_blogSearch) posts = posts.filter(p => ((p.title||'') + ' ' + (p.excerpt||'')).toLowerCase().includes(_blogSearch));
   if (!posts.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   grid.innerHTML = posts.map(p => {
@@ -3249,35 +3430,48 @@ setInterval(fetchUnreadCount, 60_000);
 
 // ── Content Reports / Flags ───────────────────────────────────────────────────
 
+let _flagsData = [];
+const FLAG_LABELS = {mature:'Mature Content',violence:'Violence',plagiarism:'Plagiarism',quality:'Quality / Style',spam:'Spam',other:'Other'};
+function _renderFlags(items) {
+  const wrap = document.getElementById('flags-list');
+  if (!items.length) {
+    wrap.innerHTML = '<div class="empty"><h3>No flags yet</h3><p>Use "Submit Flag" to report a chapter.</p></div>';
+    return;
+  }
+  wrap.innerHTML = items.map(f => `
+    <div class="story-card" style="margin-bottom:10px;">
+      <div class="story-head">
+        <div class="story-meta">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span class="bdg ${f.resolved ? 'bgr' : 'brd'}" style="font-size:10px;">${f.resolved ? 'Resolved' : 'Pending'}</span>
+            <span class="bdg byw2" style="font-size:10px;">${FLAG_LABELS[f.flag_type] || f.flag_type}</span>
+          </div>
+          <p class="story-title">${f.story_title} — Ch.${f.chapter_num ?? '?'}</p>
+          ${f.book_code ? `<p style="font-size:11px;color:var(--muted-fg);margin-bottom:2px;font-family:monospace;">Book: <strong>${f.book_code}</strong></p>` : ''}
+          <p class="story-sub" style="white-space:pre-wrap;margin-top:4px;">${f.description}</p>
+          ${f.resolved && f.resolution_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>CE note:</strong> ${f.resolution_note}</p>` : ''}
+          <p style="font-size:11px;color:var(--muted-fg);margin-top:6px;">${new Date(f.created_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function searchFlags(q) {
+  q = q.trim().toLowerCase();
+  const filtered = q ? _flagsData.filter(f => ((f.story_title||'') + ' ' + (f.book_code||'') + ' ' + (f.description||'')).toLowerCase().includes(q)) : _flagsData;
+  _renderFlags(filtered);
+}
 async function loadMyFlags() {
   const filter = document.getElementById('flags-filter')?.value || '';
   const wrap   = document.getElementById('flags-list');
   wrap.innerHTML = '<div class="empty"><p style="color:var(--muted-fg);">Loading…</p></div>';
   try {
     const d = await NUX.get('/editorial/flags/');
-    let items = d.results || [];
-    if (filter === 'unresolved') items = items.filter(f => !f.resolved);
-    if (filter === 'resolved')   items = items.filter(f =>  f.resolved);
-    if (!items.length) {
-      wrap.innerHTML = '<div class="empty"><h3>No flags yet</h3><p>Use "Submit Flag" to report a chapter.</p></div>';
-      return;
-    }
-    const FLAG_LABELS = {mature:'Mature Content',violence:'Violence',plagiarism:'Plagiarism',quality:'Quality / Style',spam:'Spam',other:'Other'};
-    wrap.innerHTML = items.map(f => `
-      <div class="story-card" style="margin-bottom:10px;">
-        <div class="story-head">
-          <div class="story-meta">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-              <span class="bdg ${f.resolved ? 'bgr' : 'brd'}" style="font-size:10px;">${f.resolved ? 'Resolved' : 'Pending'}</span>
-              <span class="bdg byw2" style="font-size:10px;">${FLAG_LABELS[f.flag_type] || f.flag_type}</span>
-            </div>
-            <p class="story-title">${f.story_title} — Ch.${f.chapter_num ?? '?'}</p>
-            <p class="story-sub" style="white-space:pre-wrap;margin-top:4px;">${f.description}</p>
-            ${f.resolved && f.resolution_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>CE note:</strong> ${f.resolution_note}</p>` : ''}
-            <p style="font-size:11px;color:var(--muted-fg);margin-top:6px;">${new Date(f.created_at).toLocaleDateString()}</p>
-          </div>
-        </div>
-      </div>`).join('');
+    _flagsData = d.results || [];
+    if (filter === 'unresolved') _flagsData = _flagsData.filter(f => !f.resolved);
+    if (filter === 'resolved')   _flagsData = _flagsData.filter(f =>  f.resolved);
+    const q = (document.getElementById('q-flags')?.value || '').trim().toLowerCase();
+    const toShow = q ? _flagsData.filter(f => ((f.story_title||'') + ' ' + (f.description||'')).toLowerCase().includes(q)) : _flagsData;
+    _renderFlags(toShow);
   } catch(e) {
     wrap.innerHTML = '<div class="empty"><h3>Failed to load</h3></div>';
   }
@@ -3342,31 +3536,44 @@ async function submitFlag() {
 
 // ── Promotion Requests ────────────────────────────────────────────────────────
 
+let _promosData = [];
+const _PROMO_STATUS = {pending:'byw2', approved:'bgr', rejected:'brd'};
+function _renderPromos(items) {
+  const wrap = document.getElementById('promos-list');
+  if (!items.length) {
+    wrap.innerHTML = '<div class="empty"><h3>No requests yet</h3><p>Use "New Request" to nominate a contracted book for promotion.</p></div>';
+    return;
+  }
+  wrap.innerHTML = items.map(r => `
+    <div class="story-card" style="margin-bottom:10px;">
+      <div class="story-head">
+        <div class="story-meta">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+            <span class="bdg ${_PROMO_STATUS[r.status] || 'bgy'}" style="font-size:10px;">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
+          </div>
+          <p class="story-title">${r.story_title}</p>
+          ${r.book_code ? `<p style="font-size:11px;color:var(--muted-fg);margin-bottom:2px;font-family:monospace;">Book: <strong>${r.book_code}</strong></p>` : ''}
+          <p class="story-sub" style="white-space:pre-wrap;margin-top:4px;">${r.message}</p>
+          ${r.ce_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>CE note:</strong> ${r.ce_note}</p>` : ''}
+          <p style="font-size:11px;color:var(--muted-fg);margin-top:6px;">${new Date(r.created_at).toLocaleDateString()}</p>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function searchPromos(q) {
+  q = q.trim().toLowerCase();
+  const filtered = q ? _promosData.filter(r => ((r.story_title||'') + ' ' + (r.book_code||'') + ' ' + (r.message||'')).toLowerCase().includes(q)) : _promosData;
+  _renderPromos(filtered);
+}
 async function loadMyPromotions() {
   const wrap = document.getElementById('promos-list');
   wrap.innerHTML = '<div class="empty"><p style="color:var(--muted-fg);">Loading…</p></div>';
   try {
     const d = await NUX.get('/editorial/promotion-requests/');
-    const items = d.results || [];
-    if (!items.length) {
-      wrap.innerHTML = '<div class="empty"><h3>No requests yet</h3><p>Use "New Request" to nominate a contracted book for promotion.</p></div>';
-      return;
-    }
-    const STATUS_CLASS = {pending:'byw2', approved:'bgr', rejected:'brd'};
-    wrap.innerHTML = items.map(r => `
-      <div class="story-card" style="margin-bottom:10px;">
-        <div class="story-head">
-          <div class="story-meta">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-              <span class="bdg ${STATUS_CLASS[r.status] || 'bgy'}" style="font-size:10px;">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
-            </div>
-            <p class="story-title">${r.story_title}</p>
-            <p class="story-sub" style="white-space:pre-wrap;margin-top:4px;">${r.message}</p>
-            ${r.ce_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>CE note:</strong> ${r.ce_note}</p>` : ''}
-            <p style="font-size:11px;color:var(--muted-fg);margin-top:6px;">${new Date(r.created_at).toLocaleDateString()}</p>
-          </div>
-        </div>
-      </div>`).join('');
+    _promosData = d.results || [];
+    const q = (document.getElementById('q-promos')?.value || '').trim().toLowerCase();
+    const toShow = q ? _promosData.filter(r => ((r.story_title||'') + ' ' + (r.message||'')).toLowerCase().includes(q)) : _promosData;
+    _renderPromos(toShow);
   } catch(e) {
     wrap.innerHTML = '<div class="empty"><h3>Failed to load</h3></div>';
   }

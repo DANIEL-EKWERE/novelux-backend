@@ -129,6 +129,7 @@ the intension is that, when the CE ticks them in those sections for the purpose 
 #     'default': {
 #         'ENGINE': 'django.db.backends.sqlite3',
 #         'NAME': BASE_DIR / 'db.sqlite3',
+        
 #     }
 # }
 

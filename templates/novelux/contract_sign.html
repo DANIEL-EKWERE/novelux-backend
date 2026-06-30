@@ -516,6 +516,50 @@ a { text-decoration: none; color: inherit; }
   <p style="font-size:11px;color:var(--muted-fg);text-align:center;margin-top:10px;">
     By clicking above you agree to Novelux's <a href="/terms/" style="color:var(--primary);">Terms of Service</a> and this contract.
   </p>
+
+  <!-- Divider -->
+  <div class="divider" style="margin-top:28px;"></div>
+
+  <!-- Decline section -->
+  <div style="text-align:center;">
+    <p style="font-size:12px;color:var(--muted-fg);margin-bottom:10px;">Not ready to proceed?</p>
+    <button id="declineToggleBtn" onclick="toggleDeclineForm()"
+      style="font-size:12px;color:var(--danger);background:none;border:1px solid hsl(0 70% 88%);border-radius:6px;padding:7px 16px;cursor:pointer;transition:background .15s;">
+      Decline this contract
+    </button>
+  </div>
+
+  <!-- Decline form (hidden until toggled) -->
+  <div id="declineForm" style="display:none;margin-top:16px;">
+    <div class="section" style="border-color:hsl(0 70% 88%);background:hsl(0 70% 99%);">
+      <div class="section-title" style="color:hsl(0 60% 40%);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Reason for Declining
+      </div>
+      <p style="font-size:12px;color:var(--muted-fg);margin-bottom:14px;line-height:1.6;">
+        Please tell us why you are declining. This helps the editorial team understand your situation and may allow them to address your concerns.
+      </p>
+      <textarea id="declineReason" rows="4" placeholder="e.g. I need more time to review the terms, I'd like to discuss the contract type, etc."
+        oninput="document.getElementById('confirmDeclineBtn').disabled = this.value.trim().length < 10;"
+        style="width:100%;padding:12px;border:1px solid hsl(0 70% 88%);border-radius:7px;font-size:13px;font-family:inherit;resize:vertical;outline:none;background:#fff;color:var(--fg);"></textarea>
+      <p style="font-size:11px;color:var(--muted-fg);margin-top:4px;">Minimum 10 characters required.</p>
+
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button onclick="toggleDeclineForm()"
+          style="flex:1;padding:10px;font-size:13px;background:none;border:1px solid var(--border);border-radius:7px;cursor:pointer;color:var(--muted-fg);">
+          Cancel
+        </button>
+        <button id="confirmDeclineBtn" onclick="submitDecline()" disabled
+          style="flex:1;padding:10px;font-size:13px;font-weight:600;background:var(--danger);color:#fff;border:none;border-radius:7px;cursor:pointer;opacity:.9;transition:opacity .15s;">
+          Confirm Decline
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-error"   id="declineAlertError"   style="margin-top:12px;"></div>
+  <div class="alert alert-success" id="declineAlertSuccess" style="margin-top:12px;"></div>
+
   {% endif %}
 
 </div><!-- /page-wrap -->
@@ -712,6 +756,57 @@ async function submitContract() {
     showAlert('error', 'Network error. Please check your connection and try again.');
     btn.disabled = false;
     btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Accept & Sign Contract';
+  }
+}
+
+// ── Decline ────────────────────────────────────────────────────────────────
+function toggleDeclineForm() {
+  const form = document.getElementById('declineForm');
+  const visible = form.style.display !== 'none';
+  form.style.display = visible ? 'none' : 'block';
+  document.getElementById('declineToggleBtn').textContent = visible ? 'Decline this contract' : 'Cancel decline';
+  if (!visible) {
+    document.getElementById('declineReason').focus();
+  }
+}
+
+async function submitDecline() {
+  const reason = document.getElementById('declineReason').value.trim();
+  if (reason.length < 10) return;
+
+  const btn = document.getElementById('confirmDeclineBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const showDeclineAlert = (type, msg) => {
+    const errEl = document.getElementById('declineAlertError');
+    const okEl  = document.getElementById('declineAlertSuccess');
+    errEl.classList.remove('show'); okEl.classList.remove('show');
+    if (type === 'error') { errEl.textContent = msg; errEl.classList.add('show'); }
+    else                  { okEl.textContent  = msg; okEl.classList.add('show'); }
+  };
+
+  try {
+    const r = await fetch('/api/editorial/contracts/decline/', {
+      method:  'POST',
+      headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ slug: SLUG, reason }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      showDeclineAlert('error', data.detail || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Confirm Decline';
+      return;
+    }
+    showDeclineAlert('success', 'Contract declined. Your editor has been notified. Redirecting…');
+    document.getElementById('declineForm').style.display = 'none';
+    document.getElementById('declineToggleBtn').style.display = 'none';
+    setTimeout(() => { window.location.href = '/dashboard/'; }, 2500);
+  } catch(e) {
+    showDeclineAlert('error', 'Network error. Please check your connection and try again.');
+    btn.disabled = false;
+    btn.textContent = 'Confirm Decline';
   }
 }
 

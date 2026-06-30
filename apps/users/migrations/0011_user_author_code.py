@@ -13,7 +13,6 @@ def _gen():
 def backfill_author_codes(apps, schema_editor):
     User = apps.get_model('users', 'User')
     used = set()
-    # Only touches author accounts with no code yet — safe to re-run
     for user in User.objects.filter(role='author', author_code__isnull=True).order_by('id'):
         while True:
             code = _gen()
@@ -24,6 +23,23 @@ def backfill_author_codes(apps, schema_editor):
         user.save(update_fields=['author_code'])
 
 
+def add_like_index(apps, schema_editor):
+    db = schema_editor.connection.vendor
+    if db == 'postgresql':
+        schema_editor.execute(
+            "CREATE INDEX IF NOT EXISTS users_author_code_like "
+            "ON users USING btree (author_code varchar_pattern_ops);"
+        )
+
+
+def drop_like_index(apps, schema_editor):
+    db = schema_editor.connection.vendor
+    if db == 'postgresql':
+        schema_editor.execute(
+            "DROP INDEX IF EXISTS users_author_code_like;"
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -31,66 +47,29 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # ── 1. Add column (IF NOT EXISTS so a partial previous run is safe) ─────
-        migrations.RunSQL(
-            sql="ALTER TABLE users ADD COLUMN IF NOT EXISTS author_code VARCHAR(12) NULL;",
-            reverse_sql="ALTER TABLE users DROP COLUMN IF EXISTS author_code;",
-        ),
-        # Sync Django migration state
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AddField(
-                    model_name='user',
-                    name='author_code',
-                    field=models.CharField(
-                        blank=True, null=True, max_length=12,
-                        help_text='Unique public ID for author accounts (e.g. A-NLX4K8P).',
-                    ),
-                ),
-            ],
+        # 1. Add column
+        migrations.AddField(
+            model_name='user',
+            name='author_code',
+            field=models.CharField(
+                blank=True, null=True, max_length=12,
+                help_text='Unique public ID for author accounts (e.g. A-NLX4K8P).',
+            ),
         ),
 
-        # ── 2. Backfill existing author accounts ─────────────────────────────────
+        # 2. Backfill existing author accounts
         migrations.RunPython(backfill_author_codes, migrations.RunPython.noop),
 
-        # ── 3. Add unique constraint + varchar_pattern_ops index ─────────────────
-        migrations.RunSQL(
-            sql=[
-                # Unique constraint (skipped if it already exists)
-                """
-                DO $$ BEGIN
-                    IF NOT EXISTS (
-                        SELECT 1 FROM pg_constraint
-                        WHERE conname = 'users_user_author_code_uniq'
-                          AND conrelid = 'users'::regclass
-                    ) THEN
-                        ALTER TABLE users
-                            ADD CONSTRAINT users_user_author_code_uniq UNIQUE (author_code);
-                    END IF;
-                END $$;
-                """,
-                # LIKE index for prefix searches
-                "CREATE INDEX IF NOT EXISTS users_author_code_like "
-                "ON users USING btree (author_code varchar_pattern_ops);",
-            ],
-            reverse_sql=[
-                "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_user_author_code_uniq;",
-                "DROP INDEX IF EXISTS users_author_code_like;",
-            ],
+        # 3. Add unique constraint + db_index
+        migrations.AlterField(
+            model_name='user',
+            name='author_code',
+            field=models.CharField(
+                blank=True, null=True, db_index=True, max_length=12, unique=True,
+                help_text='Unique public ID for author accounts (e.g. A-NLX4K8P).',
+            ),
         ),
-        # Sync Django migration state
-        migrations.SeparateDatabaseAndState(
-            database_operations=[],
-            state_operations=[
-                migrations.AlterField(
-                    model_name='user',
-                    name='author_code',
-                    field=models.CharField(
-                        blank=True, null=True, db_index=True, max_length=12, unique=True,
-                        help_text='Unique public ID for author accounts (e.g. A-NLX4K8P).',
-                    ),
-                ),
-            ],
-        ),
+
+        # 4. PostgreSQL-only: varchar_pattern_ops index for prefix LIKE searches
+        migrations.RunPython(add_like_index, drop_like_index),
     ]

@@ -46,6 +46,7 @@ urlpatterns = [
     path('ce-escalations/', views.CEEscalationsView.as_view(), name='ce-escalations'),
     path('reviews/<int:pk>/ce-approve/', views.ce_send_contract, name='ce-send-contract'),
     path('contracts/accept/', views.accept_contract, name='accept-contract'),
+    path('contracts/decline/', views.decline_contract, name='decline-contract'),
     path('assignments/', views.EditorAssignmentListCreateView.as_view(), name='assignments'),
     path('author-links/', views.AuthorEditorLinkListCreateView.as_view(), name='author-links'),
     path('team/', views.EditorialTeamView.as_view(), name='team'),

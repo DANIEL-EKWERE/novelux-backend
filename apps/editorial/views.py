@@ -2074,7 +2074,7 @@ def se_approve_story(request, slug):
     story = get_object_or_404(
         Story, slug=slug,
         author__editor_link__assigned_se=request.user,
-        contract_status='under_review',
+        contract_status__in=['under_review', 'rejected'],
     )
     note = request.data.get('note', '')
 
@@ -2130,7 +2130,7 @@ def se_reject_story(request, slug):
     story = get_object_or_404(
         Story, slug=slug,
         author__editor_link__assigned_se=request.user,
-        contract_status='under_review',
+        contract_status__in=['under_review', 'rejected'],
     )
     reason = request.data.get('reason', '')
     action = request.data.get('action', 'revision')  # 'revision' or 'reject'
@@ -2866,6 +2866,53 @@ def accept_contract(request):
         'status': 'contract_accepted',
         'published_chapters': published_count,
     })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def decline_contract(request):
+    """POST /api/editorial/contracts/decline/ — author declines a contract sent to them.
+    Requires a reason so the editorial team knows why the author backed out.
+    """
+    from apps.stories.models import Story
+    from apps.editorial.models import ContractApplication
+
+    user = request.user
+    if user.role != 'author':
+        return Response({'detail': 'Only authors may decline contracts.'}, status=403)
+
+    reason = request.data.get('reason', '').strip()
+    if not reason:
+        return Response({'detail': 'Please tell us why you are declining this contract.'}, status=400)
+
+    story_slug = request.data.get('slug', '').strip()
+    qs = Story.objects.filter(author=user, contract_status='awaiting_signature')
+    if story_slug:
+        qs = qs.filter(slug=story_slug)
+    story = qs.first()
+    if not story:
+        return Response({'detail': 'No contract awaiting your signature was found.'}, status=400)
+
+    story.contract_status = 'rejected'
+    story.status = 'draft'
+    story.save(update_fields=['contract_status', 'status'])
+
+    try:
+        app = story.contract_application
+        app.status = ContractApplication.STATUS_REJECTED
+        app.rejection_reason = reason
+        app.rejected_at = timezone.now()
+        app.save(update_fields=['status', 'rejection_reason', 'rejected_at'])
+    except ContractApplication.DoesNotExist:
+        pass
+
+    try:
+        from apps.notifications.services import on_contract_declined_by_author
+        on_contract_declined_by_author(story, reason)
+    except Exception:
+        pass
+
+    return Response({'status': 'contract_declined', 'story': story.slug})
 
 
 class EditorAssignmentListCreateView(generics.ListCreateAPIView):
@@ -3827,6 +3874,7 @@ def se_my_flags(request):
         'chapter_num':  f.chapter.chapter_number if f.chapter else None,
         'story_title':  f.chapter.story.title if f.chapter and f.chapter.story else '—',
         'story_slug':   f.chapter.story.slug if f.chapter and f.chapter.story else None,
+        'book_code':    f.chapter.story.book_code if f.chapter and f.chapter.story else None,
         'resolved':     f.resolved,
         'resolution_note': f.resolution_note,
         'created_at':   f.created_at.isoformat(),
@@ -3859,6 +3907,7 @@ def se_promotion_requests(request):
             'id':          r.id,
             'story_title': r.story.title,
             'story_slug':  r.story.slug,
+            'book_code':   r.story.book_code,
             'tab':         r.tab,
             'section':     r.section,
             'message':     r.message,

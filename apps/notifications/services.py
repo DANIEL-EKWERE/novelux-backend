@@ -160,6 +160,24 @@ def on_contract_rejected(author, story, reason: str = ''):
     )
 
 
+def on_contract_declined_by_author(story, reason: str = ''):
+    """Author declined a contract that was sent to them — notify their assigned SE."""
+    try:
+        se = story.author.editor_link.assigned_se
+    except Exception:
+        se = None
+    if not se:
+        return
+    create_notification(
+        user=se,
+        notification_type=Notification.TYPE_SYSTEM,
+        title='Author declined contract',
+        message=f'{story.author.get_full_name() or story.author.username} declined the contract for "{story.title}".'
+                + (f' Reason: {reason}' if reason else ''),
+        data={'screen': 'rejected_stories', 'slug': story.slug},
+    )
+
+
 def on_user_signup(user):
     """Welcome notification after registration."""
     create_notification(

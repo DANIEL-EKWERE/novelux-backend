@@ -3651,6 +3651,22 @@ def _editorial_context(request):
             except ContractApplication.DoesNotExist:
                 s.contract_app = None
 
+        # Stories this SE rejected — kept in their own section so SE can revisit,
+        # edit, and re-approve or send back for revision later.
+        rejected_stories = Story.objects.filter(
+            contract_status='rejected',
+            author__editor_link__assigned_se=user,
+        ).select_related('author').prefetch_related('chapters', 'tags').order_by('-updated_at')
+        for s in rejected_stories:
+            s.chapters_list = list(
+                s.chapters.order_by('chapter_number')
+                .values('id', 'chapter_number', 'title', 'status', 'word_count', 'created_at')
+            )
+            try:
+                s.contract_app = s.contract_application
+            except ContractApplication.DoesNotExist:
+                s.contract_app = None
+
         # Incoming chapters from the SE's linked authors needing attention
         from apps.chapters.models import Chapter as _Chapter
         incoming_chapters = _Chapter.objects.filter(
@@ -3738,6 +3754,8 @@ def _editorial_context(request):
             'pending_count':       review_stories.count(),
             'review_stories':      review_stories,
             'approved_stories':    approved_stories,
+            'rejected_stories':    rejected_stories,
+            'rejected_count':      rejected_stories.count(),
             'incoming_chapters':   incoming_chapters,
             'incoming_count':      incoming_chapters.count(),
             'ce_rejected_apps':    ce_rejected_apps,

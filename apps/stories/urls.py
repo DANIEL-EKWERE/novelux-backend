@@ -16,6 +16,7 @@ urlpatterns = [
     path('subgenres/',                  views.SubgenreListView.as_view()),
     path('tags/',                       views.TagListView.as_view()),
     path('banners/',           views.PromoBannersView.as_view(),      name='promo-banners'),
+    path('library-banner/',    views.LibraryBannerView.as_view(),     name='library-banner'),
     path('short-stories/',     views.ShortStoriesView.as_view(),      name='short-stories'),
     path('new-arrivals/',      views.NewArrivalsView.as_view(),       name='new-arrivals'),
     path('recommended/',       views.RecommendedForYouView.as_view(), name='recommended'),

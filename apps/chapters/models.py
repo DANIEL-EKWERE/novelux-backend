@@ -742,11 +742,12 @@ class Chapter(models.Model):
         return f'{self.story.title} — Ch.{self.chapter_number}: {self.title}'
 
     def save(self, *args, **kwargs):
+        _is_new = self.pk is None
         self.word_count = count_words(self.content)
         super().save(*args, **kwargs)
 
         # Auto-trigger review threshold or auto-publish contracted authors
-        self._check_editorial_trigger()
+        self._check_editorial_trigger(is_new=_is_new)
 
         from apps.stories.models import Story
         Story.objects.filter(pk=self.story_id).update(
@@ -756,12 +757,14 @@ class Chapter(models.Model):
             )['total'] or 0
         )
 
-    def _check_editorial_trigger(self):
+    def _check_editorial_trigger(self, is_new=True):
         """
         Called after every save.
 
         Case A — author has a signed contract:
-            Any chapter saved as 'submitted' is immediately published.
+            NEW chapters are published immediately.
+            EDITS to existing chapters go through the edit-request review flow
+            (handled by the view layer) — we do nothing here.
 
         Case B — author has NO contract yet:
             Count how many submitted/draft chapters this story has.
@@ -777,13 +780,14 @@ class Chapter(models.Model):
         except Exception:
             return
 
-        # Case A: contracted author — publish any held chapters immediately.
+        # Case A: contracted author — auto-publish NEW chapters only.
         if profile.has_contract:
             if story.contract_status != 'signed':
                 return  # not yet signed — nothing to do
-            # Publish any chapters still in a held state (draft/submitted/pending_review etc.)
             if self.is_published:
                 return  # already published, nothing to do
+            if not is_new:
+                return  # content edit on an existing chapter — handled by edit-request flow
             Chapter.publish_held_chapters_for_author(story.author)
             return
 

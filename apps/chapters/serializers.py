@@ -101,13 +101,22 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
         if request is not None:
             is_publish = self._is_truthy(request.data.get('is_publish'))
 
-        # Default to draft unless explicit publish flag provided
         if is_publish:
-            # create instance then mark published
+            validated_data['status'] = Chapter.STATUS_DRAFT
             instance = super().create(validated_data)
-            instance.status = Chapter.STATUS_PUBLISHED
-            instance.is_published = True
-            instance.save(update_fields=['status', 'is_published'])
+
+            story = instance.story
+            story.refresh_from_db(fields=['contract_status'])
+
+            if story.contract_status == 'signed':
+                # Contracted author → publish_held_chapters_for_author already ran
+                # in _check_editorial_trigger; nothing more needed here.
+                pass
+            else:
+                # Non-contracted author → send to SE incoming queue
+                instance.status = Chapter.STATUS_PENDING_REVIEW
+                instance.save(update_fields=['status'])
+
             return instance
 
         # Ensure saved as draft when not publishing
@@ -122,15 +131,25 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
             is_publish = self._is_truthy(request.data.get('is_publish'))
 
         if is_publish:
-            # Remove status from validated_data to avoid validate_status rejecting 'published'
             validated_data.pop('status', None)
             inst = super().update(instance, validated_data)
-            inst.status = Chapter.STATUS_PUBLISHED
-            inst.is_published = True
-            inst.save(update_fields=['is_published', 'status'])
+
+            story = inst.story
+            story.refresh_from_db(fields=['contract_status'])
+
+            if story.contract_status == 'signed':
+                # Contracted author → publish immediately
+                inst.status      = Chapter.STATUS_PUBLISHED
+                inst.is_published = True
+                inst.save(update_fields=['status', 'is_published'])
+            else:
+                # Non-contracted author → send to SE incoming queue
+                inst.status = Chapter.STATUS_PENDING_REVIEW
+                inst.save(update_fields=['status'])
+
             return inst
 
-        # Not publishing — save as draft
+        # Plain save (no publish intent) — keep as draft
         validated_data['status'] = Chapter.STATUS_DRAFT
         validated_data.pop('is_published', None)
         return super().update(instance, validated_data)

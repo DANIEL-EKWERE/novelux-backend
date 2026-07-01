@@ -24,6 +24,17 @@ pip install gunicorn
 
 python manage.py collectstatic --no-input
 
+# Download GeoLite2 database if license key is set
+if [ -n "$MAXMIND_LICENSE_KEY" ]; then
+  mkdir -p geoip
+  curl -sSL \
+    "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz" \
+    | tar -xz --strip-components=1 --wildcards -C geoip "*/GeoLite2-City.mmdb"
+  echo "GeoLite2-City.mmdb downloaded."
+else
+  echo "MAXMIND_LICENSE_KEY not set — skipping GeoIP download."
+fi
+
 # 1. Actually apply the migrations to the database
 # python manage.py migrate --no-input # temporary fix
 

@@ -2672,6 +2672,25 @@ def ce_edit_story_note(request, slug):
 
 @api_view(['POST'])
 @permission_classes([IsCE])
+def toggle_library_banner(request, slug):
+    """POST /api/editorial/stories/<slug>/library-banner/
+    CE pins or unpins a story from the library screen banner carousel.
+    Body: { "enabled": true } or { "enabled": false }
+    """
+    from apps.stories.models import Story
+    story = get_object_or_404(Story, slug=slug)
+    enabled = str(request.data.get('enabled', 'true')).lower() in ('true', '1', 'yes')
+    story.is_library_banner = enabled
+    story.save(update_fields=['is_library_banner'])
+    return Response({
+        'slug': story.slug,
+        'is_library_banner': story.is_library_banner,
+        'status': 'pinned' if enabled else 'unpinned',
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsCE])
 def ce_editorial_sign(request, slug):
     """POST /api/editorial/ce-story-queue/<slug>/ce-sign/
     CE performs editorial signing (platform-side signature) on a story.

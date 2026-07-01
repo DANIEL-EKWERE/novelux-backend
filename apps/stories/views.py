@@ -884,11 +884,11 @@ class PromoBannersView(APIView):
         return Response(serializer.data)
 
 class LibraryBannerView(APIView):
-    """GET /api/stories/library-banner/ — featured stories for the library screen carousel."""
+    """GET /api/stories/library-banner/ — stories pinned to the library screen carousel."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        qs = list(published_stories().filter(is_featured=True).order_by('-created_at')[:5])
+        qs = list(published_stories().filter(is_library_banner=True).order_by('-created_at')[:5])
         if not qs:
             qs = list(published_stories().order_by('-total_views')[:5])
         serializer = StoryListSerializer(qs, many=True, context={'request': request})

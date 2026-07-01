@@ -114,4 +114,6 @@ urlpatterns = [
     # Author-facing & system
     path('announcements/', views.author_announcements, name='author-announcements'),
     path('system-notice/', views.system_notice, name='system-notice'),
+    # Library banner management (CE only)
+    path('stories/<slug:slug>/library-banner/', views.toggle_library_banner, name='toggle-library-banner'),
 ]

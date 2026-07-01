@@ -9,13 +9,14 @@ from .models import (
 class StoryAdmin(admin.ModelAdmin):
     list_display   = ['title', 'author', 'genre', 'status', 'language',
                       'total_views', 'total_chapters', 'average_rating',
-                      'is_featured', 'is_editors_pick', 'free_until', 'created_at']
-    list_filter    = ['status', 'language', 'is_featured', 'is_editors_pick', 'is_free_download', 'genre']
+                      'is_featured', 'is_library_banner', 'is_editors_pick', 'free_until', 'created_at']
+    list_filter    = ['status', 'language', 'is_featured', 'is_library_banner', 'is_editors_pick', 'is_free_download', 'genre']
     search_fields  = ['title', 'author__username']
     prepopulated_fields = {'slug': ('title',)}
     readonly_fields= ['total_views', 'total_unlocks', 'total_chapters', 'target_word_count',
                       'average_rating', 'total_ratings', 'word_count']
-    actions        = ['feature_stories', 'mark_editors_pick', 'unfeature_stories']
+    actions        = ['feature_stories', 'mark_editors_pick', 'add_to_library_banner',
+                      'remove_from_library_banner', 'unfeature_stories']
 
     def feature_stories(self, request, queryset):
         queryset.update(is_featured=True)
@@ -24,6 +25,14 @@ class StoryAdmin(admin.ModelAdmin):
     def mark_editors_pick(self, request, queryset):
         queryset.update(is_editors_pick=True)
     mark_editors_pick.short_description = "Mark as editor's pick"
+
+    def add_to_library_banner(self, request, queryset):
+        queryset.update(is_library_banner=True)
+    add_to_library_banner.short_description = 'Add to library banner'
+
+    def remove_from_library_banner(self, request, queryset):
+        queryset.update(is_library_banner=False)
+    remove_from_library_banner.short_description = 'Remove from library banner'
 
     def unfeature_stories(self, request, queryset):
         queryset.update(is_featured=False, is_editors_pick=False)

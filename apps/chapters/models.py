@@ -842,24 +842,23 @@ class Chapter(models.Model):
 
         from apps.stories.models import Story
 
-        # Always mark all this author's contract-eligible stories as ongoing/signed
-        # regardless of whether chapters were found above
+        # Mark signing-pipeline stories as ongoing/signed — explicitly skip rejected ones
+        _signing_statuses = ['under_review', 'se_approved', 'contract_sent', 'awaiting_signature', 'signed']
         Story.objects.filter(
             author=author,
-        ).exclude(
-            contract_status='none',
+            contract_status__in=_signing_statuses,
         ).update(
             status='ongoing',
             contract_status='signed',
         )
 
         # Apply per-story lock_from_chapter setting to all published chapters
-        for story in Story.objects.filter(author=author).exclude(contract_status='none'):
+        for story in Story.objects.filter(author=author, contract_status='signed'):
             apply_lock_from_chapter(story)
 
         # Recalculate chapter counts for affected stories
         all_story_ids = list(
-            Story.objects.filter(author=author).exclude(contract_status='none')
+            Story.objects.filter(author=author, contract_status='signed')
             .values_list('pk', flat=True)
         )
         for story_id in set(story_ids + all_story_ids):

@@ -1198,15 +1198,70 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
 
   <!-- ANALYTICS -->
   <div class="page" id="page-analytics">
-    <div class="hero"><div><h1>Platform Analytics</h1><p>Top books, genre trends, reader stats, and country distribution.</p></div></div>
-    <div class="two-col" style="gap:20px;margin-bottom:20px;">
-      <div class="card"><div class="ch"><h2>Top Books by Views</h2></div><div id="anl-top-books" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div></div>
-      <div style="display:flex;flex-direction:column;gap:20px;">
-        <div class="card"><div class="ch"><h2>Genre Popularity</h2></div><div id="anl-genres" class="cb"></div></div>
-        <div class="card"><div class="ch"><h2>Platform Stats</h2></div><div id="anl-stats" class="cb"></div></div>
+    <div class="hero">
+      <div><h1>Platform Analytics</h1><p>Content performance, visitor traffic, and audience breakdown.</p></div>
+    </div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;">
+      <button class="btn bp bsm anl-tab active" data-tab="content" onclick="anlTab('content',this)">Content</button>
+      <button class="btn bol bsm anl-tab" data-tab="visitors" onclick="anlTab('visitors',this);loadVisitorAnalytics()">Visitors</button>
+    </div>
+
+    <!-- ── Content tab ── -->
+    <div id="anl-content-tab">
+      <div class="two-col" style="gap:20px;margin-bottom:20px;">
+        <div class="card"><div class="ch"><h2>Top Books by Views</h2></div><div id="anl-top-books" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div></div>
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <div class="card"><div class="ch"><h2>Genre Popularity</h2></div><div id="anl-genres" class="cb"></div></div>
+          <div class="card"><div class="ch"><h2>Platform Stats</h2></div><div id="anl-stats" class="cb"></div></div>
+        </div>
+      </div>
+      <div class="card"><div class="ch"><h2>Top Countries (User Profiles)</h2></div><div id="anl-countries" class="cb"><p style="color:var(--muted-fg);">Loading…</p></div></div>
+    </div>
+
+    <!-- ── Visitors tab ── -->
+    <div id="anl-visitors-tab" style="display:none;">
+      <!-- Period picker -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--muted-fg);">Period:</span>
+        <button class="btn bol bsm va-period active" data-days="7"  onclick="setVAPeriod(7,this)">7 days</button>
+        <button class="btn bol bsm va-period"        data-days="30" onclick="setVAPeriod(30,this)">30 days</button>
+        <button class="btn bol bsm va-period"        data-days="90" onclick="setVAPeriod(90,this)">90 days</button>
+        <div id="va-loading" style="display:none;font-size:12px;color:var(--muted-fg);">Refreshing…</div>
+      </div>
+
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px;" id="va-kpis">
+        <div class="card" style="padding:16px;"><p style="font-size:11px;color:var(--muted-fg);margin-bottom:4px;">TOTAL VISITS</p><p id="va-total" style="font-size:24px;font-weight:700;">—</p></div>
+        <div class="card" style="padding:16px;"><p style="font-size:11px;color:var(--muted-fg);margin-bottom:4px;">UNIQUE VISITORS</p><p id="va-unique" style="font-size:24px;font-weight:700;">—</p></div>
+        <div class="card" style="padding:16px;"><p style="font-size:11px;color:var(--muted-fg);margin-bottom:4px;">COUNTRIES</p><p id="va-countries-count" style="font-size:24px;font-weight:700;">—</p></div>
+      </div>
+
+      <!-- Daily trend sparkline -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="ch"><h2>Daily Traffic</h2></div>
+        <div class="cb" id="va-trend" style="overflow-x:auto;"></div>
+      </div>
+
+      <!-- Country + Device row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card"><div class="ch"><h2>Visitors by Country</h2></div><div class="cb" id="va-country-list"></div></div>
+        <div class="card"><div class="ch"><h2>Device Breakdown</h2></div><div class="cb" id="va-device-list"></div></div>
+      </div>
+
+      <!-- Browser + OS row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card"><div class="ch"><h2>Browsers</h2></div><div class="cb" id="va-browser-list"></div></div>
+        <div class="card"><div class="ch"><h2>Operating Systems</h2></div><div class="cb" id="va-os-list"></div></div>
+      </div>
+
+      <!-- Top pages + referrers row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card"><div class="ch"><h2>Top Pages / Endpoints</h2></div><div id="va-pages" style="overflow-x:auto;"></div></div>
+        <div class="card"><div class="ch"><h2>Top Referrers</h2></div><div id="va-referrers" style="overflow-x:auto;"></div></div>
       </div>
     </div>
-    <div class="card"><div class="ch"><h2>Top Countries</h2></div><div id="anl-countries" class="cb"><p style="color:var(--muted-fg);">Loading…</p></div></div>
   </div>
 
   <!-- ── ARTICLES LIST ── -->
@@ -2906,6 +2961,131 @@ async function loadAnalytics() {
         </div>`).join('');
     }
   } catch(e) { toast('Failed to load analytics.'); }
+}
+
+// ── Visitor Analytics ─────────────────────────────────────────────────────────
+let _vaPeriod      = 7;
+let _vaLoaded      = false;
+let _vaLoadLock    = false;
+
+function anlTab(tab, btn) {
+  document.querySelectorAll('.anl-tab').forEach(b => b.classList.remove('active','bp','bol'));
+  btn.classList.add('active', 'bp');
+  document.querySelectorAll('.anl-tab:not(.active)').forEach(b => b.classList.add('bol'));
+  document.getElementById('anl-content-tab').style.display  = tab === 'content'  ? '' : 'none';
+  document.getElementById('anl-visitors-tab').style.display = tab === 'visitors' ? '' : 'none';
+}
+
+function setVAPeriod(days, btn) {
+  _vaPeriod  = days;
+  _vaLoaded  = false;
+  document.querySelectorAll('.va-period').forEach(b => b.classList.remove('active','bp','bol'));
+  btn.classList.add('active', 'bp');
+  document.querySelectorAll('.va-period:not(.active)').forEach(b => b.classList.add('bol'));
+  loadVisitorAnalytics();
+}
+
+function _vaBar(value, max, color) {
+  const pct = max > 0 ? (value / max * 100).toFixed(1) : 0;
+  return `<div style="flex:1;height:14px;background:var(--muted);border-radius:2px;overflow:hidden;"><div style="height:100%;background:${color};width:${pct}%;transition:width .3s;"></div></div>`;
+}
+
+function _vaBarRow(labelHtml, value, max, color, titleText) {
+  return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+    <span style="width:110px;font-size:12px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${titleText || labelHtml}">${labelHtml}</span>
+    ${_vaBar(value, max, color)}
+    <span style="width:44px;text-align:right;font-size:11px;color:var(--muted-fg);">${value.toLocaleString()}</span>
+  </div>`;
+}
+
+async function loadVisitorAnalytics() {
+  if (_vaLoaded || _vaLoadLock) return;
+  _vaLoadLock = true;
+  document.getElementById('va-loading').style.display = '';
+  try {
+    const d = await NUX.get(`/editorial/ce/visitor-analytics/?days=${_vaPeriod}`);
+
+    // KPIs
+    document.getElementById('va-total').textContent   = (d.total_visits || 0).toLocaleString();
+    document.getElementById('va-unique').textContent  = (d.unique_visitors || 0).toLocaleString();
+    document.getElementById('va-countries-count').textContent = (d.by_country || []).length;
+
+    // Daily trend bar chart
+    const trend = d.daily_trend || [];
+    const maxT  = Math.max(...trend.map(t => t.visits), 1);
+    document.getElementById('va-trend').innerHTML = trend.length
+      ? `<div style="display:flex;align-items:flex-end;gap:3px;height:80px;padding:8px 0;">
+          ${trend.map(t => {
+            const h = Math.round((t.visits / maxT) * 72);
+            return `<div style="flex:1;min-width:6px;display:flex;flex-direction:column;align-items:center;gap:2px;" title="${t.date}: ${t.visits}">
+              <div style="width:100%;height:${h}px;background:hsl(220 70% 48%);border-radius:2px 2px 0 0;"></div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted-fg);padding:0 4px;">
+          <span>${trend[0]?.date || ''}</span><span>${trend[trend.length-1]?.date || ''}</span>
+        </div>`
+      : '<p style="color:var(--muted-fg);padding:12px 0;">No traffic data yet.</p>';
+
+    // Countries
+    const maxCo = Math.max(...(d.by_country||[]).map(c => c.visits), 1);
+    document.getElementById('va-country-list').innerHTML = (d.by_country||[]).length
+      ? (d.by_country||[]).map(c => _vaBarRow(
+          `${c.country_code ? `<img src="https://flagcdn.com/16x12/${c.country_code.toLowerCase()}.png" style="vertical-align:middle;margin-right:4px;" width="16" height="12">` : ''}${c.country||'Unknown'}`,
+          c.visits, maxCo, 'hsl(220 70% 48%)',
+          c.country || 'Unknown'
+        )).join('')
+      : '<p style="color:var(--muted-fg);">No country data yet — new visits will appear here once geo lookup is active.</p>';
+
+    // Devices
+    const DEVICE_COLORS = {mobile:'hsl(270 60% 48%)',desktop:'hsl(220 70% 48%)',tablet:'hsl(38 80% 48%)'};
+    const maxDev = Math.max(...(d.by_device||[]).map(x => x.visits), 1);
+    document.getElementById('va-device-list').innerHTML = (d.by_device||[]).length
+      ? (d.by_device||[]).map(x => _vaBarRow(
+          x.device_type.charAt(0).toUpperCase() + x.device_type.slice(1),
+          x.visits, maxDev, DEVICE_COLORS[x.device_type] || 'hsl(180 50% 40%)'
+        )).join('')
+      : '<p style="color:var(--muted-fg);">No device data yet.</p>';
+
+    // Browsers
+    const maxBr = Math.max(...(d.by_browser||[]).map(x => x.visits), 1);
+    document.getElementById('va-browser-list').innerHTML = (d.by_browser||[]).length
+      ? (d.by_browser||[]).map(x => _vaBarRow(x.browser, x.visits, maxBr, 'hsl(160 55% 42%)')).join('')
+      : '<p style="color:var(--muted-fg);">No browser data yet.</p>';
+
+    // OS
+    const maxOs = Math.max(...(d.by_os||[]).map(x => x.visits), 1);
+    document.getElementById('va-os-list').innerHTML = (d.by_os||[]).length
+      ? (d.by_os||[]).map(x => _vaBarRow(x.os, x.visits, maxOs, 'hsl(30 70% 48%)')).join('')
+      : '<p style="color:var(--muted-fg);">No OS data yet.</p>';
+
+    // Top pages
+    document.getElementById('va-pages').innerHTML = (d.top_pages||[]).length
+      ? `<table class="tbl"><thead><tr><th>Path</th><th>Hits</th></tr></thead><tbody>
+          ${(d.top_pages||[]).map(p => `<tr>
+            <td style="font-size:12px;font-family:monospace;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.path}</td>
+            <td style="font-size:12px;">${p.visits.toLocaleString()}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      : '<p style="padding:16px;color:var(--muted-fg);">No data yet.</p>';
+
+    // Referrers
+    document.getElementById('va-referrers').innerHTML = (d.top_referrers||[]).length
+      ? `<table class="tbl"><thead><tr><th>Source</th><th>Hits</th></tr></thead><tbody>
+          ${(d.top_referrers||[]).map(r => `<tr>
+            <td style="font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.referrer}">${r.referrer}</td>
+            <td style="font-size:12px;">${r.visits.toLocaleString()}</td>
+          </tr>`).join('')}
+        </tbody></table>`
+      : '<p style="padding:16px;color:var(--muted-fg);">No referrer data yet (direct traffic or API clients don\'t send referrers).</p>';
+
+    _vaLoaded = true;
+  } catch(e) {
+    toast('Failed to load visitor analytics.');
+  } finally {
+    _vaLoadLock = false;
+    document.getElementById('va-loading').style.display = 'none';
+  }
 }
 
 // ── CE Profile ───────────────────────────────────────────────────────────────

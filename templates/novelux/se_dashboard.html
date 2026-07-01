@@ -1619,9 +1619,31 @@ html.dark .brd{color:hsl(0 70% 65%);}
       </select>
     </div>
 
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted-fg);display:block;margin-bottom:6px;">GENRE TAB</label>
+        <select id="promo-tab-select" onchange="updatePromoSections()" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--muted);color:var(--fg);font-size:13px;">
+          <option value="">— Choose tab —</option>
+          <option value="werewolf">Werewolf</option>
+          <option value="billionaire">Billionaire</option>
+          <option value="short-fics">Short Fics</option>
+          <option value="ranking">Ranking</option>
+          <option value="for-her">For Her</option>
+          <option value="for-him">For Him</option>
+          <option value="suspense">Suspense</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:var(--muted-fg);display:block;margin-bottom:6px;">SECTION</label>
+        <select id="promo-section-select" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--muted);color:var(--fg);font-size:13px;">
+          <option value="">— Choose tab first —</option>
+        </select>
+      </div>
+    </div>
+
     <div style="margin-bottom:20px;">
       <label style="font-size:12px;font-weight:600;color:var(--muted-fg);display:block;margin-bottom:6px;">WHY PROMOTE THIS BOOK?</label>
-      <textarea id="promo-message" rows="5" placeholder="Describe why this book deserves a promotional slot — its performance, author engagement, genre trends, etc." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--muted);color:var(--fg);font-family:inherit;font-size:13px;resize:vertical;outline:none;"></textarea>
+      <textarea id="promo-message" rows="4" placeholder="Describe why this book deserves a promotional slot — its performance, author engagement, genre trends, etc." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:7px;background:var(--muted);color:var(--fg);font-family:inherit;font-size:13px;resize:vertical;outline:none;"></textarea>
     </div>
 
     <div style="display:flex;justify-content:flex-end;gap:8px;">
@@ -3548,8 +3570,10 @@ function _renderPromos(items) {
     <div class="story-card" style="margin-bottom:10px;">
       <div class="story-head">
         <div class="story-meta">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px;">
             <span class="bdg ${_PROMO_STATUS[r.status] || 'bgy'}" style="font-size:10px;">${r.status.charAt(0).toUpperCase()+r.status.slice(1)}</span>
+            ${r.tab     ? `<span class="bdg bpu" style="font-size:10px;">${r.tab}</span>` : ''}
+            ${r.section ? `<span class="bdg bgy" style="font-size:10px;">${r.section.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>` : ''}
           </div>
           <p class="story-title">${r.story_title}</p>
           ${r.book_code ? `<p style="font-size:11px;color:var(--muted-fg);margin-bottom:2px;font-family:monospace;">Book: <strong>${r.book_code}</strong></p>` : ''}
@@ -3562,7 +3586,7 @@ function _renderPromos(items) {
 }
 function searchPromos(q) {
   q = q.trim().toLowerCase();
-  const filtered = q ? _promosData.filter(r => ((r.story_title||'') + ' ' + (r.book_code||'') + ' ' + (r.message||'')).toLowerCase().includes(q)) : _promosData;
+  const filtered = q ? _promosData.filter(r => ((r.story_title||'') + ' ' + (r.book_code||'') + ' ' + (r.tab||'') + ' ' + (r.section||'') + ' ' + (r.message||'')).toLowerCase().includes(q)) : _promosData;
   _renderPromos(filtered);
 }
 async function loadMyPromotions() {
@@ -3579,8 +3603,29 @@ async function loadMyPromotions() {
   }
 }
 
+const _PROMO_TAB_SECTIONS = {
+  'werewolf':    [{v:'just-your-style',l:'Just Your Style'},{v:'fresh-reads',l:'Fresh Reads'},{v:'still-rolling-out',l:'Still Rolling Out'},{v:'short-fics',l:'Dive into These Shorts'},{v:'completed-classics',l:'Completed Classics'}],
+  'billionaire': [{v:'just-your-style',l:'Just Your Style'},{v:'fresh-reads',l:'Fresh Reads'},{v:'still-rolling-out',l:'Still Rolling Out'},{v:'short-fics',l:'Dive into These Shorts'},{v:'completed-classics',l:'Completed Classics'}],
+  'suspense':    [{v:'editors-picks',l:"Editor's Picks"},{v:'the-ends',l:'The Ends'},{v:'fresh-drops',l:'Fresh Drops'},{v:'trending-up',l:'Trending Up'},{v:'stars-of-tomorrow',l:'Stars of Tomorrow'}],
+  'for-her':     [{v:'picks-for-you',l:'Picks for You'},{v:'fresh-releases',l:'Fresh Releases'},{v:'completed-classics',l:'Completed Classics'}],
+  'for-him':     [{v:'picks-for-you',l:'Picks for You'},{v:'fresh-releases',l:'Fresh Releases'},{v:'completed-classics',l:'Completed Classics'}],
+  'short-fics':  [{v:'romance',l:'Romance'},{v:'family-drama',l:'Family Drama'},{v:'reborn',l:'Reborn / After Death'},{v:'werewolf',l:"Werewolf's World"},{v:'mafia',l:'Mafia'},{v:'revenge',l:'Revenge'}],
+  'ranking':     [{v:'new-releases',l:'New Releases'},{v:'most-read',l:'Most Read'},{v:'short-stories',l:'Short Stories'}],
+};
+
+function updatePromoSections() {
+  const tab = document.getElementById('promo-tab-select').value;
+  const secSel = document.getElementById('promo-section-select');
+  const sections = _PROMO_TAB_SECTIONS[tab] || [];
+  secSel.innerHTML = sections.length
+    ? '<option value="">— Choose section —</option>' + sections.map(s => `<option value="${s.v}">${s.l}</option>`).join('')
+    : '<option value="">— Choose tab first —</option>';
+}
+
 async function openPromoModal() {
   document.getElementById('promo-story-select').innerHTML = '<option value="">Loading…</option>';
+  document.getElementById('promo-tab-select').value = '';
+  document.getElementById('promo-section-select').innerHTML = '<option value="">— Choose tab first —</option>';
   document.getElementById('promo-message').value = '';
   document.getElementById('promoModal').style.display = 'flex';
   try {
@@ -3604,12 +3649,17 @@ function closePromoModal() { document.getElementById('promoModal').style.display
 
 async function submitPromoRequest() {
   const slug    = document.getElementById('promo-story-select').value;
+  const tab     = document.getElementById('promo-tab-select').value;
+  const section = document.getElementById('promo-section-select').value;
   const message = document.getElementById('promo-message').value.trim();
-  if (!slug || !message) { toast('Select a book and provide a reason.'); return; }
+  if (!slug)    { toast('Please select a book.'); return; }
+  if (!tab)     { toast('Please choose a genre tab.'); return; }
+  if (!section) { toast('Please choose a section.'); return; }
+  if (!message) { toast('Please explain why you want to promote this book.'); return; }
   const btn = document.getElementById('promo-submit-btn');
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
-    await NUX.post('/editorial/promotion-requests/', { story_slug: slug, message });
+    await NUX.post('/editorial/promotion-requests/', { story_slug: slug, tab, section, message });
     toast('Promotion request submitted to your CE.');
     closePromoModal();
     loadMyPromotions();

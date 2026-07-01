@@ -81,6 +81,7 @@ urlpatterns = [
     path('ce/payouts/<int:pk>/process/', views.ce_process_payout, name='ce-payout-process'),
     path('ce/payouts/<int:pk>/reject/', views.ce_reject_payout, name='ce-payout-reject'),
     path('ce/analytics/', views.CEAnalyticsView.as_view(), name='ce-analytics'),
+    path('ce/visitor-analytics/', views.CEVisitorAnalyticsView.as_view(), name='ce-visitor-analytics'),
     path('ce/flags/', views.CEContentFlagsView.as_view(), name='ce-flags'),
     path('ce/flags/<int:pk>/resolve/', views.ce_resolve_flag, name='ce-flag-resolve'),
     path('ce/warnings/', views.CEAuthorWarningsView.as_view(), name='ce-warnings'),
@@ -108,6 +109,8 @@ urlpatterns = [
     path('ce/promotions/', views.CEPromotionListView.as_view(), name='ce-promotions'),
     path('ce/promotions/<int:pk>/', views.ce_remove_promotion, name='ce-promotion-remove'),
     path('ce/slot-configs/', views.CESlotConfigView.as_view(), name='ce-slot-configs'),
+    # Tab/section catalogue for SE promotion modal
+    path('tab-sections/', views.TabSectionsView.as_view(), name='tab-sections'),
     # Author-facing & system
     path('announcements/', views.author_announcements, name='author-announcements'),
     path('system-notice/', views.system_notice, name='system-notice'),

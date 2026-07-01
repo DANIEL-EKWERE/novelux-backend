@@ -3882,6 +3882,76 @@ def se_my_flags(request):
     return Response({'count': len(data), 'results': data})
 
 
+# ── Tab / Section catalogue (mirrors ExploreTabView section slugs) ────────────
+
+TAB_SECTIONS = {
+    'werewolf': [
+        {'slug': 'just-your-style',    'name': 'Just Your Style'},
+        {'slug': 'fresh-reads',        'name': 'Fresh Reads'},
+        {'slug': 'still-rolling-out',  'name': 'Still Rolling Out'},
+        {'slug': 'short-fics',         'name': 'Dive into These Shorts'},
+        {'slug': 'completed-classics', 'name': 'Completed Classics'},
+    ],
+    'billionaire': [
+        {'slug': 'just-your-style',    'name': 'Just Your Style'},
+        {'slug': 'fresh-reads',        'name': 'Fresh Reads'},
+        {'slug': 'still-rolling-out',  'name': 'Still Rolling Out'},
+        {'slug': 'short-fics',         'name': 'Dive into These Shorts'},
+        {'slug': 'completed-classics', 'name': 'Completed Classics'},
+    ],
+    'suspense': [
+        {'slug': 'editors-picks',     'name': "Editor's Picks"},
+        {'slug': 'the-ends',          'name': 'The Ends'},
+        {'slug': 'fresh-drops',       'name': 'Fresh Drops'},
+        {'slug': 'trending-up',       'name': 'Trending Up'},
+        {'slug': 'stars-of-tomorrow', 'name': 'Stars of Tomorrow'},
+    ],
+    'for-her': [
+        {'slug': 'picks-for-you',      'name': 'Picks for You'},
+        {'slug': 'fresh-releases',     'name': 'Fresh Releases'},
+        {'slug': 'completed-classics', 'name': 'Completed Classics'},
+    ],
+    'for-him': [
+        {'slug': 'picks-for-you',      'name': 'Picks for You'},
+        {'slug': 'fresh-releases',     'name': 'Fresh Releases'},
+        {'slug': 'completed-classics', 'name': 'Completed Classics'},
+    ],
+    'short-fics': [
+        {'slug': 'romance',      'name': 'Romance'},
+        {'slug': 'family-drama', 'name': 'Family Drama'},
+        {'slug': 'reborn',       'name': 'Reborn / After Death'},
+        {'slug': 'werewolf',     'name': "Werewolf's World"},
+        {'slug': 'mafia',        'name': 'Mafia'},
+        {'slug': 'revenge',      'name': 'Revenge'},
+    ],
+    'ranking': [
+        {'slug': 'new-releases',  'name': 'New Releases'},
+        {'slug': 'most-read',     'name': 'Most Read'},
+        {'slug': 'short-stories', 'name': 'Short Stories'},
+    ],
+}
+
+
+class TabSectionsView(APIView):
+    """GET /api/editorial/tab-sections/
+    Returns available tabs and their pinnable sections.
+    Used by SE modal and mobile app to populate dropdowns.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            'tabs': [
+                {
+                    'slug': tab,
+                    'name': tab.replace('-', ' ').title(),
+                    'sections': sections,
+                }
+                for tab, sections in TAB_SECTIONS.items()
+            ]
+        })
+
+
 # ── SE Promotion Request submission ───────────────────────────────────────────
 
 @api_view(['GET', 'POST'])
@@ -3892,12 +3962,12 @@ def se_promotion_requests(request):
     POST /api/editorial/promotion-requests/  — SE submits a new one.
          Body: { story_slug, tab, section, message }
          tab:     werewolf | billionaire | short-fics | ranking | for-her | for-him | suspense
-         section: section slug, e.g. picks-for-you, fresh-reads, editors-picks …
+         section: valid slug for the chosen tab (see /api/editorial/tab-sections/)
     """
     from apps.editorial.models import SEPromotionRequest
     from apps.stories.models import Story
 
-    VALID_TABS = {'werewolf', 'billionaire', 'short-fics', 'ranking', 'for-her', 'for-him', 'suspense'}
+    VALID_TABS = set(TAB_SECTIONS.keys())
 
     if request.method == 'GET':
         qs = SEPromotionRequest.objects.filter(se=request.user)\
@@ -3929,8 +3999,11 @@ def se_promotion_requests(request):
         return Response({'detail': 'story_slug is required.'}, status=400)
     if not tab or tab not in VALID_TABS:
         return Response({'detail': f'tab must be one of: {", ".join(sorted(VALID_TABS))}'}, status=400)
-    if not section:
-        return Response({'detail': 'section is required (e.g. picks-for-you, fresh-reads).'}, status=400)
+    valid_sections = {s['slug'] for s in TAB_SECTIONS[tab]}
+    if not section or section not in valid_sections:
+        return Response({
+            'detail': f'section must be one of: {", ".join(s["slug"] for s in TAB_SECTIONS[tab])}'
+        }, status=400)
     if not message:
         return Response({'detail': 'message is required.'}, status=400)
 
@@ -4814,6 +4887,104 @@ class CEAnalyticsView(APIView):
             'total_users':       total_users,
             'total_bookmarks':   total_bookmarks,
             'country_data':      country_data,
+        })
+
+
+# ── Visitor Analytics ──────────────────────────────────────────────────────────
+
+class CEVisitorAnalyticsView(APIView):
+    """GET /api/editorial/ce/visitor-analytics/?days=30"""
+    permission_classes = [IsCE]
+
+    def get(self, request):
+        from apps.analytics.models import PageVisit
+        from django.db.models import Count
+        from django.utils import timezone
+        from datetime import timedelta
+
+        try:
+            days = max(1, min(int(request.query_params.get('days', 30)), 365))
+        except (ValueError, TypeError):
+            days = 30
+
+        since = timezone.now() - timedelta(days=days)
+        qs = PageVisit.objects.filter(created_at__gte=since)
+
+        # Total visits
+        total_visits = qs.count()
+
+        # Unique IPs
+        unique_visitors = qs.exclude(ip_address__isnull=True)\
+                            .values('ip_address').distinct().count()
+
+        # By country (top 20)
+        by_country = list(
+            qs.exclude(country='')
+              .values('country', 'country_code')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')[:20]
+        )
+
+        # By device type
+        by_device = list(
+            qs.exclude(device_type='')
+              .values('device_type')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')
+        )
+
+        # By browser (top 10)
+        by_browser = list(
+            qs.exclude(browser='')
+              .values('browser')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')[:10]
+        )
+
+        # By OS (top 10)
+        by_os = list(
+            qs.exclude(os='')
+              .values('os')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')[:10]
+        )
+
+        # Daily trend (last `days` days, grouped by date)
+        from django.db.models.functions import TruncDate
+        daily = list(
+            qs.annotate(date=TruncDate('created_at'))
+              .values('date')
+              .annotate(visits=Count('id'))
+              .order_by('date')
+        )
+        daily_trend = [{'date': str(d['date']), 'visits': d['visits']} for d in daily]
+
+        # Top pages (top 20, exclude pure API calls if desired)
+        top_pages = list(
+            qs.values('path')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')[:20]
+        )
+
+        # Top referrers (top 15)
+        top_referrers = list(
+            qs.exclude(referrer='')
+              .values('referrer')
+              .annotate(visits=Count('id'))
+              .order_by('-visits')[:15]
+        )
+
+        return Response({
+            'days':             days,
+            'total_visits':     total_visits,
+            'unique_visitors':  unique_visitors,
+            'by_country':       by_country,
+            'by_device':        by_device,
+            'by_browser':       by_browser,
+            'by_os':            by_os,
+            'daily_trend':      daily_trend,
+            'top_pages':        top_pages,
+            'top_referrers':    top_referrers,
         })
 
 

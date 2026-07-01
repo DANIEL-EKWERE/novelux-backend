@@ -1,0 +1,2 @@
+# MaxMind GeoLite2 database — download separately from https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+*.mmdb

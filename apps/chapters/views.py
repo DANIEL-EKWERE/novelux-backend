@@ -275,20 +275,15 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         if not new_content:
             return Response({'detail': 'content is required.'}, status=400)
 
-        # Only one pending request allowed at a time per chapter
-        if ChapterEditRequest.objects.filter(
-            chapter=chapter, status=ChapterEditRequest.STATUS_PENDING
-        ).exists():
-            return Response(
-                {'detail': 'You already have a pending edit in review for this chapter.'},
-                status=400,
-            )
-
-        edit_req = ChapterEditRequest.objects.create(
-            chapter        = chapter,
-            author         = request.user,
-            pending_title   = new_title or chapter.title,
-            pending_content = new_content,
+        # Upsert: update the existing pending request or create a new one
+        edit_req, _ = ChapterEditRequest.objects.update_or_create(
+            chapter=chapter,
+            author=request.user,
+            status=ChapterEditRequest.STATUS_PENDING,
+            defaults={
+                'pending_title':   new_title or chapter.title,
+                'pending_content': new_content,
+            },
         )
 
         # Notify the author's assigned SE

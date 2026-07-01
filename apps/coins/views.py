@@ -534,6 +534,212 @@ class ClaimDailyRewardView(APIView):
         })
  
  
+# ── Daily Check-in (streak-aware) ─────────────────────────────────────────────
+
+def _get_or_create_streak(user):
+    from apps.coins.models import CheckinStreak
+    streak, _ = CheckinStreak.objects.get_or_create(user=user)
+    return streak
+
+
+class CheckinStatusView(APIView):
+    """
+    GET /api/coins/checkin/
+    Returns today's check-in state and streak info — call this on app open.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.coins.models import STREAK_REWARDS
+        today  = date.today()
+        streak = _get_or_create_streak(request.user)
+
+        claimed_today = streak.last_checkin == today
+
+        # If last checkin was 2+ days ago, streak would reset on next claim
+        if streak.last_checkin and streak.last_checkin < today - timedelta(days=1):
+            effective_streak = 0
+        else:
+            effective_streak = streak.current_streak
+
+        next_reward = STREAK_REWARDS[effective_streak % len(STREAK_REWARDS)]
+
+        return Response({
+            'claimed_today':   claimed_today,
+            'current_streak':  effective_streak,
+            'longest_streak':  streak.longest_streak,
+            'total_checkins':  streak.total_checkins,
+            'next_reward':     next_reward,
+            'reward_schedule': STREAK_REWARDS,
+        })
+
+
+class CheckinView(APIView):
+    """
+    POST /api/coins/checkin/
+    Claims today's check-in reward. Streak increments if yesterday was claimed,
+    resets to 1 if a day was missed.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from apps.coins.models import CheckinStreak, DailyRewardClaim, STREAK_REWARDS
+        user  = request.user
+        today = date.today()
+
+        streak = _get_or_create_streak(user)
+
+        if streak.last_checkin == today:
+            return Response({'detail': 'Already checked in today.'}, status=400)
+
+        # Determine new streak value
+        yesterday = today - timedelta(days=1)
+        if streak.last_checkin == yesterday:
+            new_streak = streak.current_streak + 1
+        else:
+            new_streak = 1  # missed a day — reset
+
+        reward = STREAK_REWARDS[(new_streak - 1) % len(STREAK_REWARDS)]
+
+        # Update streak record
+        streak.current_streak = new_streak
+        streak.longest_streak = max(streak.longest_streak, new_streak)
+        streak.last_checkin   = today
+        streak.total_checkins += 1
+        streak.save()
+
+        # Credit reward into bonus balance
+        user.add_bonus(reward, reason=f'Daily check-in (day {new_streak})')
+
+        # Record in claim history
+        DailyRewardClaim.objects.create(user=user, claim_type='checkin', coins=reward)
+
+        return Response({
+            'success':        True,
+            'coins_earned':   reward,
+            'current_streak': new_streak,
+            'longest_streak': streak.longest_streak,
+            'total_checkins': streak.total_checkins,
+            'bonus_balance':  user.bonus_balance,
+            'coin_balance':   user.coin_balance,
+            'next_reward':    STREAK_REWARDS[new_streak % len(STREAK_REWARDS)],
+        })
+
+
+# ── Tasks ─────────────────────────────────────────────────────────────────────
+
+class TaskListView(APIView):
+    """
+    GET /api/coins/tasks/
+    Returns all active tasks with the current user's completion status.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.coins.models import Task, UserTask
+        from django.utils import timezone
+        from django.db.models import Q
+
+        now = timezone.now()
+        tasks = Task.objects.filter(is_active=True).filter(
+            Q(expires_at__isnull=True) | Q(expires_at__gt=now)
+        )
+
+        # Fetch this user's completions in one query
+        user_task_map = {
+            ut.task_id: ut
+            for ut in UserTask.objects.filter(user=request.user, task__in=tasks)
+        }
+
+        data = []
+        for t in tasks:
+            ut = user_task_map.get(t.id)
+            data.append({
+                'id':           t.id,
+                'title':        t.title,
+                'description':  t.description,
+                'task_type':    t.task_type,
+                'reward_coins': t.reward_coins,
+                'icon':         t.icon,
+                'is_repeatable':t.is_repeatable,
+                'expires_at':   t.expires_at.isoformat() if t.expires_at else None,
+                'status':       ut.status if ut else 'pending',
+                'response':     ut.response if ut else '',
+                'completed_at': ut.completed_at.isoformat() if ut and ut.completed_at else None,
+                'claimed_at':   ut.claimed_at.isoformat() if ut and ut.claimed_at else None,
+            })
+
+        return Response({'count': len(data), 'results': data})
+
+
+class TaskCompleteView(APIView):
+    """
+    POST /api/coins/tasks/<id>/complete/
+    Marks a task as completed and immediately awards the coins.
+
+    For action tasks:  body can be empty — just POST to mark done.
+    For response tasks: body must include { "response": "..." }
+
+    Reward is credited on completion. claimed status is set simultaneously.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.coins.models import Task, UserTask, DailyRewardClaim
+        from django.utils import timezone
+
+        try:
+            task = Task.objects.get(pk=pk, is_active=True)
+        except Task.DoesNotExist:
+            return Response({'detail': 'Task not found.'}, status=404)
+
+        now = timezone.now()
+        if task.expires_at and task.expires_at < now:
+            return Response({'detail': 'This task has expired.'}, status=400)
+
+        user = request.user
+
+        # Check existing completion
+        ut = UserTask.objects.filter(user=user, task=task).first()
+        if ut and ut.status in ('completed', 'claimed') and not task.is_repeatable:
+            return Response({'detail': 'Task already completed.'}, status=400)
+
+        if task.task_type == Task.TYPE_RESPONSE:
+            response_text = request.data.get('response', '').strip()
+            if not response_text:
+                return Response({'detail': 'A response is required for this task.'}, status=400)
+        else:
+            response_text = ''
+
+        if ut and task.is_repeatable:
+            ut.status       = 'claimed'
+            ut.response     = response_text
+            ut.completed_at = now
+            ut.claimed_at   = now
+            ut.save()
+        else:
+            ut, _ = UserTask.objects.update_or_create(
+                user=user, task=task,
+                defaults={
+                    'status':       'claimed',
+                    'response':     response_text,
+                    'completed_at': now,
+                    'claimed_at':   now,
+                },
+            )
+
+        # Award coins immediately
+        user.add_bonus(task.reward_coins, reason=f'Task: {task.title}')
+
+        return Response({
+            'success':      True,
+            'task_id':      task.id,
+            'coins_earned': task.reward_coins,
+            'bonus_balance':user.bonus_balance,
+            'coin_balance': user.coin_balance,
+        })
+
+
 # ── Reading Session ───────────────────────────────────────────────────────────
 class ReadingSessionView(APIView):
     """

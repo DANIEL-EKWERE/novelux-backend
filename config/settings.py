@@ -66,6 +66,7 @@ LOCAL_APPS = [
     'apps.reviews',
     'apps.editorial',      # Editorial hierarchy — AE / SE / CE
     'apps.blog',           # SE-authored blog / learning content
+    'apps.analytics',      # Visitor tracking
     'novelux_web',
 
 ]
@@ -84,7 +85,12 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
+    'apps.analytics.middleware.AnalyticsMiddleware',
 ]
+
+# Path to the directory containing GeoLite2-City.mmdb
+# Download free from https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+GEOIP_PATH = BASE_DIR / 'geoip'
 
 ROOT_URLCONF = 'config.urls'
 
@@ -106,16 +112,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-     'default': {
-         'ENGINE': 'django.db.backends.postgresql',
-         'NAME': 'postgres',#'novelux_backend',#config('m DB_NAME', default='novelplatform'),
-         'USER': 'postgres',#config('DB_USER', default='postgres'),
-         'PASSWORD': 'MKPOIKANA1dt',#config('DB_PASSWORD', default='password'),
-         'HOST': 'database-1.cdcs8iswifke.eu-north-1.rds.amazonaws.com',#config('DB_HOST', default='localhost'),
-         'PORT': '5432'#config('DB_PORT', default='5432'),
-     }
- }
+# DATABASES = {
+#      'default': {
+#          'ENGINE': 'django.db.backends.postgresql',
+#          'NAME': 'postgres',#'novelux_backend',#config('m DB_NAME', default='novelplatform'),
+#          'USER': 'postgres',#config('DB_USER', default='postgres'),
+#          'PASSWORD': 'MKPOIKANA1dt',#config('DB_PASSWORD', default='password'),
+#          'HOST': 'database-1.cdcs8iswifke.eu-north-1.rds.amazonaws.com',#config('DB_HOST', default='localhost'),
+#          'PORT': '5432'#config('DB_PORT', default='5432'),
+#      }
+#  }
 '''
 you'll make some modifications
 1. the ability set the boolean fields like editor's pick trending etc, comment out from the se dashbaord, only CE can do that, not add all the sections you've added as a field along others, they are for promotion.
@@ -125,13 +131,13 @@ shorebird release android --artifact=apk
 the intension is that, when the CE ticks them in those sections for the purpose of promotion, after a certain period if time let's say a week
 '''
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
         
-#     }
-# }
+    }
+}
 
 # DATABASES = {
 #     'default': dj_database_url.parse("postgresql://novelux_db_user:o1efbmKLxGZ6w0KvVw42fSGNlJOTN5pR@dpg-d6sq2895pdvs73e0dfs0-a.oregon-postgres.render.com/novelux_db")

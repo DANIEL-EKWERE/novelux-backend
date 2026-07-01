@@ -222,6 +222,93 @@ class ReadingSchedule(models.Model):
         return f'{self.user.username} — {self.hour}:{self.minute:02d}'
  
 
+# Coins awarded per consecutive check-in day (cycles every 7 days)
+STREAK_REWARDS = [10, 15, 20, 25, 30, 35, 40]
+
+
+class CheckinStreak(models.Model):
+    """Persists each user's check-in streak so we don't recompute from history every time."""
+    user           = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='checkin_streak')
+    current_streak = models.PositiveIntegerField(default=0)
+    longest_streak = models.PositiveIntegerField(default=0)
+    last_checkin   = models.DateField(null=True, blank=True)
+    total_checkins = models.PositiveIntegerField(default=0)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'checkin_streaks'
+
+    def __str__(self):
+        return f'{self.user.username} — streak {self.current_streak}'
+
+    def next_reward(self):
+        """Coins the user will earn on their NEXT check-in."""
+        day_index = self.current_streak % len(STREAK_REWARDS)
+        return STREAK_REWARDS[day_index]
+
+    def todays_reward(self):
+        """Coins earned on today's check-in (streak already incremented)."""
+        day_index = (self.current_streak - 1) % len(STREAK_REWARDS)
+        return STREAK_REWARDS[max(day_index, 0)]
+
+
+class Task(models.Model):
+    TYPE_ACTION   = 'action'
+    TYPE_RESPONSE = 'response'
+    TYPE_CHOICES  = [
+        (TYPE_ACTION,   'Action'),
+        (TYPE_RESPONSE, 'Response'),
+    ]
+
+    title        = models.CharField(max_length=200)
+    description  = models.TextField()
+    task_type    = models.CharField(max_length=10, choices=TYPE_CHOICES, default=TYPE_ACTION)
+    reward_coins = models.PositiveIntegerField(default=10)
+    icon         = models.CharField(max_length=10, blank=True, help_text='Emoji icon, e.g. 📖')
+    is_active    = models.BooleanField(default=True, db_index=True)
+    is_repeatable= models.BooleanField(default=False, help_text='Can a user complete this more than once?')
+    expires_at   = models.DateTimeField(null=True, blank=True, help_text='Leave blank for no expiry')
+    order        = models.PositiveSmallIntegerField(default=0)
+    created_by   = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='tasks_created')
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'tasks'
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return f'[{self.task_type}] {self.title} ({self.reward_coins} coins)'
+
+
+class UserTask(models.Model):
+    STATUS_PENDING   = 'pending'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CLAIMED   = 'claimed'
+    STATUS_CHOICES   = [
+        (STATUS_PENDING,   'Pending'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_CLAIMED,   'Claimed'),
+    ]
+
+    user         = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='user_tasks')
+    task         = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='completions')
+    status       = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    response     = models.TextField(blank=True, help_text='User-submitted text for response-type tasks')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    claimed_at   = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'user_tasks'
+        unique_together = ('user', 'task')
+
+    def __str__(self):
+        return f'{self.user.username} — {self.task.title} [{self.status}]'
+
+
 class ReadingHistory(models.Model):
     # \"\"\"Tracks every story a user has opened, with last chapter read.\"\"\"
     user           = models.ForeignKey(settings.AUTH_USER_MODEL,

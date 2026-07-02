@@ -460,3 +460,20 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
 LOGIN_URL = '/login/'   # was '/api/auth/login/'
+
+
+# Coin Packs (COIN_PRODUCTS):
+
+# Product ID	Coins	Price
+# novelux_coins_100	100 coins	$0.99
+# novelux_coins_500	500 coins	$4.99
+# novelux_coins_1000	1,000 coins	$9.99
+# novelux_coins_2500	2,500 coins	$24.99
+# novelux_coins_5000	5,000 coins	$49.99
+# VIP Subscriptions (VIP_PRODUCTS):
+
+# Product ID	Plan
+# novelux_vip_weekly	Weekly VIP
+# novelux_vip_monthly	Monthly VIP
+# novelux_vip_quarterly	Quarterly VIP
+# novelux_vip_yearly	Yearly VIP

@@ -1,9 +1,11 @@
 from django.contrib import admin
+from django.utils import timezone
 from .models import (
     EditorAssignment, AuthorEditorLink,
     #   ChapterReview,
     EditorialNote, ContentFlag, PolicyDecision, EditorialPolicy,
     SystemNotice, PromotionSlotConfig, StoryPromotion,
+    SEPromotionRequest, ExploreTabPin,
 )
 
 
@@ -138,4 +140,85 @@ class StoryPromotionAdmin(admin.ModelAdmin):
     raw_id_fields = ['se', 'story']
     readonly_fields = ['created_at', 'updated_at']
     date_hierarchy = 'expires_at'
+
+
+class ExploreTabPinInline(admin.TabularInline):
+    model           = ExploreTabPin
+    extra           = 0
+    fields          = ['tab', 'section', 'story', 'order', 'is_active', 'pinned_by', 'pinned_at']
+    readonly_fields = ['pinned_at']
+    raw_id_fields   = ['story', 'pinned_by']
+
+
+@admin.register(SEPromotionRequest)
+class SEPromotionRequestAdmin(admin.ModelAdmin):
+    list_display   = ['story', 'se', 'tab', 'section', 'status', 'reviewed_by', 'created_at']
+    list_filter    = ['status', 'tab']
+    search_fields  = ['story__title', 'se__username', 'section']
+    readonly_fields = ['created_at', 'reviewed_at']
+    raw_id_fields  = ['se', 'story', 'reviewed_by']
+    actions        = ['approve_requests', 'reject_requests']
+    inlines        = [ExploreTabPinInline]
+
+    def approve_requests(self, request, queryset):
+        approved = 0
+        for req in queryset.filter(status=SEPromotionRequest.STATUS_PENDING):
+            req.status      = SEPromotionRequest.STATUS_APPROVED
+            req.reviewed_by = request.user
+            req.reviewed_at = timezone.now()
+            req.save(update_fields=['status', 'reviewed_by', 'reviewed_at'])
+            ExploreTabPin.objects.update_or_create(
+                tab=req.tab, section=req.section, story=req.story,
+                defaults={
+                    'pinned_by':      request.user,
+                    'source_request': req,
+                    'is_active':      True,
+                    'order':          0,
+                },
+            )
+            approved += 1
+        self.message_user(request, f'{approved} request(s) approved and pinned.')
+    approve_requests.short_description = 'Approve and pin selected requests'
+
+    def reject_requests(self, request, queryset):
+        updated = queryset.filter(status=SEPromotionRequest.STATUS_PENDING).update(
+            status=SEPromotionRequest.STATUS_REJECTED,
+            reviewed_by=request.user,
+            reviewed_at=timezone.now(),
+        )
+        self.message_user(request, f'{updated} request(s) rejected.')
+    reject_requests.short_description = 'Reject selected requests'
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Allow any user as reviewed_by (superadmin may not have role='ce')
+        if db_field.name == 'reviewed_by':
+            kwargs['queryset'] = db_field.related_model.objects.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(ExploreTabPin)
+class ExploreTabPinAdmin(admin.ModelAdmin):
+    list_display   = ['story', 'tab', 'section', 'order', 'is_active', 'pinned_by', 'pinned_at']
+    list_filter    = ['tab', 'section', 'is_active']
+    list_editable  = ['order', 'is_active']
+    search_fields  = ['story__title', 'pinned_by__username']
+    raw_id_fields  = ['story', 'pinned_by', 'source_request']
+    readonly_fields = ['pinned_at']
+    actions        = ['activate_pins', 'deactivate_pins']
+
+    def activate_pins(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} pin(s) activated.')
+    activate_pins.short_description = 'Activate selected pins'
+
+    def deactivate_pins(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} pin(s) deactivated.')
+    deactivate_pins.short_description = 'Deactivate selected pins'
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # Allow any user as pinned_by — superadmin may not have role='ce'
+        if db_field.name == 'pinned_by':
+            kwargs['queryset'] = db_field.related_model.objects.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 

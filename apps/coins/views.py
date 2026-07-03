@@ -367,7 +367,12 @@ class CoinTransactionHistoryView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return CoinTransaction.objects.filter(user=self.request.user)
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(days=30)
+        return CoinTransaction.objects.filter(
+            user=self.request.user,
+            created_at__gte=cutoff,
+        ).order_by('-created_at')
 
 
 class MyPurchaseHistoryView(generics.ListAPIView):
@@ -518,8 +523,7 @@ class ClaimDailyRewardView(APIView):
                 return Response({'detail': 'Daily limit reached'},
                                 status=status.HTTP_400_BAD_REQUEST)
  
-        # Reward goes into bonus balance, not paid coin balance
-        user.add_bonus(coins, reason=f'Reward: {claim_type}')
+        user.add_coins(coins, reason=f'Reward: {claim_type}')
 
         # Record claim
         from apps.coins.models import DailyRewardClaim
@@ -608,8 +612,7 @@ class CheckinView(APIView):
         streak.total_checkins += 1
         streak.save()
 
-        # Credit reward into bonus balance
-        user.add_bonus(reward, reason=f'Daily check-in (day {new_streak})')
+        user.add_coins(reward, reason=f'Daily check-in (day {new_streak})')
 
         # Record in claim history
         DailyRewardClaim.objects.create(user=user, claim_type='checkin', coins=reward)
@@ -728,14 +731,12 @@ class TaskCompleteView(APIView):
                 },
             )
 
-        # Award coins immediately
-        user.add_bonus(task.reward_coins, reason=f'Task: {task.title}')
+        user.add_coins(task.reward_coins, reason=f'Task: {task.title}')
 
         return Response({
             'success':      True,
             'task_id':      task.id,
             'coins_earned': task.reward_coins,
-            'bonus_balance':user.bonus_balance,
             'coin_balance': user.coin_balance,
         })
 

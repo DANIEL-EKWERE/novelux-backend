@@ -363,6 +363,12 @@ APPLE_IAP_SHARED_SECRET = config('APPLE_IAP_SHARED_SECRET', default='')
 GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = config('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', default='')
 GOOGLE_PLAY_PACKAGE_NAME = config('GOOGLE_PLAY_PACKAGE_NAME', default='com.novelux.app')
 
+# ── RevenueCat ────────────────────────────────────────────────────────────────
+# Secret API key (sk_…) from RevenueCat → Project settings → API keys
+REVENUECAT_SECRET_KEY = config('REVENUECAT_SECRET_KEY', default='')
+# Authorization header value configured on the webhook in the RevenueCat dashboard
+REVENUECAT_WEBHOOK_AUTH = config('REVENUECAT_WEBHOOK_AUTH', default='')
+
 # ── Coin System ──────────────────────────────────────────────────────────────
 COIN_PACKAGES = [
     {'id': 'coins_100',  'coins': 100,  'price_usd': 0.99,  'label': '100 Coins'},
@@ -470,6 +476,8 @@ LOGIN_URL = '/login/'   # was '/api/auth/login/'
 # novelux_coins_1000	1,000 coins	$9.99
 # novelux_coins_2500	2,500 coins	$24.99
 # novelux_coins_5000	5,000 coins	$49.99
+
+
 # VIP Subscriptions (VIP_PRODUCTS):
 
 # Product ID	Plan

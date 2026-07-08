@@ -77,6 +77,7 @@ urlpatterns = [
     path('history/',              views.ReadingHistoryView.as_view(),        name='reading-history'),
     path('history/<int:pk>/',     views.ReadingHistoryDetailView.as_view(),  name='reading-history-detail'),
     path('verify-purchases/',     views.VerifyPurchaseView.as_view(),        name='verify-purchase'),
+    path('revenuecat-webhook/',   views.RevenueCatWebhookView.as_view(),     name='revenuecat-webhook'),
     path('vip-status/',           VipStatusView.as_view(),                   name='vip-status'),
     path('subscription/cancel/',  CancelSubscriptionView.as_view(),          name='cancel-sub'),
     path('claim-reward/',         ClaimDailyRewardView.as_view(),            name='claim-reward'),

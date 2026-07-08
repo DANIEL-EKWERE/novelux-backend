@@ -891,6 +891,43 @@ class ReadingScheduleView(APIView):
 
 
 
+# ── RevenueCat helpers ────────────────────────────────────────────────────────
+
+RC_API_BASE = 'https://api.revenuecat.com/v1'
+
+
+def _rc_base_id(product_id):
+    """Google subs may arrive as 'productId:basePlanId' — strip the base plan."""
+    return (product_id or '').split(':')[0]
+
+
+def _parse_rc_date(value):
+    """RevenueCat dates are ISO-8601 strings like '2026-07-08T12:00:00Z'."""
+    if not value:
+        return None
+    from django.utils.dateparse import parse_datetime
+    return parse_datetime(value.replace('Z', '+00:00'))
+
+
+def _fetch_rc_subscriber(app_user_id):
+    """GET the subscriber from RevenueCat's REST API. Returns dict or None."""
+    import requests as req
+    from urllib.parse import quote
+    if not settings.REVENUECAT_SECRET_KEY:
+        return None
+    try:
+        r = req.get(
+            f'{RC_API_BASE}/subscribers/{quote(app_user_id, safe="")}',
+            headers={'Authorization': f'Bearer {settings.REVENUECAT_SECRET_KEY}'},
+            timeout=15,
+        )
+        if r.status_code == 200:
+            return r.json().get('subscriber', {})
+    except Exception:
+        pass
+    return None
+
+
 class VerifyPurchaseView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -912,10 +949,8 @@ class VerifyPurchaseView(APIView):
     }
 
     def post(self, request):
-        product_id     = request.data.get('product_id', '')
-        receipt        = request.data.get('receipt', '')        # iOS base64 receipt
-        purchase_token = request.data.get('purchase_token', '') # Android purchase token
-        platform       = request.data.get('platform', '').lower()
+        product_id = _rc_base_id(request.data.get('product_id', ''))
+        platform   = request.data.get('platform', '').lower()
 
         if not product_id or platform not in ('ios', 'android'):
             return Response(
@@ -923,145 +958,74 @@ class VerifyPurchaseView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if platform == 'ios':
-            return self._handle_ios(request.user, product_id, receipt)
-        return self._handle_android(request.user, product_id, purchase_token)
-
-    # ── iOS ───────────────────────────────────────────────────────────────────
-
-    def _handle_ios(self, user, product_id, receipt):
-        result = self._verify_apple_receipt(receipt)
-        if result is None or result.get('status') != 0:
+        # The app purchases through RevenueCat, which verifies receipts with
+        # Apple/Google itself. We confirm the purchase against RevenueCat's
+        # REST API for the *authenticated* user — the app logs in to RevenueCat
+        # with our user id, so this lookup is server-authoritative and ignores
+        # whatever ids the client sent.
+        subscriber = _fetch_rc_subscriber(str(request.user.pk))
+        if subscriber is None:
             return Response(
-                {'error': 'Apple receipt verification failed'},
+                {'error': 'Could not verify purchase with RevenueCat'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        if product_id in self.COIN_PRODUCTS:
+            return self._handle_rc_coins(request.user, product_id, subscriber)
+        if product_id in self.VIP_PRODUCTS:
+            return self._handle_rc_vip(request.user, product_id, subscriber)
+
+        return Response(
+            {'error': f'Unknown product: {product_id}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ── RevenueCat verification ───────────────────────────────────────────────
+
+    def _handle_rc_coins(self, user, product_id, subscriber):
+        transactions = None
+        for pid, txs in subscriber.get('non_subscriptions', {}).items():
+            if _rc_base_id(pid) == product_id:
+                transactions = txs
+                break
+        if not transactions:
+            return Response(
+                {'error': 'Purchase not found on RevenueCat'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        in_app   = result.get('receipt', {}).get('in_app', [])
-        latest   = result.get('latest_receipt_info', [])
-        all_txns = in_app + (latest if isinstance(latest, list) else [])
-
-        txn = next((t for t in all_txns if t.get('product_id') == product_id), None)
-        if txn is None:
-            return Response(
-                {'error': 'Product not found in receipt'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        transaction_id = txn.get('transaction_id', '')
+        latest = transactions[-1]
+        transaction_id = latest.get('store_transaction_id') or latest.get('id', '')
         return self._grant(user, product_id, transaction_id)
 
-    def _verify_apple_receipt(self, receipt_data):
-        import requests as req
-        payload = {'receipt-data': receipt_data, 'exclude-old-transactions': True}
-        secret  = settings.APPLE_IAP_SHARED_SECRET
-        if secret:
-            payload['password'] = secret
-        try:
-            for url in [
-                'https://buy.itunes.apple.com/verifyReceipt',
-                'https://sandbox.itunes.apple.com/verifyReceipt',
-            ]:
-                r    = req.post(url, json=payload, timeout=10)
-                data = r.json()
-                if data.get('status') == 21007:
-                    continue   # sandbox receipt sent to production — retry sandbox
-                return data
-        except Exception:
-            return None
-        return None
-
-    # ── Android ───────────────────────────────────────────────────────────────
-
-    def _handle_android(self, user, product_id, purchase_token):
-        if not purchase_token:
+    def _handle_rc_vip(self, user, product_id, subscriber):
+        sub = None
+        for pid, data in subscriber.get('subscriptions', {}).items():
+            if _rc_base_id(pid) == product_id:
+                sub = data
+                break
+        if sub is None:
             return Response(
-                {'error': 'purchase_token is required for Android'},
+                {'error': 'Subscription not found on RevenueCat'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        is_sub = product_id in self.VIP_PRODUCTS
-        result = self._verify_google_purchase(product_id, purchase_token, is_sub)
-        if result is None:
+        expires_at = _parse_rc_date(sub.get('expires_date'))
+        if expires_at is None or expires_at <= timezone.now():
             return Response(
-                {'error': 'Google Play purchase verification failed'},
+                {'error': 'Subscription is not active'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if is_sub:
-            # paymentState: 1=received, 2=free trial
-            if result.get('paymentState', 0) not in (1, 2):
-                return Response(
-                    {'error': 'Subscription payment not complete'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            # purchaseState: 0=purchased
-            if result.get('purchaseState', 1) != 0:
-                return Response(
-                    {'error': 'Purchase not completed'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        transaction_id = result.get('orderId', purchase_token)
-        self._acknowledge_google_purchase(product_id, purchase_token, is_sub)
-        return self._grant(user, product_id, transaction_id)
-
-    def _verify_google_purchase(self, product_id, purchase_token, is_subscription):
-        import json
-        from google.oauth2 import service_account
-        import google.auth.transport.requests
-
-        sa_json  = settings.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        package  = settings.GOOGLE_PLAY_PACKAGE_NAME
-        if not sa_json or not package:
-            return None
-        try:
-            creds = service_account.Credentials.from_service_account_info(
-                json.loads(sa_json),
-                scopes=['https://www.googleapis.com/auth/androidpublisher'],
-            )
-            session = google.auth.transport.requests.AuthorizedSession(creds)
-            base    = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}'
-            if is_subscription:
-                url = f'{base}/purchases/subscriptions/{product_id}/tokens/{purchase_token}'
-            else:
-                url = f'{base}/purchases/products/{product_id}/tokens/{purchase_token}'
-            r = session.get(url, timeout=10)
-            if r.status_code == 200:
-                return r.json()
-        except Exception:
-            pass
-        return None
-
-    def _acknowledge_google_purchase(self, product_id, purchase_token, is_subscription):
-        """Acknowledge within 3 days or Google auto-refunds."""
-        import json
-        from google.oauth2 import service_account
-        import google.auth.transport.requests
-
-        sa_json = settings.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
-        package = settings.GOOGLE_PLAY_PACKAGE_NAME
-        if not sa_json or not package:
-            return
-        try:
-            creds = service_account.Credentials.from_service_account_info(
-                json.loads(sa_json),
-                scopes=['https://www.googleapis.com/auth/androidpublisher'],
-            )
-            session = google.auth.transport.requests.AuthorizedSession(creds)
-            base    = f'https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}'
-            if is_subscription:
-                url = f'{base}/purchases/subscriptions/{product_id}/tokens/{purchase_token}:acknowledge'
-            else:
-                url = f'{base}/purchases/products/{product_id}/tokens/{purchase_token}:acknowledge'
-            session.post(url, json={}, timeout=10)
-        except Exception:
-            pass
+        transaction_id = (
+            sub.get('store_transaction_id')
+            or f'rc:{user.pk}:{product_id}:{sub.get("purchase_date", "")}'
+        )
+        return self._grant(user, product_id, transaction_id, expires_at=expires_at)
 
     # ── Grant ─────────────────────────────────────────────────────────────────
 
-    def _grant(self, user, product_id, transaction_id):
+    def _grant(self, user, product_id, transaction_id, expires_at=None):
         # Replay protection: reject a transaction ID we've already processed
         if transaction_id and Purchase.objects.filter(iap_transaction_id=transaction_id).exists():
             return Response(
@@ -1072,7 +1036,7 @@ class VerifyPurchaseView(APIView):
         if product_id in self.COIN_PRODUCTS:
             return self._grant_coins(user, product_id, transaction_id)
         if product_id in self.VIP_PRODUCTS:
-            return self._grant_vip(user, product_id, transaction_id)
+            return self._grant_vip(user, product_id, transaction_id, expires_at=expires_at)
 
         return Response(
             {'error': f'Unknown product: {product_id}'},
@@ -1096,7 +1060,7 @@ class VerifyPurchaseView(APIView):
             'new_balance': user.coin_balance,
         })
 
-    def _grant_vip(self, user, product_id, transaction_id):
+    def _grant_vip(self, user, product_id, transaction_id, expires_at=None):
         from datetime import timedelta
         plan_id = self.VIP_PRODUCTS[product_id]
         try:
@@ -1107,7 +1071,22 @@ class VerifyPurchaseView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        expires_at  = timezone.now() + timedelta(days=plan.duration_days)
+        if expires_at is None:
+            expires_at = timezone.now() + timedelta(days=plan.duration_days)
+
+        # Same billing period already granted (e.g. webhook and app verify
+        # racing each other with different transaction ids) — don't credit twice
+        existing = getattr(user, 'subscription', None)
+        if (existing and existing.is_active and existing.plan_id == plan.pk
+                and existing.expires_at is not None
+                and abs((existing.expires_at - expires_at).total_seconds()) < 120):
+            return Response({
+                'is_vip': True,
+                'plan_id': plan_id,
+                'expires_at': expires_at.isoformat(),
+                'coins_granted': 0,
+            })
+
         total_coins = plan.coins_per_month + plan.bonus_coins
 
         Purchase.objects.create(
@@ -1140,3 +1119,82 @@ class VerifyPurchaseView(APIView):
             'expires_at': expires_at.isoformat(),
             'coins_granted': total_coins,
         })
+
+
+# ── RevenueCat Webhook ────────────────────────────────────────────────────────
+class RevenueCatWebhookView(APIView):
+    """POST /api/coins/revenuecat-webhook/
+
+    Configure in RevenueCat → Project settings → Integrations → Webhooks with
+    the Authorization header value set to REVENUECAT_WEBHOOK_AUTH. This is the
+    reliable channel for granting coins/VIP — it fires even if the app dies
+    right after the store dialog.
+    """
+    authentication_classes = []
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        expected = settings.REVENUECAT_WEBHOOK_AUTH
+        if not expected or request.headers.get('Authorization') != expected:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+        event = request.data.get('event') or {}
+        event_type = event.get('type', '')
+        app_user_id = event.get('app_user_id') or ''
+        product_id = _rc_base_id(event.get('product_id'))
+        transaction_id = event.get('transaction_id') or event.get('id') or ''
+
+        # Purchases made before login live on an anonymous RevenueCat id;
+        # a TRANSFER event re-delivers them once the user logs in.
+        if app_user_id.startswith('$RCAnonymousID:'):
+            return Response({'ok': True})
+
+        user = self._find_user(app_user_id)
+        if user is None:
+            # 200 so RevenueCat doesn't retry forever on unknown users
+            return Response({'ok': True, 'detail': 'user not found'})
+
+        granter = VerifyPurchaseView()
+
+        if (event_type == 'NON_RENEWING_PURCHASE'
+                and product_id in VerifyPurchaseView.COIN_PRODUCTS):
+            granter._grant(user, product_id, transaction_id)
+
+        elif event_type in ('INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION',
+                            'PRODUCT_CHANGE', 'TRANSFER'):
+            new_product = _rc_base_id(event.get('new_product_id')) or product_id
+            if new_product in VerifyPurchaseView.VIP_PRODUCTS:
+                expires_at = None
+                expires_ms = event.get('expiration_at_ms')
+                if expires_ms:
+                    from datetime import datetime, timezone as dt_timezone
+                    expires_at = datetime.fromtimestamp(
+                        expires_ms / 1000, tz=dt_timezone.utc)
+                granter._grant(user, new_product, transaction_id,
+                               expires_at=expires_at)
+
+        elif event_type == 'CANCELLATION':
+            # Auto-renew turned off — access continues until EXPIRATION
+            sub = getattr(user, 'subscription', None)
+            if sub:
+                sub.auto_renew = False
+                sub.cancelled_at = timezone.now()
+                sub.save(update_fields=['auto_renew', 'cancelled_at'])
+
+        elif event_type == 'EXPIRATION':
+            sub = getattr(user, 'subscription', None)
+            if sub:
+                sub.is_active = False
+                sub.save(update_fields=['is_active'])
+            user.is_vip = False
+            user.save(update_fields=['is_vip'])
+
+        return Response({'ok': True})
+
+    @staticmethod
+    def _find_user(app_user_id):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        if app_user_id.isdigit():
+            return User.objects.filter(pk=int(app_user_id)).first()
+        return User.objects.filter(username=app_user_id).first()

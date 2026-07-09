@@ -911,9 +911,12 @@ def _parse_rc_date(value):
 
 def _fetch_rc_subscriber(app_user_id):
     """GET the subscriber from RevenueCat's REST API. Returns dict or None."""
+    import logging
     import requests as req
     from urllib.parse import quote
+    log = logging.getLogger('revenuecat')
     if not settings.REVENUECAT_SECRET_KEY:
+        log.error('REVENUECAT_SECRET_KEY is not set — cannot verify purchases')
         return None
     try:
         r = req.get(
@@ -921,10 +924,16 @@ def _fetch_rc_subscriber(app_user_id):
             headers={'Authorization': f'Bearer {settings.REVENUECAT_SECRET_KEY}'},
             timeout=15,
         )
-        if r.status_code == 200:
+        # 200 = existing subscriber; 201 = RevenueCat auto-created one
+        # (i.e. this app_user_id had no purchases yet — still a valid response)
+        if r.status_code in (200, 201):
             return r.json().get('subscriber', {})
+        log.error(
+            'RevenueCat subscriber lookup for %r failed: HTTP %s %s',
+            app_user_id, r.status_code, r.text[:300],
+        )
     except Exception:
-        pass
+        log.exception('RevenueCat subscriber lookup for %r raised', app_user_id)
     return None
 
 

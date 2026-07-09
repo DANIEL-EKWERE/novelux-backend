@@ -23,6 +23,9 @@ class ChapterListSerializer(serializers.ModelSerializer):
             return True
         if obj.story.author == request.user:
             return True
+        # VIP subscription ("access_all_novels") includes every locked chapter
+        if getattr(request.user, 'is_vip', False):
+            return True
         return ChapterUnlock.objects.filter(user=request.user, chapter=obj).exists()
 
 
@@ -41,6 +44,9 @@ class ChapterDetailSerializer(serializers.ModelSerializer):
         if not obj.is_locked:
             return True
         if obj.story.author == request.user:
+            return True
+        # VIP subscription ("access_all_novels") includes every locked chapter
+        if getattr(request.user, 'is_vip', False):
             return True
         return ChapterUnlock.objects.filter(user=request.user, chapter=obj).exists()
 

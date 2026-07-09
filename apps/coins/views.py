@@ -1131,6 +1131,65 @@ class VerifyPurchaseView(APIView):
 
 
 # ── RevenueCat Webhook ────────────────────────────────────────────────────────
+class RedeemView(APIView):
+    """
+    GET  /api/coins/redeem/  — list available packages
+    POST /api/coins/redeem/  — redeem a package by key
+    Body: { "package": "vip_30m" }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    PACKAGES = {
+        'vip_30m':       {'benefit': 'vip',       'minutes': 30,  'cost': 300,  'label': '30 Mins of VIP',        'desc': 'Unlock VIP instantly.'},
+        'vip_1h':        {'benefit': 'vip',       'minutes': 60,  'cost': 570,  'label': '1 Hour of VIP',         'desc': 'Unlock VIP instantly.'},
+        'vip_2h':        {'benefit': 'vip',       'minutes': 120, 'cost': 1000, 'label': '2 Hours of VIP',        'desc': 'Unlock VIP instantly.'},
+        'adfree_30m':    {'benefit': 'ad_free',   'minutes': 30,  'cost': 100,  'label': '30 Mins of Ad-Free',    'desc': 'Enjoy Ad-Free reading instantly.'},
+        'adfree_1h':     {'benefit': 'ad_free',   'minutes': 60,  'cost': 190,  'label': '1 Hour of Ad-Free',     'desc': 'Enjoy Ad-Free reading instantly.'},
+        'adfree_2h':     {'benefit': 'ad_free',   'minutes': 120, 'cost': 330,  'label': '2 Hours of Ad-Free',    'desc': 'Enjoy Ad-Free reading instantly.'},
+        'audiobook_30m': {'benefit': 'audiobook', 'minutes': 30,  'cost': 60,   'label': '30 Mins of Audiobooks', 'desc': 'Listen to audiobooks instantly.'},
+        'audiobook_1h':  {'benefit': 'audiobook', 'minutes': 60,  'cost': 110,  'label': '1 Hour of Audiobooks',  'desc': 'Listen to audiobooks instantly.'},
+        'audiobook_2h':  {'benefit': 'audiobook', 'minutes': 120, 'cost': 200,  'label': '2 Hours of Audiobooks', 'desc': 'Listen to audiobooks instantly.'},
+    }
+
+    def get(self, request):
+        return Response({'success': True, 'packages': [
+            {'key': k, **v} for k, v in self.PACKAGES.items()
+        ]})
+
+    def post(self, request):
+        key = request.data.get('package', '')
+        pkg = self.PACKAGES.get(key)
+        if not pkg:
+            return Response({'error': 'Invalid package.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        cost = pkg['cost']
+        if user.total_balance < cost:
+            return Response({'error': 'Insufficient coins.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.deduct_coins(cost, reason=f'Redeem: {pkg["label"]}')
+
+        benefit  = pkg['benefit']
+        minutes  = pkg['minutes']
+        if benefit == 'vip':
+            user.add_vip_time(minutes)
+            expires = user.vip_expires
+        elif benefit == 'ad_free':
+            user.add_ad_free_time(minutes)
+            expires = user.ad_free_expires
+        else:
+            user.add_audiobook_time(minutes)
+            expires = user.audiobook_expires
+
+        return Response({
+            'success':    True,
+            'label':      pkg['label'],
+            'expires_at': expires,
+            'coin_balance': user.coin_balance,
+            'bonus_balance': user.bonus_balance,
+        })
+
+
 class RevenueCatWebhookView(APIView):
     """POST /api/coins/revenuecat-webhook/
 

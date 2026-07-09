@@ -336,6 +336,53 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
 
+class DownloadStoryView(APIView):
+    """POST /api/chapters/<story_slug>/chapters/download/
+
+    Returns every published chapter with FULL content for offline reading.
+    The app gates this behind a rewarded ad (method='ad') or a coin charge
+    (method='coins'); VIP subscribers pay nothing.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    COIN_COST = 120
+
+    def post(self, request, story_slug):
+        story = get_object_or_404(Story, slug=story_slug)
+        method = (request.data.get('method') or '').lower()
+
+        # Exclusive stories: offline download is a VIP perk — no ad/coin path
+        if story.is_exclusive and not getattr(request.user, 'is_vip', False):
+            return Response(
+                {'detail': 'This story is exclusive — offline download '
+                           'requires a VIP subscription.'},
+                status=403,
+            )
+
+        coins_spent = 0
+        if getattr(request.user, 'is_vip', False):
+            pass  # included with the VIP subscription
+        elif method == 'coins':
+            if not request.user.deduct_coins(
+                    self.COIN_COST, reason=f'Offline download: {story.title}'):
+                return Response({'detail': 'Insufficient coins.'}, status=402)
+            coins_spent = self.COIN_COST
+        elif method != 'ad':
+            return Response(
+                {'detail': "method must be 'ad' or 'coins'"}, status=400)
+
+        chapters = Chapter.objects.filter(
+            story=story, is_published=True).order_by('chapter_number')
+        return Response({
+            'story': story.title,
+            'coins_spent': coins_spent,
+            'chapters': [{
+                'chapter_number': c.chapter_number,
+                'title': c.title,
+                'content': c.content,
+            } for c in chapters],
+        })
+
+
 class UnlockChapterView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -348,6 +395,11 @@ class UnlockChapterView(APIView):
 
         if story.author == request.user:
             return Response({'detail': 'You own this story.'}, status=200)
+
+        # VIP subscription includes every locked chapter — nothing to pay
+        if getattr(request.user, 'is_vip', False):
+            return Response({'detail': 'Included with your VIP subscription.',
+                             'coins_spent': 0}, status=200)
 
         # Check already unlocked
         if ChapterUnlock.objects.filter(user=request.user, chapter=chapter).exists():

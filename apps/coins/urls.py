@@ -89,5 +89,8 @@ urlpatterns = [
     # Tasks
     path('tasks/',                TaskListView.as_view(),                     name='task-list'),
     path('tasks/<int:pk>/complete/', TaskCompleteView.as_view(),              name='task-complete'),
+
+    # Coin redemption
+    path('redeem/',               views.RedeemView.as_view(),                 name='redeem'),
 ]
  

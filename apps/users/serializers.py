@@ -155,11 +155,13 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'author_code', 'username', 'display_name', 'first_name', 'last_name', 'email', 'role',
             'avatar', 'bio', 'coin_balance', 'is_vip', 'vip_expires',
+            'ad_free_expires', 'audiobook_expires',
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
             'author_profile', 'followers_count', 'following_count', 'created_at',
         ]
         read_only_fields = ['coin_balance', 'is_vip', 'vip_expires',
+                            'ad_free_expires', 'audiobook_expires',
                             'reading_xp', 'reading_level', 'total_chapters_read', 'created_at']
 
     def get_followers_count(self, obj):

@@ -810,8 +810,10 @@ class User(AbstractUser):
     coin_balance  = models.PositiveIntegerField(default=0)
     bonus_balance = models.PositiveIntegerField(default=0,
                       help_text='Coins earned from rewards (checkin, ads, reading). Spent before paid coins.')
-    is_vip        = models.BooleanField(default=False)
-    vip_expires = models.DateTimeField(blank=True, null=True)
+    is_vip            = models.BooleanField(default=False)
+    vip_expires       = models.DateTimeField(blank=True, null=True)
+    ad_free_expires   = models.DateTimeField(blank=True, null=True)
+    audiobook_expires = models.DateTimeField(blank=True, null=True)
     total_tips_received = models.PositiveIntegerField(default=0)
 
     # Editor invite code — generated for AE and SE accounts.
@@ -897,6 +899,31 @@ class User(AbstractUser):
             user=self, amount=amount, transaction_type='debit', reason=reason
         )
         return True
+
+    def add_vip_time(self, minutes: int):
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        now = tz.now()
+        base = self.vip_expires if (self.vip_expires and self.vip_expires > now) else now
+        self.vip_expires = base + timedelta(minutes=minutes)
+        self.is_vip = True
+        self.save(update_fields=['is_vip', 'vip_expires'])
+
+    def add_ad_free_time(self, minutes: int):
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        now = tz.now()
+        base = self.ad_free_expires if (self.ad_free_expires and self.ad_free_expires > now) else now
+        self.ad_free_expires = base + timedelta(minutes=minutes)
+        self.save(update_fields=['ad_free_expires'])
+
+    def add_audiobook_time(self, minutes: int):
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        now = tz.now()
+        base = self.audiobook_expires if (self.audiobook_expires and self.audiobook_expires > now) else now
+        self.audiobook_expires = base + timedelta(minutes=minutes)
+        self.save(update_fields=['audiobook_expires'])
 
     def add_reading_xp(self, xp: int):
         self.reading_xp += xp

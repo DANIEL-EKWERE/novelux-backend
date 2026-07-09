@@ -2793,6 +2793,20 @@ def ce_send_contract(request, pk):
     return Response({'status': 'contract_sent', 'chapter_id': chapter.id})
 
 
+def _sync_exclusive_flag(user, profile):
+    """Story.is_exclusive is derived from the signed contract's type —
+    authors cannot set it themselves. Called after a contract is signed."""
+    from apps.stories.models import Story
+    for s in Story.objects.filter(
+            author=user, contract_status='signed', is_exclusive=False):
+        try:
+            ctype = s.contract_application.contract_type
+        except Exception:
+            ctype = getattr(profile, 'contract_type', '')
+        if ctype == 'exclusive':
+            Story.objects.filter(pk=s.pk).update(is_exclusive=True)
+
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
@@ -2812,6 +2826,7 @@ def accept_contract(request):
         Story.objects.filter(author=user).filter(
             contract_status__in=['contract_sent', 'awaiting_signature', 'under_review']
         ).update(contract_status='signed', contract_eligible=False, status='ongoing')
+        _sync_exclusive_flag(user, profile)
         published_count = Chapter.publish_held_chapters_for_author(user)
         return Response({'detail': 'Contract already accepted.', 'published_chapters': published_count}, status=200)
 
@@ -2864,6 +2879,9 @@ def accept_contract(request):
                 )
         except Exception as e:
             logger.warning('accept_contract: ContractApplication update failed: %s', e)
+
+    # Exclusive contracts mark the story platform-exclusive
+    _sync_exclusive_flag(user, profile)
 
     # Chapters stay held — they publish automatically once the post-contract
     # word count threshold is hit (see Chapter._check_editorial_trigger Case A).

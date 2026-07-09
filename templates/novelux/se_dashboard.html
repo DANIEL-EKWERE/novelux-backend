@@ -474,7 +474,7 @@ html.dark .brd{color:hsl(0 70% 65%);}
     <div id="story-queue-list">
       {% if review_stories %}
         {% for s in review_stories %}
-        <div class="story-card" id="sc-{{ s.id }}">
+        <div class="story-card" id="sc-{{ s.id }}" data-slug="{{ s.slug }}">
           <div class="story-head">
             {% if s.cover_image %}<img class="story-cover" src="{{ s.cover_image.url }}" alt="">{% else %}<div class="story-cover"></div>{% endif %}
             <div class="story-meta">
@@ -615,7 +615,7 @@ html.dark .brd{color:hsl(0 70% 65%);}
     <div id="rejected-queue-list">
       {% if rejected_stories %}
         {% for s in rejected_stories %}
-        <div class="story-card" id="rc-{{ s.id }}">
+        <div class="story-card" id="rc-{{ s.id }}" data-slug="{{ s.slug }}">
           <div class="story-head">
             {% if s.cover_image %}<img class="story-cover" src="{{ s.cover_image.url }}" alt="">{% else %}<div class="story-cover"></div>{% endif %}
             <div class="story-meta">
@@ -1767,21 +1767,15 @@ function searchIncoming(q) { _searchDom(q, '#page-incoming .tbl',  'tbody tr',  
 function searchAuthors(q)  { _searchDom(q, '#page-authors .tbl',   'tbody tr',    _rowTxt);  }
 
 // Story actions
-function cardLocation(slug) {
-  if (document.querySelector(`#rejected-queue-list [onclick*="${slug}"]`)) return 'rejected';
-  if (document.querySelector(`#story-queue-list [onclick*="${slug}"]`)) return 'pending';
-  return null;
-}
-
 async function approveStory(slug, title) {
   const note = prompt(`Approve "${title}" and send to CE?\n\nOptional note for the author:`, '');
   if (note === null) return;
-  const loc = cardLocation(slug);
+  const inRejected = !!document.querySelector(`#rejected-queue-list .story-card[data-slug="${CSS.escape(slug)}"]`);
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/approve/', { note });
     toast('Story approved and sent to CE ✓');
-    removeStoryCard(slug);
-    if (loc === 'rejected') updateRejectedBadge(-1); else updateQueueBadge(-1);
+    removeStoryCard(slug, inRejected ? 'rejected-queue-list' : 'story-queue-list');
+    if (inRejected) updateRejectedBadge(-1); else updateQueueBadge(-1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed to approve'));
   }
@@ -1790,12 +1784,12 @@ async function approveStory(slug, title) {
 async function requestRevision(slug, title) {
   const reason = prompt(`Request revisions on "${title}"?\n\nExplain what the author needs to fix:`);
   if (!reason) return;
-  const loc = cardLocation(slug);
+  const inRejected = !!document.querySelector(`#rejected-queue-list .story-card[data-slug="${CSS.escape(slug)}"]`);
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/reject/', { reason, action: 'revision' });
     toast('Revision requested — author notified.');
-    removeStoryCard(slug);
-    if (loc === 'rejected') updateRejectedBadge(-1); else updateQueueBadge(-1);
+    removeStoryCard(slug, inRejected ? 'rejected-queue-list' : 'story-queue-list');
+    if (inRejected) updateRejectedBadge(-1); else updateQueueBadge(-1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed'));
   }
@@ -1808,8 +1802,42 @@ async function rejectStory(slug, title) {
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/reject/', { reason: reason||'', action: 'reject' });
     toast('Story rejected.');
-    removeStoryCard(slug);
+
+    // Move card from queue list into rejected list (Bug #1 + Bug #3 fix)
+    const queueCard = document.querySelector(`#story-queue-list .story-card[data-slug="${CSS.escape(slug)}"]`);
+    if (queueCard) {
+      // Swap the "Reject" and revision buttons for the rejected-section actions
+      const actionsEl = queueCard.querySelector('.story-actions');
+      if (actionsEl) {
+        actionsEl.innerHTML = `
+          <button class="btn bp bsm" onclick="approveStory('${slug}','${title.replace(/'/g,"\\'")}')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Approve &amp; Send to CE
+          </button>
+          <button class="btn byw bsm" onclick="requestRevision('${slug}','${title.replace(/'/g,"\\'")}')">Send Back to Review</button>`;
+      }
+      // Update badge to "Rejected"
+      const badge = queueCard.querySelector('.bdg.byw2');
+      if (badge) { badge.className = 'bdg brd'; badge.textContent = 'Rejected'; }
+      // Show rejection reason
+      if (reason) {
+        const meta = queueCard.querySelector('.story-meta > div > div');
+        if (meta) {
+          const rp = document.createElement('p');
+          rp.style.cssText = 'font-size:12px;color:hsl(0 68% 44%);line-height:1.5;margin-top:6px;';
+          rp.innerHTML = `<strong>Rejection reason:</strong> ${reason}`;
+          meta.appendChild(rp);
+        }
+      }
+      // Move card to rejected list
+      const rlist = document.getElementById('rejected-queue-list');
+      const empty = rlist?.querySelector('.empty');
+      if (empty) empty.remove();
+      queueCard.id = 'rc-' + queueCard.id.replace('sc-', '');
+      rlist?.prepend(queueCard);
+    }
     updateQueueBadge(-1);
+    updateRejectedBadge(+1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed'));
   }
@@ -1821,19 +1849,18 @@ async function escalateToCE(slug, title) {
   try {
     await NUX.post('/editorial/story-queue/' + slug + '/escalate/', { reasoning: reasoning||'' });
     toast('Escalated to Chief Editor.');
-    removeStoryCard(slug);
+    removeStoryCard(slug, 'story-queue-list');
     updateQueueBadge(-1);
   } catch(e) {
     toast('Error: ' + (e.detail || 'Failed'));
   }
 }
 
-function removeStoryCard(slug) {
-  // Remove card from DOM — find by data attr not id (id uses pk not slug)
-  const cards = document.querySelectorAll('#story-queue-list .story-card, #rejected-queue-list .story-card');
-  cards.forEach(c => {
-    if (c.querySelector(`[onclick*="${slug}"]`)) c.remove();
-  });
+function removeStoryCard(slug, fromList) {
+  // Use exact data-slug match to avoid partial-slug collisions (Bug #3)
+  const listId = fromList || 'story-queue-list';
+  const card = document.querySelector(`#${listId} .story-card[data-slug="${CSS.escape(slug)}"]`);
+  if (card) card.remove();
   const list = document.getElementById('story-queue-list');
   if (list && !list.querySelector('.story-card')) {
     list.innerHTML = '<div class="empty"><h3>Queue is empty</h3><p>All stories reviewed.</p></div>';
@@ -2144,8 +2171,12 @@ let _lockSlug = null;
 let _esmSlug = '', _esmCoverBlob = null, _esmCoverFile = null;
 const _ESM_MAX = 2 * 1024 * 1024;
 
+// Track which slug is currently being opened to discard stale async responses (Bug #2)
+let _esmOpeningSlug = null;
+
 async function openEditStory(slug, title, coverUrl) {
   _esmSlug = slug;
+  _esmOpeningSlug = slug;
   _esmCoverBlob = null;
   _esmCoverFile = null;
   document.getElementById('editStoryModalTitle').textContent = 'Edit: ' + title;
@@ -2162,10 +2193,17 @@ async function openEditStory(slug, title, coverUrl) {
   document.getElementById('esm-cover-info').style.display = 'none';
   document.getElementById('esm-compress-row').style.display = 'none';
   document.getElementById('esm-compress-status').textContent = '';
+  // Clear fields while loading so stale data is never visible (Bug #2)
+  document.getElementById('esm-synopsis').value = '';
+  document.getElementById('esm-outline').value   = '';
+  document.getElementById('esm-cpw').value       = '';
+  document.getElementById('esm-tags-list').innerHTML = '<span style="font-size:12px;color:var(--muted-fg);">Loading…</span>';
 
   // Load story data
   try {
     const d = await NUX.get('/editorial/story-queue/' + slug + '/');
+    // Discard if the user opened a different story while this was loading (Bug #2)
+    if (_esmOpeningSlug !== slug) return;
     document.getElementById('esm-synopsis').value = d.synopsis || '';
     document.getElementById('esm-outline').value   = d.story_outline || '';
     document.getElementById('esm-cpw').value       = d.chapters_per_week != null ? String(d.chapters_per_week) : '';

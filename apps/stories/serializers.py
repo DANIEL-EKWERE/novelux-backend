@@ -140,7 +140,7 @@ class StoryCreateUpdateSerializer(serializers.ModelSerializer):
         fields = [
             'title', 'synopsis', 'description', 'story_outline', 'cover_image',
             'genre_id', 'subgenre_id', 'tag_ids',
-            'language', 'status', 'is_exclusive', 'update_schedule', 'chapters_per_week',
+            'language', 'status', 'update_schedule', 'chapters_per_week',
             'plot_summary', 'gender', 'target_word_count', 'target_audience',
             'characters', 'external_link', 'lock_from_chapter',
         ]

@@ -267,6 +267,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://novelux-backend.onrender.com",
     "https://novelux.onrender.com",
     "https://novelux.app",
+    "https://www.novelux.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

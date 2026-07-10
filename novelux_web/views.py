@@ -2574,6 +2574,9 @@ def become_author(request):
 def faq(request):
     return render(request, 'novelux/faq.html')
 
+def support(request):
+    return render(request, 'novelux/support.html')
+
 def privacy(request):
     return render(request, 'novelux/privacy.html')
 

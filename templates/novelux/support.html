@@ -1,0 +1,430 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+
+<!-- ══ PERSISTENT THEME — reads localStorage before first paint ══ -->
+<script>
+(function(){
+  var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  var h=document.documentElement;
+  h.classList.toggle('dark', t==='dark');
+  h.classList.toggle('light',t!=='dark');
+  window._nuxTheme=t;
+  window._nuxSetTheme=function(t){
+    window._nuxTheme=t;
+    localStorage.setItem('nux_theme',t);
+    h.classList.toggle('dark', t==='dark');
+    h.classList.toggle('light',t!=='dark');
+  };
+})();
+</script>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Support Center – Novelux</title>
+  <meta name="description" content="Get help and support for Novelux. Find answers to common questions, contact support, and troubleshoot issues."/>
+  <link rel="canonical" href="https://novelux.app/support/"/>
+  <meta property="og:type"        content="website"/>
+  <meta property="og:site_name"   content="Novelux"/>
+  <meta property="og:title"       content="Support Center – Novelux"/>
+  <meta property="og:description" content="Get help and support for Novelux. Find answers to common questions and contact our support team."/>
+  <meta property="og:url"         content="https://novelux.app/support/"/>
+  <meta property="og:image"       content="{% static 'novelux/images/logo.png' %}"/>
+  <meta name="twitter:card"       content="summary"/>
+  <meta name="twitter:title"      content="Support Center – Novelux"/>
+  <meta name="twitter:description" content="Get help and support for Novelux."/>
+  <meta name="twitter:image"      content="{% static 'novelux/images/logo.png' %}"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --background: hsl(0 0% 100%);
+      --foreground: hsl(0 0% 9%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --muted: hsl(0 0% 96%);
+      --muted-foreground: hsl(0 0% 45%);
+      --border: hsl(0 0% 90%);
+      --card-bg: hsl(0 0% 99%);
+    }
+    html.dark {
+      --background: hsl(240 6% 6%);
+      --foreground: hsl(0 0% 90%);
+      --primary: hsl(14 62% 38%);
+      --primary-foreground: hsl(0 0% 100%);
+      --muted: hsl(240 4% 14%);
+      --muted-foreground: hsl(0 0% 50%);
+      --border: hsl(240 4% 26%);
+      --card-bg: hsl(240 5% 9%);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background-color: var(--background); scroll-behavior: smooth; }
+    body {
+      font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      font-size: 14px;
+      background-color: var(--background);
+      color: var(--foreground);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; z-index: 50; width: 100%;
+      background: color-mix(in srgb, var(--background) 95%, transparent);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      transition: background 0.2s;
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 8px; }
+    .nav-logo {
+      width: 22px; height: 22px; border-radius: 22%;
+      background: var(--primary); display: flex; align-items: center; justify-content: center;
+    }
+    .nav-brand span { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; }
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
+    .theme-toggle {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      position: relative; color: color-mix(in srgb, var(--foreground) 70%, transparent);
+      transition: color 0.15s;
+    }
+    .theme-toggle:hover { color: var(--foreground); }
+
+    /* MAIN CONTAINER */
+    main {
+      max-width: 900px; margin: 0 auto; padding: 80px 24px 40px;
+      min-height: 100vh;
+    }
+
+    /* HEADINGS */
+    h1 {
+      font-size: 40px; font-weight: 700; line-height: 1.2; margin-bottom: 12px;
+      letter-spacing: -0.02em;
+    }
+    h2 {
+      font-size: 28px; font-weight: 700; margin: 40px 0 24px 0;
+      letter-spacing: -0.01em;
+    }
+    h3 {
+      font-size: 18px; font-weight: 600; margin: 24px 0 12px 0;
+    }
+
+    /* TEXT */
+    .subtitle {
+      font-size: 18px; color: var(--muted-foreground); margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    p {
+      margin-bottom: 16px; line-height: 1.7; color: var(--muted-foreground);
+    }
+    strong { color: var(--foreground); font-weight: 600; }
+
+    /* LINKS */
+    a {
+      color: var(--primary);
+      font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    a:hover { opacity: 0.8; }
+
+    /* CARDS */
+    .support-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px; margin: 40px 0;
+    }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .card:hover {
+      border-color: var(--primary);
+      background: color-mix(in srgb, var(--primary) 5%, var(--card-bg));
+    }
+    .card h3 {
+      margin-top: 0; color: var(--foreground);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .card-icon {
+      font-size: 24px; width: 32px; display: flex; align-items: center; justify-content: center;
+    }
+    .card p { margin-bottom: 12px; }
+
+    /* CONTACT SECTION */
+    .contact-section {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px;
+      margin: 40px 0; text-align: center;
+    }
+    .contact-section h3 {
+      font-size: 24px; margin-bottom: 16px; color: var(--foreground);
+    }
+    .contact-methods {
+      display: flex; flex-direction: column; gap: 16px; margin-top: 20px;
+    }
+    .contact-method {
+      padding: 16px; background: var(--background);
+      border-radius: 8px; border: 1px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .contact-method:hover { border-color: var(--primary); }
+    .contact-label { font-weight: 600; color: var(--foreground); margin-bottom: 8px; }
+    .contact-value { color: var(--primary); word-break: break-all; }
+
+    /* FAQ SECTION */
+    .faq-list {
+      margin: 30px 0;
+    }
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 20px 0;
+    }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-question {
+      font-weight: 600; cursor: pointer; display: flex;
+      justify-content: space-between; align-items: center;
+      color: var(--foreground);
+      transition: color 0.15s;
+    }
+    .faq-question:hover { color: var(--primary); }
+    .faq-answer {
+      margin-top: 12px; line-height: 1.7;
+      color: var(--muted-foreground); display: none;
+    }
+    .faq-item.open .faq-answer { display: block; }
+    .faq-toggle { font-size: 20px; transition: transform 0.2s; }
+    .faq-item.open .faq-toggle { transform: rotate(180deg); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      h1 { font-size: 32px; }
+      h2 { font-size: 24px; }
+      main { padding: 72px 16px 32px; }
+      .support-grid { grid-template-columns: 1fr; }
+      .contact-methods { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- NAV -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo">N</div>
+      <span>Novelux</span>
+    </a>
+    <div class="nav-actions">
+      <button class="theme-toggle" onclick="window._nuxSetTheme(window._nuxTheme === 'dark' ? 'light' : 'dark')">
+        <span id="theme-icon">🌙</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<main>
+  <h1>Support Center</h1>
+  <p class="subtitle">We're here to help. Find answers, get in touch, or explore resources below.</p>
+
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <!-- SUPPORT CATEGORIES -->
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <h2>How Can We Help?</h2>
+  <div class="support-grid">
+    <div class="card">
+      <h3><span class="card-icon">❓</span> FAQ & Guides</h3>
+      <p>Browse our comprehensive Help Center with answers to common questions about reading, writing, and publishing.</p>
+      <a href="/faq/">Visit Help Center →</a>
+    </div>
+    <div class="card">
+      <h3><span class="card-icon">✍️</span> For Authors</h3>
+      <p>Access detailed guides for writers, including publishing steps, royalty information, and content guidelines.</p>
+      <a href="/content-guidelines/">Content Guidelines →</a>
+    </div>
+    <div class="card">
+      <h3><span class="card-icon">📖</span> For Readers</h3>
+      <p>Learn how to navigate the platform, adjust settings, and make the most of your reading experience.</p>
+      <a href="/faq/">Reader Guide →</a>
+    </div>
+    <div class="card">
+      <h3><span class="card-icon">⚖️</span> Legal & Privacy</h3>
+      <p>Review our terms of service, privacy policy, copyright information, and content guidelines.</p>
+      <a href="/privacy/">View Legal →</a>
+    </div>
+    <div class="card">
+      <h3><span class="card-icon">👥</span> Community</h3>
+      <p>Join our community forums and connect with other readers and writers on Novelux.</p>
+      <a href="/" target="_blank">Join Community →</a>
+    </div>
+    <div class="card">
+      <h3><span class="card-icon">🐛</span> Report an Issue</h3>
+      <p>Found a bug or technical issue? Let us know and we'll investigate immediately.</p>
+      <a href="mailto:support@novelux.app">Report Bug →</a>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <!-- CONTACT SUPPORT -->
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <div class="contact-section">
+    <h3>🎯 Get in Touch</h3>
+    <p>Can't find what you're looking for? Our support team is here to help.</p>
+    <div class="contact-methods">
+      <div class="contact-method">
+        <div class="contact-label">📧 Email Support</div>
+        <a class="contact-value" href="mailto:support@novelux.app">support@novelux.app</a>
+      </div>
+      <div class="contact-method">
+        <div class="contact-label">💬 For Author Support</div>
+        <a class="contact-value" href="https://writer.novel-up.com/" target="_blank">writer.novel-up.com</a>
+      </div>
+      <div class="contact-method">
+        <div class="contact-label">🔔 In-App Support</div>
+        <p style="color: var(--muted-foreground); margin: 0;">Check your notifications or messages for assistance from our support team.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <!-- FAQ -->
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <h2>Common Questions</h2>
+  <div class="faq-list">
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>How do I report a technical issue or bug?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>You can report technical issues by:</p>
+        <ul style="margin-left: 20px;">
+          <li>Emailing us at support@novelux.app with a detailed description</li>
+          <li>Using the "Report Issue" feature in your account settings</li>
+          <li>Providing your device info, app version, and steps to reproduce the issue</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>What's the response time for support inquiries?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>We aim to respond to all support inquiries within 24-48 hours. For urgent issues, priority support is available for premium members.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>How can I recover my account?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>To recover your account:</p>
+        <ul style="margin-left: 20px;">
+          <li>Go to the login page and click "Forgot Password"</li>
+          <li>Enter your email address</li>
+          <li>Check your email for a recovery link</li>
+          <li>Click the link and create a new password</li>
+        </ul>
+        <p>If you still can't access your account, contact support@novelux.app with proof of ownership.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>How do I delete my account?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>To delete your account:</p>
+        <ul style="margin-left: 20px;">
+          <li>Go to your account settings</li>
+          <li>Scroll to "Danger Zone"</li>
+          <li>Click "Delete Account"</li>
+          <li>Confirm the action (this cannot be undone)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>Can I get a refund?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>Refund policies depend on the type of purchase:</p>
+        <ul style="margin-left: 20px;">
+          <li><strong>Coins/Premium:</strong> Refunds available within 30 days if unused</li>
+          <li><strong>Books:</strong> Non-refundable once purchased and downloaded</li>
+          <li><strong>Subscriptions:</strong> Cancel anytime; refunds available for unused portions</li>
+        </ul>
+        <p>Contact support@novelux.app for specific refund requests.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="this.parentElement.classList.toggle('open')">
+        <span>How do I contact copyright concerns?</span>
+        <span class="faq-toggle">▼</span>
+      </div>
+      <div class="faq-answer">
+        <p>For copyright issues, <a href="/copyright-policy/">review our copyright policy</a> and contact us at support@novelux.app with:</p>
+        <ul style="margin-left: 20px;">
+          <li>A description of the copyrighted material</li>
+          <li>The URL or content ID in question</li>
+          <li>Evidence of your copyright ownership</li>
+          <li>Your contact information</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <!-- FOOTER LINKS -->
+  <!-- ────────────────────────────────────────────────────────────────────── -->
+  <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); text-align: center; color: var(--muted-foreground);">
+    <p>Can't find what you're looking for? <a href="mailto:support@novelux.app">Reach out to us</a></p>
+    <div style="margin-top: 24px; display: flex; justify-content: center; gap: 20px; font-size: 13px; flex-wrap: wrap;">
+      <a href="/faq/">Help Center</a>
+      <span style="color: var(--border);">•</span>
+      <a href="/privacy/">Privacy Policy</a>
+      <span style="color: var(--border);">•</span>
+      <a href="/terms/">Terms of Service</a>
+      <span style="color: var(--border);">•</span>
+      <a href="/">Home</a>
+    </div>
+  </div>
+</main>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const themeIcon = document.getElementById('theme-icon');
+    function updateThemeIcon() {
+      themeIcon.textContent = window._nuxTheme === 'dark' ? '☀️' : '🌙';
+    }
+    updateThemeIcon();
+    const observer = new MutationObserver(updateThemeIcon);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  });
+</script>
+
+</body>
+</html>

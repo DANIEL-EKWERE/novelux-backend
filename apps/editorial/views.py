@@ -2558,7 +2558,7 @@ def ce_send_contract_story(request, slug):
             from django.conf import settings as _settings
             platform       = 'Novelux'
             contract_label = 'Exclusive' if _contract_type_cap == 'exclusive' else 'Non-Exclusive'
-            sign_url       = f'https://novelux.onrender.com/my-books/{_slug_cap}/contract/'
+            sign_url       = f'https://www.novelux.app/my-books/{_slug_cap}/contract/'
             subject        = f'Your {platform} contract offer — "{_story_title}"'
             text_body      = (
                 f'Hello {_author_name},\n\n'

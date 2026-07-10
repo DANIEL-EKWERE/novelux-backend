@@ -1,12 +1,58 @@
+from urllib.parse import urlparse
+
+from django.conf import settings
 from django.contrib.sitemaps import Sitemap
+from django.contrib.sites.models import Site
 from django.urls import reverse
 from apps.blog.models import BlogPost
 from apps.stories.models import Story
 
 
-class StaticViewSitemap(Sitemap):
+class BaseSitemap(Sitemap):
+    protocol = 'https'
+
+    def get_domain(self, site=None):
+        configured_domain = getattr(settings, 'SITE_DOMAIN', '').strip()
+        configured_site_url = getattr(settings, 'SITE_URL', '').strip()
+
+        candidates = []
+        if configured_domain:
+            candidates.append(configured_domain)
+        if configured_site_url:
+            candidates.append(configured_site_url)
+
+        for candidate in candidates:
+            parsed = urlparse(candidate if '://' in candidate else f'https://{candidate}')
+            host = parsed.netloc or parsed.path.rstrip('/')
+            if not host:
+                continue
+
+            if host in {'example.com', 'localhost', '127.0.0.1', '0.0.0.0'}:
+                continue
+
+            if host.endswith('.onrender.com') or host.endswith('.render.com'):
+                continue
+
+            return host
+
+        if site is None:
+            site = Site.objects.get_current()
+
+        host = getattr(site, 'domain', '').strip()
+        if host and host not in {'example.com', 'localhost', '127.0.0.1', '0.0.0.0'} and not host.endswith('.onrender.com'):
+            return host
+
+        return 'www.novelux.app'
+
+    def get_urls(self, page=1, site=None, protocol=None):
+        protocol = self.get_protocol(protocol)
+        domain = self.get_domain(site)
+        return self._urls(page, protocol, domain)
+
+
+class StaticViewSitemap(BaseSitemap):
     changefreq = 'weekly'
-    protocol   = 'https'
+
 
     pages = [
         ('novelux:index',              1.0, 'daily'),
@@ -35,10 +81,9 @@ class StaticViewSitemap(Sitemap):
         return item[2]
 
 
-class StorySitemap(Sitemap):
+class StorySitemap(BaseSitemap):
     changefreq = 'weekly'
     priority   = 0.8
-    protocol   = 'https'
 
     def items(self):
         return Story.objects.filter(
@@ -52,10 +97,9 @@ class StorySitemap(Sitemap):
         return obj.updated_at
 
 
-class ArticleSitemap(Sitemap):
+class ArticleSitemap(BaseSitemap):
     changefreq = 'weekly'
     priority   = 0.7
-    protocol   = 'https'
 
     def items(self):
         return BlogPost.objects.filter(

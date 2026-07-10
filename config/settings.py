@@ -20,6 +20,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'novelux.onrender.com',
     'novelux.app',
+    'www.novelux.app',
 ]
 
 DJANGO_APPS = [
@@ -155,7 +156,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # firebase messgging config
 
 
-SITE_URL = config('SITE_URL', default='')
+SITE_DOMAIN = config('SITE_DOMAIN', default='www.novelux.app')
+SITE_URL = config('SITE_URL', default=f'https://{SITE_DOMAIN}')
 
 # cred_path = os.path.join(BASE_DIR, 'novelux-credentials.json')
 

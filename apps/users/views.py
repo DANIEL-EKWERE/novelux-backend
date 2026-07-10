@@ -525,6 +525,90 @@ class KYCView(APIView):
         return Response({'ok': True, 'id': kyc.pk, 'status': kyc.status}, status=201)
 
 
+class DeleteAccountView(APIView):
+    """
+    DELETE /api/auth/delete-account/
+    
+    Permanently delete user account with soft delete (anonymization).
+    Requires password confirmation for security.
+    
+    Request:
+        { "password": "user_password" }
+    
+    Response (200):
+        { "detail": "Account successfully deleted" }
+    
+    Errors:
+        - 400: Invalid password
+        - 401: Not authenticated
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        from .serializers import DeleteAccountSerializer
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+        
+        user = request.user
+        
+        # ── Validate password ────────────────────────────────────────────────
+        serializer = DeleteAccountSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # ── Soft Delete: Anonymize user data ─────────────────────────────────
+        try:
+            # Anonymize personal information
+            user.username = f"deleted_user_{user.id}"
+            user.email = f"deleted_{user.id}@deleted.local"
+            user.first_name = "[Deleted]"
+            user.last_name = "[Deleted]"
+            user.bio = ""
+            user.avatar = None
+            user.is_active = False
+            user.set_unusable_password()
+            user.save()
+            
+            # Clear FCM tokens
+            FCMDevice.objects.filter(user=user).delete()
+            
+            # Clear user preferences
+            UserPreferences.objects.filter(user=user).update(
+                preferred_genres=list()
+            )
+            
+            # Blacklist all outstanding tokens
+            try:
+                outstanding = OutstandingToken.objects.filter(user=user)
+                for token in outstanding:
+                    BlacklistedToken.objects.get_or_create(token=token)
+            except Exception:
+                # Token blacklist models might not be available
+                pass
+            
+            # Log the deletion
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"User account deleted (soft): user_id={user.id}, email_before_deletion={request.user.email}")
+            
+            return Response(
+                {
+                    'detail': 'Account successfully deleted',
+                    'message': 'Your account has been permanently deleted. All personal data has been anonymized.'
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error deleting user account: {str(e)}")
+            
+            return Response(
+                {'detail': 'An error occurred while deleting your account. Please try again.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def kyc_app_redirect(request):

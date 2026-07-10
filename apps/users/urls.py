@@ -19,4 +19,5 @@ urlpatterns = [
     path('preferences/',               views.UserPreferencesView.as_view(), name='user-preferences'),
     path('kyc/',                       views.KYCView.as_view(),            name='kyc'),
     path('kyc/app-redirect/',          views.kyc_app_redirect,             name='kyc-app-redirect'),
+    path('delete-account/',            views.DeleteAccountView.as_view(),  name='delete-account'),
 ]

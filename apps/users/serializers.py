@@ -247,3 +247,20 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             instance.save(update_fields=['first_name', 'last_name'])
 
         return instance
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    """Serializer for account deletion with password confirmation."""
+    password = serializers.CharField(
+        write_only=True,
+        required=True,
+        style={'input_type': 'password'},
+        help_text='Current password for account confirmation'
+    )
+
+    def validate_password(self, value):
+        """Validate the provided password matches the user's password."""
+        user = self.context.get('request').user
+        if not user.check_password(value):
+            raise serializers.ValidationError('Password is incorrect.')
+        return value

@@ -267,8 +267,10 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         self._story_contract_eligible = False
         chapter = self.get_object()
 
-        # Intercept edits to published chapters — queue for SE review instead
-        if chapter.status == Chapter.STATUS_PUBLISHED:
+        # Intercept edits to live chapters — queue for SE review instead.
+        # Checked via is_published (not status) because a pending edit moves
+        # status to 'pending_review' while the chapter stays live.
+        if chapter.is_published:
             return self._create_edit_request(request, chapter)
 
         response = super().update(request, *args, **kwargs)
@@ -287,37 +289,40 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
             return Response({'detail': 'content is required.'}, status=400)
 
         # Upsert: update the existing pending request or create a new one
-        edit_req, _ = ChapterEditRequest.objects.update_or_create(
+        # (this is what feeds the SE's Review Edit modal). The original_*
+        # snapshot is captured only when the review cycle starts — at that
+        # point the chapter still holds the last approved version — so an
+        # SE reject can restore it even after several follow-up saves.
+        edit_req, created = ChapterEditRequest.objects.get_or_create(
             chapter=chapter,
             author=request.user,
             status=ChapterEditRequest.STATUS_PENDING,
             defaults={
-                'pending_title':   new_title or chapter.title,
-                'pending_content': new_content,
+                'pending_title':    new_title or chapter.title,
+                'pending_content':  new_content,
+                'original_title':   chapter.title,
+                'original_content': chapter.content,
             },
         )
+        if not created:
+            edit_req.pending_title   = new_title or chapter.title
+            edit_req.pending_content = new_content
+            edit_req.save(update_fields=['pending_title', 'pending_content'])
 
-        # Notify the author's assigned SE
-        try:
-            from apps.editorial.models import AuthorEditorLink
-            from apps.notifications.services import create_notification
-            link = AuthorEditorLink.objects.filter(
-                author=request.user
-            ).select_related('editor').first()
-            if link:
-                create_notification(
-                    link.editor,
-                    'chapter_edit_review',
-                    f'{request.user.username} submitted an edit for '
-                    f'"{chapter.story.title}" Ch.{chapter.chapter_number} — review required.',
-                )
-        except Exception:
-            pass
+        # Save the edit onto the chapter itself so the author never loses
+        # work, and move its status from 'published' back to 'draft'. It
+        # only enters the SE queue when the author explicitly submits it
+        # for review. is_published stays True so readers keep access.
+        chapter.title   = new_title or chapter.title
+        chapter.content = new_content
+        chapter.status  = Chapter.STATUS_DRAFT
+        chapter.save()
 
         return Response({
             'ok':     True,
-            'status': 'in_review',
-            'detail': 'Your edit has been submitted for SE review. It will go live once approved.',
+            'status': 'edit_draft',
+            'chapter_number': chapter.chapter_number,
+            'detail': 'Your edit has been saved. Submit it for review when you are ready.',
             'edit_request_id': edit_req.pk,
         }, status=202)
 
@@ -441,6 +446,63 @@ class UnlockChapterView(APIView):
         return Response({'detail': 'Chapter unlocked.', 'coins_spent': coins_needed}, status=200)
 
 
+class SubmitChapterEditForReviewView(APIView):
+    """
+    POST /api/<story_slug>/chapters/<chapter_number>/submit-review/
+    Author submits a saved edit of a live chapter to their SE for review.
+    Moves the chapter from 'draft' (edit saved) to 'pending_review'.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, story_slug, chapter_number):
+        from .models import ChapterEditRequest
+
+        story   = get_object_or_404(Story, slug=story_slug)
+        chapter = get_object_or_404(Chapter, story=story, chapter_number=chapter_number)
+
+        if story.author != request.user:
+            return Response({'detail': 'Not your story.'}, status=403)
+
+        has_pending_edit = ChapterEditRequest.objects.filter(
+            chapter=chapter,
+            author=request.user,
+            status=ChapterEditRequest.STATUS_PENDING,
+        ).exists()
+        if not (chapter.is_published and has_pending_edit):
+            return Response(
+                {'detail': 'No saved edit to submit for this chapter.'},
+                status=400,
+            )
+
+        if chapter.status == Chapter.STATUS_PENDING_REVIEW:
+            return Response({'ok': True, 'status': 'in_review',
+                             'detail': 'This edit is already under review.'})
+
+        Chapter.objects.filter(pk=chapter.pk).update(
+            status=Chapter.STATUS_PENDING_REVIEW,
+        )
+
+        # Notify the author's assigned SE
+        try:
+            from apps.editorial.models import AuthorEditorLink
+            from apps.notifications.services import create_notification
+            link = AuthorEditorLink.objects.filter(
+                author=request.user
+            ).select_related('assigned_se').first()
+            if link and link.assigned_se:
+                create_notification(
+                    link.assigned_se,
+                    'chapter_edit_review',
+                    f'{request.user.username} submitted an edit for '
+                    f'"{story.title}" Ch.{chapter.chapter_number} — review required.',
+                )
+        except Exception:
+            pass
+
+        return Response({'ok': True, 'status': 'in_review',
+                         'detail': 'Your edit is now under review.'})
+
+
 class PublishChapterView(APIView):
     """
     POST /api/<story_slug>/chapters/<chapter_number>/publish/
@@ -458,7 +520,8 @@ class PublishChapterView(APIView):
 
         if story.contract_status != 'signed':
             return Response(
-                {'detail': 'Only contracted authors can publish chapters directly.'},
+                {'detail': 'Your chapter is saved as a draft. Chapters go live '
+                           'automatically once your publishing contract is signed.'},
                 status=403,
             )
 

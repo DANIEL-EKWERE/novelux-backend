@@ -3299,7 +3299,7 @@ class SEKYCListView(generics.ListAPIView):
         from apps.editorial.models import AuthorEditorLink
 
         author_ids = AuthorEditorLink.objects.filter(
-            editor=request.user
+            assigned_se=request.user
         ).values_list('author_id', flat=True)
 
         status_filter = request.query_params.get('status')
@@ -3325,7 +3325,7 @@ def se_review_kyc(request, pk):
     kyc = get_object_or_404(AuthorKYC, pk=pk, status=AuthorKYC.STATUS_REVIEW)
 
     # SE can only review their own authors
-    if not AuthorEditorLink.objects.filter(editor=request.user, author=kyc.user).exists():
+    if not AuthorEditorLink.objects.filter(assigned_se=request.user, author=kyc.user).exists():
         return Response({'detail': 'This author is not assigned to you.'}, status=403)
 
     action = request.data.get('action', '').strip()
@@ -5906,7 +5906,7 @@ class SEChapterEditQueueView(generics.ListAPIView):
         from apps.editorial.models import AuthorEditorLink
 
         author_ids = AuthorEditorLink.objects.filter(
-            editor=request.user
+            assigned_se=request.user
         ).values_list('author_id', flat=True)
 
         status_filter = request.query_params.get('status', ChapterEditRequest.STATUS_PENDING)
@@ -5948,7 +5948,7 @@ def se_review_chapter_edit(request, pk):
                                   status=ChapterEditRequest.STATUS_PENDING)
 
     if not AuthorEditorLink.objects.filter(
-        editor=request.user, author=edit_req.author
+        assigned_se=request.user, author=edit_req.author
     ).exists():
         return Response({'detail': 'This author is not assigned to you.'}, status=403)
 
@@ -5962,11 +5962,25 @@ def se_review_chapter_edit(request, pk):
     edit_req.reviewed_at = timezone.now()
     edit_req.save(update_fields=['status', 'se_note', 'reviewed_by', 'reviewed_at'])
 
+    chapter = edit_req.chapter
     if action == 'approve':
-        chapter = edit_req.chapter
         chapter.title   = edit_req.pending_title or chapter.title
         chapter.content = edit_req.pending_content
-        chapter.save(update_fields=['title', 'content', 'updated_at'])
+        chapter.save(update_fields=['title', 'content', 'word_count', 'updated_at'])
+    elif edit_req.original_content:
+        # Rejected — restore the chapter to the version it had before the
+        # author's edit (snapshotted when the review cycle started).
+        chapter.title   = edit_req.original_title or chapter.title
+        chapter.content = edit_req.original_content
+        chapter.save(update_fields=['title', 'content', 'word_count', 'updated_at'])
+
+    # Review is done either way — take the chapter out of the SE incoming
+    # queue by restoring its 'published' status (it stayed live throughout).
+    if chapter.is_published:
+        from apps.chapters.models import Chapter as _Chapter
+        _Chapter.objects.filter(pk=chapter.pk).update(
+            status=_Chapter.STATUS_PUBLISHED,
+        )
 
     try:
         from apps.notifications.services import create_notification
@@ -5975,7 +5989,8 @@ def se_review_chapter_edit(request, pk):
             msg = f'Your edit for "{ch.story.title}" Ch.{ch.chapter_number} has been approved and is now live.'
         else:
             note = edit_req.se_note
-            msg  = f'Your edit for "{ch.story.title}" Ch.{ch.chapter_number} was not approved. {note}'
+            msg  = (f'Your edit for "{ch.story.title}" Ch.{ch.chapter_number} was not approved '
+                    f'and the chapter was restored to its previous version. {note}')
         create_notification(edit_req.author, 'chapter_edit_update', msg)
     except Exception:
         pass
@@ -5994,7 +6009,7 @@ class SECoverRequestQueueView(generics.ListAPIView):
         from apps.editorial.models import AuthorEditorLink
 
         author_ids = AuthorEditorLink.objects.filter(
-            editor=request.user
+            assigned_se=request.user
         ).values_list('author_id', flat=True)
 
         status_filter = request.query_params.get('status', StoryCoverRequest.STATUS_PENDING)
@@ -6035,7 +6050,7 @@ def se_review_cover_request(request, pk):
                                    status=StoryCoverRequest.STATUS_PENDING)
 
     if not AuthorEditorLink.objects.filter(
-        editor=request.user, author=cover_req.author
+        assigned_se=request.user, author=cover_req.author
     ).exists():
         return Response({'detail': 'This author is not assigned to you.'}, status=403)
 

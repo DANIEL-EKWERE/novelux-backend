@@ -11,7 +11,7 @@ class ChapterListSerializer(serializers.ModelSerializer):
         model  = Chapter
         fields = [
             'id', 'title', 'chapter_number', 'is_locked', 'is_unlocked', 'coin_cost',
-            'is_published', 'views', 'unlocks', 'word_count',
+            'is_published', 'status', 'views', 'unlocks', 'word_count',
             'estimated_read_minutes', 'created_at',
         ]
 
@@ -66,6 +66,7 @@ class ChapterDetailSerializer(serializers.ModelSerializer):
 
 class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
     status = serializers.CharField(required=False)
+    chapter_number = serializers.IntegerField(required=False, min_value=1)
 
     class Meta:
         model  = Chapter
@@ -92,6 +93,18 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'Only draft or revision chapters may be submitted for review.'
                 )
+
+        # On create, a duplicate chapter number would hit the DB unique
+        # constraint and 500 — reject it with a clean 400 instead.
+        if self.instance is None:
+            num  = attrs.get('chapter_number')
+            view = self.context.get('view')
+            slug = getattr(view, 'kwargs', {}).get('story_slug') if view else None
+            if num and slug and Chapter.objects.filter(
+                    story__slug=slug, chapter_number=num).exists():
+                raise serializers.ValidationError(
+                    {'chapter_number': f'Chapter {num} already exists for this story.'}
+                )
         return attrs
 
     def _is_truthy(self, val):
@@ -101,11 +114,26 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
             return False
         return str(val).lower() in ('1', 'true', 'yes', 'on')
 
+    def _publish_intent(self, request):
+        # The app sends is_publish; the web editor historically sent
+        # is_published — honor either.
+        if request is None:
+            return False
+        data = request.data
+        return self._is_truthy(data.get('is_publish', data.get('is_published')))
+
     def create(self, validated_data):
+        # No chapter_number sent → append after the story's highest one
+        story = validated_data.get('story')
+        if not validated_data.get('chapter_number') and story is not None:
+            from django.db.models import Max
+            validated_data['chapter_number'] = (
+                Chapter.objects.filter(story=story)
+                .aggregate(m=Max('chapter_number'))['m'] or 0
+            ) + 1
+
         request = self.context.get('request')
-        is_publish = False
-        if request is not None:
-            is_publish = self._is_truthy(request.data.get('is_publish'))
+        is_publish = self._publish_intent(request)
 
         if is_publish:
             validated_data['status'] = Chapter.STATUS_DRAFT
@@ -115,13 +143,13 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
             story.refresh_from_db(fields=['contract_status'])
 
             if story.contract_status == 'signed':
-                # Contracted author → publish_held_chapters_for_author already ran
-                # in _check_editorial_trigger; nothing more needed here.
-                pass
-            else:
-                # Non-contracted author → send to SE incoming queue
-                instance.status = Chapter.STATUS_PENDING_REVIEW
-                instance.save(update_fields=['status'])
+                # Contracted author with explicit publish intent → go live now
+                instance.status = Chapter.STATUS_PUBLISHED
+                instance.is_published = True
+                instance.save(update_fields=['status', 'is_published'])
+            # Non-contracted author → stays a draft; all held drafts are
+            # published in bulk by publish_held_chapters_for_author once
+            # the contract is signed.
 
             return instance
 
@@ -132,9 +160,7 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         request = self.context.get('request')
-        is_publish = False
-        if request is not None:
-            is_publish = self._is_truthy(request.data.get('is_publish'))
+        is_publish = self._publish_intent(request)
 
         if is_publish:
             validated_data.pop('status', None)
@@ -148,9 +174,11 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
                 inst.status      = Chapter.STATUS_PUBLISHED
                 inst.is_published = True
                 inst.save(update_fields=['status', 'is_published'])
-            else:
-                # Non-contracted author → send to SE incoming queue
-                inst.status = Chapter.STATUS_PENDING_REVIEW
+            elif inst.status != Chapter.STATUS_DRAFT:
+                # Non-contracted author → chapters stay drafts until the
+                # contract-signing flow publishes them in bulk via
+                # publish_held_chapters_for_author.
+                inst.status = Chapter.STATUS_DRAFT
                 inst.save(update_fields=['status'])
 
             return inst

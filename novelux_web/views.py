@@ -3670,12 +3670,46 @@ def _editorial_context(request):
             except ContractApplication.DoesNotExist:
                 s.contract_app = None
 
-        # Incoming chapters from the SE's linked authors needing attention
-        from apps.chapters.models import Chapter as _Chapter
+        # Incoming chapters from the SE's linked authors needing attention.
+        # Chapters with a pending author edit are annotated so the template
+        # can highlight them and offer the Review Edit action.
+        from apps.chapters.models import Chapter as _Chapter, ChapterEditRequest as _CER
+        from django.db.models import Exists as _Exists, OuterRef as _OuterRef, Subquery as _Subquery
+        _pending_edit = _CER.objects.filter(
+            chapter=_OuterRef('pk'), status=_CER.STATUS_PENDING,
+        )
         incoming_chapters = _Chapter.objects.filter(
             story__author__editor_link__assigned_se=user,
             status__in=['pending_review', 'submitted', 'se_reviewing'],
-        ).select_related('story', 'story__author').order_by('-created_at')[:100]
+        ).annotate(
+            has_pending_edit=_Exists(_pending_edit),
+            pending_edit_id=_Subquery(_pending_edit.values('pk')[:1]),
+        ).select_related('story', 'story__author').order_by('-updated_at')[:100]
+
+        # Group incoming chapters by book — the SE sees one card per story,
+        # expandable to its chapters awaiting review.
+        incoming_groups = []
+        _by_story = {}
+        for _ch in incoming_chapters:
+            grp = _by_story.get(_ch.story_id)
+            if grp is None:
+                grp = {
+                    'story':        _ch.story,
+                    'chapters':     [],
+                    'edited_count': 0,
+                    'latest':       _ch.updated_at,
+                }
+                _by_story[_ch.story_id] = grp
+                incoming_groups.append(grp)
+            grp['chapters'].append(_ch)
+            if _ch.has_pending_edit:
+                grp['edited_count'] += 1
+            if _ch.updated_at and _ch.updated_at > grp['latest']:
+                grp['latest'] = _ch.updated_at
+        for grp in incoming_groups:
+            grp['count'] = len(grp['chapters'])
+            grp['chapters'].sort(key=lambda c: c.chapter_number)
+        incoming_groups.sort(key=lambda g: g['latest'], reverse=True)
 
         # Stories CE-rejected (contract_status reverts to 'none', so query via ContractApplication)
         ce_rejected_apps = ContractApplication.objects.filter(
@@ -3760,6 +3794,7 @@ def _editorial_context(request):
             'rejected_stories':    rejected_stories,
             'rejected_count':      rejected_stories.count(),
             'incoming_chapters':   incoming_chapters,
+            'incoming_groups':     incoming_groups,
             'incoming_count':      incoming_chapters.count(),
             'ce_rejected_apps':    ce_rejected_apps,
             'cleared_this_week':   cleared_this_week,

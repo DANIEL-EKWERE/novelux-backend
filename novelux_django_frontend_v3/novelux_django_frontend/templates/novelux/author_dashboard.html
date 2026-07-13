@@ -692,7 +692,7 @@ html.dark .badge-yellow{color:hsl(45 90% 60%);}
             <option>Married to a Ghost</option>
             <option>The Billionaire's Secret</option>
           </select>
-          <button class="btn btn-primary btn-sm" onclick="showPage('editor',document.querySelector('[onclick*=editor]'))">+ New Chapter</button>
+          <button class="btn btn-primary btn-sm" onclick="startNewChapter()">+ New Chapter</button>
         </div>
       </div>
     </div>
@@ -704,70 +704,6 @@ html.dark .badge-yellow{color:hsl(45 90% 60%);}
         <button class="btn btn-ghost btn-sm">Bulk schedule</button>
       </div>
       <div class="chapter-list" id="chapterListEl"></div>
-    </div>
-  </div>
-
-  <!-- ══════ PAGE: EDITOR ══════ -->
-  <div class="page" id="page-editor">
-    <div class="dash-hero">
-      <div class="dash-hero-row">
-        <div>
-          <h1 id="editorChTitle">Chapter 13: The Choice</h1>
-          <p>Bound by Blood · Auto-saving every 5 seconds</p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-outline btn-sm" onclick="publishChapter()">Publish</button>
-          <button class="btn btn-primary btn-sm" onclick="manualSave()">Save Draft</button>
-        </div>
-      </div>
-    </div>
-    <div class="inner-pad" style="padding-bottom:40px;">
-      <div class="form-grid two-col" style="margin-bottom:16px;">
-        <div class="form-group">
-          <label class="form-label">Chapter Title</label>
-          <input class="form-input" id="chapterTitleInput" value="The Choice" oninput="startSaveTimer()"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Chapter Number</label>
-          <input class="form-input" value="13" type="number" min="1"/>
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:16px;">
-        <label class="form-label">Author's Note (optional)</label>
-        <input class="form-input" placeholder="A message to your readers for this chapter..." id="authorNote" oninput="startSaveTimer()"/>
-      </div>
-      <div class="editor-wrap">
-        <div class="editor-toolbar">
-          <button class="tool-btn" title="Bold" onclick="formatText('bold')"><b>B</b></button>
-          <button class="tool-btn" title="Italic" onclick="formatText('italic')"><i>I</i></button>
-          <button class="tool-btn" title="Underline" onclick="formatText('underline')"><u>U</u></button>
-          <div class="tool-sep"></div>
-          <button class="tool-btn" onclick="formatText('justifyLeft')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></button>
-          <button class="tool-btn" onclick="formatText('justifyCenter')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg></button>
-          <button class="tool-btn" onclick="formatText('justifyFull')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg></button>
-          <div class="tool-sep"></div>
-          <button class="tool-btn" onclick="insertScene()">— Scene —</button>
-          <div class="tool-sep"></div>
-          <select style="font-size:12px;background:none;border:none;color:var(--fg);cursor:pointer;height:28px;padding:0 4px;" onchange="changeFontSize(this)">
-            <option value="14px">14</option><option value="16px" selected>16</option><option value="18px">18</option><option value="20px">20</option>
-          </select>
-          <div class="tool-sep"></div>
-          <span style="margin-left:auto;font-size:11px;color:var(--muted-fg)" id="wordCountBadge">0 words</span>
-        </div>
-        <div class="editor-area" id="editorArea" contenteditable="true" oninput="onEditorInput()" spellcheck="true">
-          <p>The message came at midnight.</p>
-          <p>Kemi read it three times before she let herself believe it was real. After two years of silence, three returned letters, and one very deliberate decision to stop hoping — here it was. His name on her screen like a ghost refusing to stay buried.</p>
-          <p><em>We need to talk. Tonight. — D</em></p>
-          <p>She put the phone face-down on the nightstand and stared at the ceiling. The fan turned in slow, lazy circles, the same way it had on the night he left. She'd counted those rotations too, back then. It had not helped.</p>
-        </div>
-        <div class="editor-footer">
-          <div class="save-indicator">
-            <div class="save-dot saved" id="saveDot"></div>
-            <span id="saveStatus">All changes saved</span>
-          </div>
-          <span id="editorWordCount">72 words · Est. 0 min read</span>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -2070,7 +2006,7 @@ html.dark .badge-yellow{color:hsl(45 90% 60%);}
             <option>No stories yet</option>
             {% endfor %}
           </select>
-          <button class="btn btn-primary btn-sm" onclick="const sel=document.getElementById('bookSelector');const slug=sel?.options[sel?.selectedIndex]?.dataset?.slug||'';newChapter(slug);showPage('editor',document.querySelector('[onclick*=editor]'))">+ New Chapter</button>
+          <button class="btn btn-primary btn-sm" onclick="startNewChapter()">+ New Chapter</button>
         </div>
       </div>
     </div>
@@ -2659,6 +2595,21 @@ function loadChapterIntoEditor(storySlug, chapterNumber, chapterTitle){
     });
 }
 
+// Next chapter number based on the loaded chapter list
+function _nextChapterNumber(){
+  return chapters.reduce((m, c) => Math.max(m, c.chapter_number || 0), 0) + 1;
+}
+
+// "+ New Chapter" button — reset editor state and prefill the next number
+function startNewChapter(){
+  const sel  = document.getElementById('bookSelector');
+  const slug = sel?.dataset?.currentSlug || sel?.options[sel?.selectedIndex]?.dataset?.slug || '';
+  if(!slug){ showToast('Select a story first'); return; }
+  newChapter(slug);
+  document.getElementById('chapterNumberInput').value = _nextChapterNumber();
+  showPage('editor', document.querySelector('[onclick*=editor]'));
+}
+
 // New blank chapter
 function newChapter(storySlug){
   document.getElementById('editorStorySlug').value  = storySlug || '';
@@ -2674,14 +2625,19 @@ function newChapter(storySlug){
 
 function loadFromStorage(){ /* replaced by loadChapterIntoEditor — no-op */ }
 
+// Only one save request at a time — a second save racing a POST would
+// create a duplicate chapter before the first response records its number.
+let _saveInFlight = false;
+
 // Save draft via API (PATCH if existing, POST if new)
 async function manualSave(){
+  if(_saveInFlight){ startSaveTimer(); return; } // retry after the debounce
   const slug    = _editorSlug();
   const chNum   = _editorChNum();
   const title   = document.getElementById('chapterTitleInput').value.trim();
   const content = document.getElementById('editorArea').innerHTML;
   const note    = document.getElementById('authorNote').value.trim();
-  const number  = parseInt(document.getElementById('chapterNumberInput').value) || 1;
+  const number  = parseInt(document.getElementById('chapterNumberInput').value);
 
   if(!slug){ showToast('Select a story first'); return; }
 
@@ -2693,9 +2649,18 @@ async function manualSave(){
   };
   setSaveStatus('Saving…', false);
 
-  const body = { title, content, chapter_number: number, is_published: false };
+  // Never renumber as a side effect of saving: on PATCH the URL already
+  // identifies the chapter, so only send chapter_number when the author
+  // deliberately changed it. On POST default to the next free number.
+  const body = { title, content, is_published: false };
   if(note) body.authors_note = note;
+  if(chNum){
+    if(number >= 1 && String(number) !== String(chNum)) body.chapter_number = number;
+  } else {
+    body.chapter_number = number >= 1 ? number : _nextChapterNumber();
+  }
 
+  _saveInFlight = true;
   try {
     let res;
     if(chNum){
@@ -2716,24 +2681,43 @@ async function manualSave(){
 
     if(res.ok){
       const data = await res.json();
-      document.getElementById('editorChapterNum').value = data.chapter_number;
-      setSaveStatus('All changes saved · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-      showToast('Draft saved!');
+      // Edits to published chapters return an edit-review receipt with no
+      // chapter_number — don't clobber the editor state with "undefined".
+      if(data.chapter_number !== undefined && data.chapter_number !== null){
+        document.getElementById('editorChapterNum').value   = data.chapter_number;
+        document.getElementById('chapterNumberInput').value = data.chapter_number;
+      }
+      if(data.status === 'in_review'){
+        setSaveStatus('Edit submitted for review');
+        showToast(data.detail || 'Your edit was submitted for review.');
+      } else {
+        setSaveStatus('All changes saved · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+        showToast('Draft saved!');
+      }
       // Refresh chapter list
       if(window._loadChapters) window._loadChapters(slug);
+    } else if(res.status === 404 && chNum){
+      // The chapter this editor was pointing at no longer exists
+      // (deleted elsewhere) — reset so the next save creates it fresh.
+      document.getElementById('editorChapterNum').value = '';
+      setSaveStatus('Save failed', false);
+      showToast('This chapter no longer exists — the next save will re-create it.');
     } else {
       const err = await res.json().catch(() => ({}));
       setSaveStatus('Save failed', false);
-      showToast(err?.detail || err?.title?.[0] || 'Failed to save');
+      showToast(err?.detail || err?.chapter_number?.[0] || err?.title?.[0] || 'Failed to save');
     }
   } catch(e) {
     setSaveStatus('Save failed', false);
     showToast('Network error — check connection');
+  } finally {
+    _saveInFlight = false;
   }
 }
 
 // Publish chapter via API
 async function publishChapter(){
+  if(_saveInFlight){ showToast('Still saving — try again in a moment'); return; }
   const slug  = _editorSlug();
   const chNum = _editorChNum();
   if(!slug){ showToast('Select a story first'); return; }
@@ -2742,11 +2726,19 @@ async function publishChapter(){
   const title   = document.getElementById('chapterTitleInput').value.trim();
   const content = document.getElementById('editorArea').innerHTML;
   const note    = document.getElementById('authorNote').value.trim();
-  const number  = parseInt(document.getElementById('chapterNumberInput').value) || 1;
+  const number  = parseInt(document.getElementById('chapterNumberInput').value);
 
-  const body = { title, content, chapter_number: number, is_published: true };
+  // is_publish is the flag the backend serializer reads; keep is_published
+  // for backwards compatibility.
+  const body = { title, content, is_publish: true, is_published: true };
   if(note) body.authors_note = note;
+  if(chNum){
+    if(number >= 1 && String(number) !== String(chNum)) body.chapter_number = number;
+  } else {
+    body.chapter_number = number >= 1 ? number : _nextChapterNumber();
+  }
 
+  _saveInFlight = true;
   try {
     const method = chNum ? 'PATCH' : 'POST';
     const url    = chNum
@@ -2761,17 +2753,30 @@ async function publishChapter(){
 
     if(res.ok){
       const data = await res.json();
-      document.getElementById('editorChapterNum').value = data.chapter_number;
+      if(data.chapter_number !== undefined && data.chapter_number !== null){
+        document.getElementById('editorChapterNum').value   = data.chapter_number;
+        document.getElementById('chapterNumberInput').value = data.chapter_number;
+      }
       document.getElementById('saveDot').className = 'save-dot saved';
-      document.getElementById('saveStatus').textContent = 'Published';
-      showToast('Chapter published! 🎉');
+      if(data.status === 'in_review'){
+        document.getElementById('saveStatus').textContent = 'Edit submitted for review';
+        showToast(data.detail || 'Your edit was submitted for review.');
+      } else {
+        document.getElementById('saveStatus').textContent = 'Published';
+        showToast('Chapter published! 🎉');
+      }
       if(window._loadChapters) window._loadChapters(slug);
+    } else if(res.status === 404 && chNum){
+      document.getElementById('editorChapterNum').value = '';
+      showToast('This chapter no longer exists — save it as a draft first, then publish.');
     } else {
       const err = await res.json().catch(() => ({}));
-      showToast(err?.detail || 'Failed to publish');
+      showToast(err?.detail || err?.chapter_number?.[0] || 'Failed to publish');
     }
   } catch(e) {
     showToast('Network error — check connection');
+  } finally {
+    _saveInFlight = false;
   }
 }
 function formatText(cmd){document.execCommand(cmd,false,null);document.getElementById('editorArea').focus();}

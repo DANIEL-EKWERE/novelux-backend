@@ -692,35 +692,57 @@ html.dark .brd{color:hsl(0 70% 65%);}
       </div>
     </div>
 
-    {% if incoming_chapters %}
-    <div class="card">
-      <div style="overflow-x:auto;">
-        <table class="tbl">
-          <thead><tr><th>#</th><th>Chapter</th><th>Story</th><th>Author</th><th>Words</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-          {% for ch in incoming_chapters %}
-            <tr>
-              <td style="color:var(--muted-fg);">{{ ch.chapter_number }}</td>
-              <td style="font-weight:500;">{{ ch.title }}</td>
-              <td style="color:var(--muted-fg);">{{ ch.story.title }}</td>
-              <td style="color:var(--muted-fg);">{{ ch.story.author.username }}</td>
-              <td style="color:var(--muted-fg);">{{ ch.word_count|default:"—" }}</td>
-              <td>
-                {% if ch.status == 'pending_review' or ch.status == 'se_reviewing' %}
-                  <span class="bdg byw2">{{ ch.status|title|cut:"_" }}</span>
-                {% elif ch.status == 'submitted' %}
-                  <span class="bdg bgy">Submitted</span>
-                {% else %}
-                  <span class="bdg bgy">{{ ch.status|title|cut:"_" }}</span>
-                {% endif %}
-              </td>
-              <td><button class="btn bo bsm" onclick="readChapter({{ ch.id }},'{{ ch.title|escapejs }}')">Read</button></td>
-            </tr>
+    {% if incoming_groups %}
+      {% for g in incoming_groups %}
+      <div class="card incoming-book" style="margin-bottom:14px;padding:0;overflow:hidden;{% if g.edited_count %}box-shadow:inset 3px 0 0 var(--primary);{% endif %}">
+        <div class="ch-list-head" onclick="toggleChapters('inc-{{ g.story.id }}',this)" style="padding:14px 16px;">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+            {% if g.story.cover_image %}
+              <img src="{{ g.story.cover_image.url }}" alt="" style="width:36px;height:50px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">
+            {% else %}
+              <div style="width:36px;height:50px;background:var(--muted);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted-fg)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+              </div>
+            {% endif %}
+            <div style="min-width:0;">
+              <div class="story-title" style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ g.story.title }}</div>
+              <div class="story-sub" style="font-size:12px;color:var(--muted-fg);">
+                by {{ g.story.author.username }}
+                · {{ g.count }} chapter{{ g.count|pluralize }} awaiting review
+                · last activity {{ g.latest|timesince }} ago
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            {% if g.edited_count %}<span class="bdg byw2">{{ g.edited_count }} edited</span>{% endif %}
+            <span class="bdg bgy">{{ g.count }}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .2s;"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>
+        <div class="ch-items" id="inc-{{ g.story.id }}">
+          {% for ch in g.chapters %}
+          <div class="ch-row"{% if ch.has_pending_edit %} style="background:color-mix(in srgb,var(--primary) 6%,transparent);"{% endif %}>
+            <span class="ch-num">{{ ch.chapter_number }}</span>
+            <span class="ch-title">{{ ch.title }}</span>
+            <span class="ch-wc">{{ ch.word_count|default:"—" }} words</span>
+            <span class="ch-wc" title="{{ ch.updated_at|date:'M j, Y · g:i A' }}">{{ ch.updated_at|timesince }} ago</span>
+            {% if ch.has_pending_edit %}
+              <span class="ch-status bdg byw2">Edited</span>
+            {% elif ch.status == 'submitted' %}
+              <span class="ch-status bdg bgy">Submitted</span>
+            {% else %}
+              <span class="ch-status bdg byw2">{{ ch.status|title|cut:"_" }}</span>
+            {% endif %}
+            <button class="ch-read-btn" onclick="readChapter({{ ch.id }},'{{ ch.title|escapejs }}')">Read</button>
+            {% if ch.has_pending_edit %}
+              <button class="ch-read-btn" style="margin-left:4px;background:color-mix(in srgb,var(--primary) 14%,transparent);color:var(--primary);" onclick="reviewEdit({{ ch.pending_edit_id }},'{{ ch.title|escapejs }}')">Review Edit</button>
+            {% endif %}
+            <button class="ch-read-btn" style="margin-left:4px;" onclick="viewBookChapters('{{ g.story.slug|escapejs }}','{{ g.story.title|escapejs }}',{{ ch.id }})">All Chapters</button>
+          </div>
           {% endfor %}
-          </tbody>
-        </table>
+        </div>
       </div>
-    </div>
+      {% endfor %}
     {% else %}
     <div class="empty">
       <h3>No incoming chapters</h3>
@@ -1748,6 +1770,81 @@ async function readChapter(id, title) {
 function closeModal() { document.getElementById('readModal').classList.remove('open'); }
 document.getElementById('readModal').addEventListener('click', e => { if (e.target === document.getElementById('readModal')) closeModal(); });
 
+// Review a pending author edit to a live chapter
+async function reviewEdit(editId, title) {
+  document.getElementById('modalTitle').textContent = 'Edit review — ' + title;
+  document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Loading…</p>';
+  document.getElementById('readModal').classList.add('open');
+  try {
+    const list = await NUX.get('/editorial/chapter-edits/?status=pending');
+    const req = (list || []).find(r => r.id === editId);
+    if (!req) {
+      document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">This edit request has already been handled.</p>';
+      return;
+    }
+    document.getElementById('modalBody').innerHTML =
+      '<div style="margin-bottom:12px;"><span class="bdg byw2">Pending edit</span> ' +
+      '<span style="color:var(--muted-fg);font-size:12px;">by ' + req.author + ' · ' + req.story_title + ' · Ch.' + req.chapter_number + '</span></div>' +
+      (req.pending_title ? '<h3 style="margin-bottom:10px;">' + req.pending_title + '</h3>' : '') +
+      '<div style="line-height:1.8;border:1px solid var(--border);padding:16px;max-height:45vh;overflow:auto;">' + (req.pending_content || '(No content)') + '</div>' +
+      '<div style="margin-top:14px;"><textarea id="editReviewNote" style="width:100%;height:64px;padding:10px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--fg);border:1px solid var(--border);resize:vertical;" placeholder="Note to the author (required when rejecting)"></textarea></div>' +
+      '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button class="btn bo bsm" style="border-color:var(--primary);color:var(--primary);" onclick="decideEdit(' + editId + ',\'approve\')">Approve — apply edit</button>' +
+      '<button class="btn bo bsm" style="border-color:#e53e3e;color:#e53e3e;" onclick="decideEdit(' + editId + ',\'reject\')">Reject</button>' +
+      '</div>';
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Failed to load the edit request.</p>';
+  }
+}
+
+async function decideEdit(editId, action) {
+  const note = document.getElementById('editReviewNote')?.value?.trim() || '';
+  if (action === 'reject' && !note) { toast('Add a note so the author knows why'); return; }
+  try {
+    await NUX.post('/editorial/chapter-edits/' + editId + '/review/', { action, note });
+    toast(action === 'approve' ? 'Edit approved — now live' : 'Edit rejected');
+    closeModal();
+    setTimeout(() => location.reload(), 700);
+  } catch (e) {
+    toast('Could not submit the review');
+  }
+}
+
+// Browse every chapter of a book from the incoming queue (context for review)
+async function viewBookChapters(slug, storyTitle, highlightId) {
+  document.getElementById('modalTitle').textContent = storyTitle + ' — all chapters';
+  document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Loading…</p>';
+  document.getElementById('readModal').classList.add('open');
+  try {
+    const d = await NUX.get('/editorial/story-queue/' + slug + '/panel/');
+    const list = d?.chapters?.list || [];
+    if (!list.length) {
+      document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">This book has no chapters yet.</p>';
+      return;
+    }
+    const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    const rows = list.map(ch => {
+      const hl = ch.id === highlightId;
+      const badge = ch.status === 'pending_review' || ch.status === 'se_reviewing'
+        ? '<span class="bdg byw2">' + esc(ch.status.replace(/_/g, ' ')) + '</span>'
+        : (ch.is_published ? '<span class="bdg bgr">Published</span>' : '<span class="bdg bgy">' + esc(ch.status.replace(/_/g, ' ')) + '</span>');
+      return '<tr' + (hl ? ' style="background:color-mix(in srgb,var(--primary) 8%,transparent);box-shadow:inset 3px 0 0 var(--primary);"' : '') + '>' +
+        '<td style="color:var(--muted-fg);">' + ch.chapter_number + '</td>' +
+        '<td style="font-weight:500;">' + esc(ch.title) + (hl ? ' <span class="bdg byw2" style="margin-left:6px;">In review</span>' : '') + '</td>' +
+        '<td style="color:var(--muted-fg);">' + (ch.word_count || '—') + '</td>' +
+        '<td>' + badge + '</td>' +
+        '<td><button class="btn bo bsm" onclick="readChapter(' + ch.id + ',\'' + esc(ch.title).replace(/\\/g,'\\\\').replace(/'/g, "\\'") + '\')">Read</button></td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('modalBody').innerHTML =
+      '<div style="overflow-x:auto;"><table class="tbl">' +
+      '<thead><tr><th>#</th><th>Chapter</th><th>Words</th><th>Status</th><th></th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+  } catch (e) {
+    document.getElementById('modalBody').innerHTML = '<p style="color:var(--muted-fg);">Failed to load the chapter list.</p>';
+  }
+}
+
 // ── Search helpers ──────────────────────────────────────────────────────────
 function _searchDom(q, containerSel, itemSel, textFn) {
   q = (q || '').trim().toLowerCase();
@@ -1763,7 +1860,7 @@ const _rowTxt  = el => Array.from(el.querySelectorAll('td')).map(t => t.textCont
 function searchQueue(q)    { _searchDom(q, '#story-queue-list',    '.story-card', _cardTxt); }
 function searchRejected(q) { _searchDom(q, '#rejected-queue-list', '.story-card', _cardTxt); }
 function searchPipeline(q) { _searchDom(q, '#page-approved',       '.story-card', _cardTxt); }
-function searchIncoming(q) { _searchDom(q, '#page-incoming .tbl',  'tbody tr',    _rowTxt);  }
+function searchIncoming(q) { _searchDom(q, '#page-incoming', '.incoming-book', el => el.textContent); }
 function searchAuthors(q)  { _searchDom(q, '#page-authors .tbl',   'tbody tr',    _rowTxt);  }
 
 // Story actions

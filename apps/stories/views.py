@@ -513,10 +513,10 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
             from apps.notifications.services import create_notification
             link = AuthorEditorLink.objects.filter(
                 author=request.user
-            ).select_related('editor').first()
-            if link:
+            ).select_related('assigned_se').first()
+            if link and link.assigned_se:
                 create_notification(
-                    link.editor,
+                    link.assigned_se,
                     'cover_change_review',
                     f'{request.user.username} submitted a new cover for '
                     f'"{story.title}" — review required.',

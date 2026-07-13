@@ -162,10 +162,10 @@ def _run_ocr_and_match(kyc_id):
     try:
         from apps.editorial.models import AuthorEditorLink
         from apps.notifications.services import create_notification
-        link = AuthorEditorLink.objects.filter(author=kyc.user).select_related('editor').first()
-        if link:
+        link = AuthorEditorLink.objects.filter(author=kyc.user).select_related('assigned_se').first()
+        if link and link.assigned_se:
             create_notification(
-                link.editor,
+                link.assigned_se,
                 'kyc_review',
                 f'{kyc.user.username} has submitted KYC for your review.',
             )

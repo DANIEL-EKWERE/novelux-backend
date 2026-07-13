@@ -1010,8 +1010,9 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
           <p id="editorStoryLabel">Select a story · Auto-saving every 5 seconds</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-outline btn-sm" onclick="publishChapter()">Publish</button>
-          <button class="btn btn-primary btn-sm" onclick="manualSave()">Save Draft</button>
+          <button class="btn btn-outline btn-sm" id="btnPublish" onclick="publishChapter()">Publish</button>
+          <button class="btn btn-outline btn-sm" id="btnSubmitReview" style="display:none;" onclick="submitForReview()">Submit for Review</button>
+          <button class="btn btn-primary btn-sm" id="btnSave" onclick="manualSave()">Save Draft</button>
         </div>
       </div>
     </div>
@@ -1544,6 +1545,40 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
   </div>
 </div>
 
+<!-- PUBLISH CONFIRMATION MODAL -->
+<div id="publishConfirmModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--bg);border:1px solid var(--border);padding:32px;max-width:440px;width:100%;position:relative;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--primary) 12%,transparent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+      </div>
+      <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;">Publish this chapter?</h2>
+      <p style="font-size:13px;color:var(--muted-fg);line-height:1.6;">Dear author, <strong id="publishConfirmTitle"></strong> will go <strong>live on the Novelux app</strong> and become visible to all your readers right away. Make sure you've proofread it — after publishing, any edits you make later on go through editorial review before they appear. Are you sure you want to publish now?</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closePublishModal(true)">Yes, publish it 🎉</button>
+      <button style="width:100%;padding:10px;font-size:13px;color:var(--muted-fg);background:none;border:1px solid var(--border);cursor:pointer;font-family:inherit;" onclick="closePublishModal()">Not yet — keep as draft</button>
+    </div>
+  </div>
+</div>
+
+<!-- SUBMIT-FOR-REVIEW CONFIRMATION MODAL -->
+<div id="reviewConfirmModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.5);align-items:center;justify-content:center;padding:24px;">
+  <div style="background:var(--bg);border:1px solid var(--border);padding:32px;max-width:440px;width:100%;position:relative;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--primary) 12%,transparent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+      </div>
+      <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;">Submit edit for review?</h2>
+      <p style="font-size:13px;color:var(--muted-fg);line-height:1.6;">Dear author, your edited chapter will be sent to your <strong>Story Editor</strong> for review and its status will change to <strong>Under Review</strong>. If the edit is not approved, the chapter will be restored to its previous version. Are you sure you want to submit now?</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeReviewModal(true)">Yes, submit for review</button>
+      <button style="width:100%;padding:10px;font-size:13px;color:var(--muted-fg);background:none;border:1px solid var(--border);cursor:pointer;font-family:inherit;" onclick="closeReviewModal()">Not yet</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
@@ -1970,6 +2005,8 @@ function onEditorInput(){
   startSaveTimer();
 }
 function startSaveTimer(){
+  _editorDirty = true;
+  updateEditorButtons();
   const dot    = document.getElementById('saveDot');
   const status = document.getElementById('saveStatus');
   if(!dot) return;
@@ -2007,10 +2044,57 @@ function _editorSlug(){
     || sel?.options[sel?.selectedIndex]?.dataset?.slug 
     || ''; 
 }
-function _editorChNum(){ return document.getElementById('editorChapterNum')?.value || ''; }
+function _editorChNum(){
+  const v = document.getElementById('editorChapterNum')?.value || '';
+  // Guard against corrupted state from older code ("undefined"/"null" strings)
+  return /^\d+$/.test(v) ? v : '';
+}
 function _editorHeaders(){
   const token = document.querySelector('meta[name="nux-token"]')?.content || '';
   return { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) };
+}
+
+// ── Editor button state ───────────────────────────────────────────────────
+// For a LIVE (published) chapter of a contracted book the flow is:
+//   Save (grayed until edited) → save → Submit for Review → confirm →
+//   status 'pending_review'. Publish is hidden for live chapters.
+let _editorIsLive   = false;  // chapter.is_published
+let _editorChStatus = '';     // chapter.status
+let _editorDirty    = false;  // unsaved changes in the editor
+
+function updateEditorButtons(){
+  const pub  = document.getElementById('btnPublish');
+  const save = document.getElementById('btnSave');
+  const sub  = document.getElementById('btnSubmitReview');
+  if(!pub || !save || !sub) return;
+
+  const gray = (btn, on) => {
+    btn.disabled = on;
+    btn.style.opacity = on ? '.45' : '';
+    btn.style.cursor  = on ? 'not-allowed' : '';
+  };
+
+  if(_editorIsLive){
+    pub.style.display = 'none';
+    save.textContent  = 'Save';
+    gray(save, !_editorDirty);
+    if(_editorChStatus === 'pending_review'){
+      sub.style.display = '';
+      sub.textContent   = 'Under Review';
+      gray(sub, true);
+    } else if(_editorChStatus === 'draft'){
+      sub.style.display = '';
+      sub.textContent   = 'Submit for Review';
+      gray(sub, false);
+    } else {
+      sub.style.display = 'none';
+    }
+  } else {
+    pub.style.display = '';
+    save.textContent  = 'Save Draft';
+    gray(save, false);
+    sub.style.display = 'none';
+  }
 }
 
 // Load a chapter's real data into the editor
@@ -2051,9 +2135,13 @@ function loadChapterIntoEditor(storySlug, chapterNumber, chapterTitle){
       area.innerHTML = sanitized;
       area.contentEditable = 'true';
 
-      
+      _editorIsLive   = !!ch.is_published;
+      _editorChStatus = ch.status || '';
+      _editorDirty    = false;
+      updateEditorButtons();
+
       updateWordCount();
-      setSaveStatus('All changes saved');
+      setSaveStatus(_editorChStatus === 'pending_review' ? 'Under review' : 'All changes saved');
     })
     .catch(() => {
       area.innerHTML = '<p>Could not load chapter. Check your connection.</p>';
@@ -2158,8 +2246,13 @@ function _openEditorForNewChapter(resolvedSlug) {
     }
 
     const title = sel?.options[sel?.selectedIndex]?.text || resolvedSlug;
-    document.getElementById('editorStoryLabel').textContent = 
+    document.getElementById('editorStoryLabel').textContent =
         'Writing for: ' + title + ' · Auto-saving every 5 seconds';
+
+    _editorIsLive   = false;
+    _editorChStatus = '';
+    _editorDirty    = false;
+    updateEditorButtons();
 
     updateWordCount();
 }
@@ -2222,11 +2315,29 @@ async function manualSave(){
 
     if(res.ok){
       const data = await res.json();
-      // Store the confirmed chapter number so all future saves PATCH
-      document.getElementById('editorChapterNum').value = data.chapter_number;
-      document.getElementById('chapterNumberInput').value = data.chapter_number;
-      setSaveStatus('All changes saved · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-      showToast('Chapter saved! 🎉');
+      // Store the confirmed chapter number so all future saves PATCH.
+      // Edits to published chapters return an edit-review receipt (202)
+      // with NO chapter_number — writing "undefined" here corrupted the
+      // state and made every next save POST a brand-new chapter.
+      if(data.chapter_number !== undefined && data.chapter_number !== null){
+        document.getElementById('editorChapterNum').value = data.chapter_number;
+        document.getElementById('chapterNumberInput').value = data.chapter_number;
+      }
+      _editorDirty = false;
+      if(data.status === 'edit_draft'){
+        // Live chapter edit saved as draft — Submit for Review is next
+        _editorChStatus = 'draft';
+        setSaveStatus('Edit saved — ready to submit for review');
+        showToast(data.detail || 'Edit saved. Submit it for review when ready.');
+      } else if(data.status === 'in_review'){
+        _editorChStatus = 'pending_review';
+        setSaveStatus('Edit submitted for review');
+        showToast(data.detail || 'Your edit was submitted for review.');
+      } else {
+        setSaveStatus('All changes saved · ' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+        showToast('Chapter saved! 🎉');
+      }
+      updateEditorButtons();
       if(window._loadChapters) window._loadChapters(slug);
       // If the server flagged this chapter as hitting the threshold, fire milestone immediately.
       if(data.contract_eligible) {
@@ -2240,6 +2351,12 @@ async function manualSave(){
       if(window.noveluxAPI) window.noveluxAPI.fetch('/stories/mine/').then(d => {
         if(window.refreshBooks) window.refreshBooks(d);
       });
+    } else if(res.status === 404 && method === 'PATCH'){
+      // The chapter this editor was pointing at no longer exists
+      // (deleted elsewhere) — reset so the next save re-creates it.
+      document.getElementById('editorChapterNum').value = '';
+      setSaveStatus('Save failed', false);
+      showToast('This chapter no longer exists — the next save will re-create it.');
     } else {
       const err = await res.json().catch(() => ({}));
       setSaveStatus('Save failed', false);
@@ -2267,7 +2384,64 @@ async function manualSave(){
   }
 }
 
-async function publishChapter(){
+// Submit-for-Review button (live chapter edits) → confirm, then submit
+function submitForReview(){
+  if(_isSaving){ showToast('Still saving — try again in a moment'); return; }
+  if(_editorDirty){ showToast('Save your changes first'); return; }
+  const slug  = _editorSlug();
+  const chNum = _editorChNum();
+  if(!slug || !chNum){ showToast('Save your edit first'); return; }
+  document.getElementById('reviewConfirmModal').style.display = 'flex';
+}
+
+function closeReviewModal(confirmed){
+  document.getElementById('reviewConfirmModal').style.display = 'none';
+  if(confirmed) _doSubmitReview();
+}
+
+async function _doSubmitReview(){
+  const slug  = _editorSlug();
+  const chNum = _editorChNum();
+  if(!slug || !chNum) return;
+  try {
+    const res  = await fetch(`/api/chapters/${slug}/chapters/${chNum}/submit-review/`, {
+      method: 'POST',
+      headers: _editorHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(res.ok){
+      _editorChStatus = 'pending_review';
+      updateEditorButtons();
+      const st = document.getElementById('saveStatus');
+      if(st) st.textContent = 'Under review';
+      showToast(data.detail || 'Your edit is now under review.');
+      if(window._loadChapters) window._loadChapters(slug);
+    } else {
+      showToast(data.detail || 'Could not submit for review');
+    }
+  } catch(e) {
+    showToast('Network error — check connection');
+  }
+}
+
+// Publish button → confirm with the author before anything goes live
+function publishChapter(){
+  if(_isSaving){ showToast('Still saving — try again in a moment'); return; }
+  const slug  = _editorSlug();
+  if(!slug){ showToast('Select a story first'); return; }
+  const title = document.getElementById('chapterTitleInput').value.trim();
+  if(!title){ showToast('Please enter a chapter title'); return; }
+  document.getElementById('publishConfirmTitle').textContent = '“' + title + '”';
+  document.getElementById('publishConfirmModal').style.display = 'flex';
+}
+
+function closePublishModal(confirmed){
+  document.getElementById('publishConfirmModal').style.display = 'none';
+  if(confirmed) _doPublishChapter();
+}
+
+async function _doPublishChapter(){
+  if(_isSaving){ showToast('Still saving — try again in a moment'); return; }
   const slug  = _editorSlug();
   if(!slug){ showToast('Select a story first'); return; }
 
@@ -2279,6 +2453,7 @@ async function publishChapter(){
   const token   = document.querySelector('meta[name="nux-token"]')?.content || '';
   const headers = { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) };
 
+  _isSaving = true;
   try {
     let chNum = _editorChNum() ? parseInt(_editorChNum()) : null;
 
@@ -2308,9 +2483,18 @@ async function publishChapter(){
       return;
     }
     const saved = await saveRes.json();
-    chNum = saved.chapter_number;
-    document.getElementById('editorChapterNum').value   = chNum;
-    document.getElementById('chapterNumberInput').value = chNum;
+    // Published chapters route edits through SE review — the receipt has no
+    // chapter_number, and there's nothing further to publish.
+    if(saved.status === 'in_review'){
+      showToast(saved.detail || 'Your edit was submitted for review.');
+      if (window._loadChapters) window._loadChapters(slug);
+      return;
+    }
+    if(saved.chapter_number !== undefined && saved.chapter_number !== null){
+      chNum = saved.chapter_number;
+      document.getElementById('editorChapterNum').value   = chNum;
+      document.getElementById('chapterNumberInput').value = chNum;
+    }
 
     // Step 2: Call the dedicated publish endpoint
     const pubRes = await fetch(`/api/chapters/${slug}/chapters/${chNum}/publish/`, {
@@ -2330,6 +2514,8 @@ async function publishChapter(){
     }
   } catch(e) {
     showToast('Network error — check connection: ' + e.message);
+  } finally {
+    _isSaving = false;
   }
 }
 function formatText(cmd){document.execCommand(cmd,false,null);document.getElementById('editorArea').focus();}
@@ -3625,8 +3811,15 @@ window.refreshBooks = function refreshBooks(data){
         reads_raw:      ch.views || ch.total_views || 0,
         reads_fmt:      fmtNum(ch.views || ch.total_views || 0),
         comments_fmt:   fmtNum(ch.comments_count || ch.total_comments || 0),
-        status:         ch.is_published ? 'published' : 'draft',
-        badge_class:    ch.is_published ? 'badge-green' : 'badge-yellow',
+        // A live chapter mid-edit keeps is_published=true but its status
+        // moves to draft (edit saved) or pending_review (submitted to SE)
+        status:         (ch.status === 'pending_review' || ch.status === 'se_reviewing') ? 'under review'
+                        : (ch.is_published && ch.status === 'draft') ? 'edited draft'
+                        : ch.is_published ? 'published'
+                        : (ch.status || 'draft').replace(/_/g, ' '),
+        badge_class:    (ch.status === 'pending_review' || ch.status === 'se_reviewing'
+                          || (ch.is_published && ch.status === 'draft') || !ch.is_published)
+                        ? 'badge-yellow' : 'badge-green',
       });
     });
 

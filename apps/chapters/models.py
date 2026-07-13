@@ -780,15 +780,12 @@ class Chapter(models.Model):
         except Exception:
             return
 
-        # Case A: contracted author — auto-publish NEW chapters only.
+        # Case A: contracted author — auto-save/manual save always stays a
+        # draft. Publishing happens only on explicit intent (Publish button →
+        # PublishChapterView, or the is_publish flag). Held chapters are still
+        # published in bulk by the contract-signing flow, which calls
+        # publish_held_chapters_for_author directly.
         if profile.has_contract:
-            if story.contract_status != 'signed':
-                return  # not yet signed — nothing to do
-            if self.is_published:
-                return  # already published, nothing to do
-            if not is_new:
-                return  # content edit on an existing chapter — handled by edit-request flow
-            Chapter.publish_held_chapters_for_author(story.author)
             return
 
         # Case B: no contract — check chapter threshold
@@ -918,6 +915,10 @@ class ChapterEditRequest(models.Model):
                           related_name='chapter_edit_requests')
     pending_title   = models.CharField(max_length=255, blank=True)
     pending_content = RichTextField()
+    # Snapshot of the chapter as it was before the author's edit — used to
+    # restore the live version when an SE rejects the edit.
+    original_title   = models.CharField(max_length=255, blank=True, default='')
+    original_content = models.TextField(blank=True, default='')
     status          = models.CharField(max_length=10, choices=STATUS_CHOICES,
                           default=STATUS_PENDING, db_index=True)
     se_note         = models.TextField(blank=True,

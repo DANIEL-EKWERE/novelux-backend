@@ -154,6 +154,17 @@ from .serializers import ChapterListSerializer, ChapterDetailSerializer, Chapter
 from apps.stories.models import Story
 from apps.users.permissions import IsAuthorOrReadOnly
 from apps.notifications.tasks import notify_followers_new_chapter
+from rest_framework.exceptions import APIException
+
+
+class ChapterLockedError(APIException):
+    """Chapter creation is locked pending the author's contract.
+
+    Unlike ValidationError, keeps `detail` a plain string so clients can
+    display the message directly: {"detail": "..."} instead of {"detail": ["..."]}.
+    """
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_code = 'chapters_locked'
 
 
 class ChapterListCreateView(generics.ListCreateAPIView):
@@ -180,7 +191,7 @@ class ChapterListCreateView(generics.ListCreateAPIView):
         return qs.order_by(ordering)
 
     def perform_create(self, serializer):
-        from rest_framework.exceptions import PermissionDenied, ValidationError
+        from rest_framework.exceptions import PermissionDenied
         story = get_object_or_404(Story, slug=self.kwargs['story_slug'])
         if story.author != self.request.user:
             raise PermissionDenied
@@ -224,7 +235,7 @@ class ChapterListCreateView(generics.ListCreateAPIView):
                     'Go to My Books and tap "Apply for Contract" to proceed. '
                     'New chapters are locked until your contract is signed.'
                 )
-            raise ValidationError({'detail': msg})
+            raise ChapterLockedError(msg)
         chapter = serializer.save(story=story)
         if chapter.is_published:
             try:

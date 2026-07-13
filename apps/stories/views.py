@@ -445,11 +445,16 @@ class StoryListCreateView(generics.ListCreateAPIView):
         return [permissions.AllowAny()]
 
     def get_queryset(self):
+        from django.db.models import Q
         qs = super().get_queryset()
         if self.request.method == 'GET':
-            if self.request.user.is_authenticated and story.author == self.request.user:
-                return qs  # Authors can see all their stories, including drafts:
-            qs = qs.exclude(status=Story.STATUS_DRAFT)
+            # Hide drafts, except an author's own
+            if self.request.user.is_authenticated:
+                qs = qs.exclude(
+                    Q(status=Story.STATUS_DRAFT) & ~Q(author=self.request.user)
+                )
+            else:
+                qs = qs.exclude(status=Story.STATUS_DRAFT)
         return qs
 
 
@@ -471,15 +476,17 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         story = self.get_object()
         new_cover = request.FILES.get('cover_image')
 
-        # Intercept cover changes on published stories → queue for SE review
-        if new_cover and story.status == Story.STATUS_PUBLISHED:
-            return self._create_cover_request(request, story, new_cover)
-
-        # For non-cover PATCH fields (title, synopsis, etc.) allow direct edit
-        # but strip cover_image from data so it doesn't accidentally overwrite
-        if story.status == Story.STATUS_PUBLISHED and new_cover:
-            request.data._mutable = True
+        # Cover changes on contracted stories need SE review — queue the file,
+        # then apply the remaining non-cover fields (title, synopsis, etc.)
+        # directly so the rest of the save isn't lost.
+        if new_cover and story.contract_status == 'signed':
+            cover_resp = self._create_cover_request(request, story, new_cover)
+            if hasattr(request.data, '_mutable'):
+                request.data._mutable = True
             request.data.pop('cover_image', None)
+            response = super().update(request, *args, **kwargs)
+            response.data['cover_review'] = cover_resp.data
+            return response
 
         return super().update(request, *args, **kwargs)
 

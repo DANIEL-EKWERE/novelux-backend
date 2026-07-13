@@ -1006,24 +1006,27 @@ class VerifyPurchaseView(APIView):
         # The array ordering from RevenueCat isn't guaranteed, and a stale
         # response may not include the newest receipt yet — so instead of
         # assuming transactions[-1] is the new purchase, grant the newest
-        # transaction we haven't redeemed yet.
-        tx_ids = [t.get('store_transaction_id') or t.get('id', '') for t in transactions]
+        # transaction we haven't redeemed yet. If everything is already
+        # redeemed (usually because our webhook granted it first), fall
+        # through with the newest transaction — _grant answers idempotently.
+        pairs = [
+            (tx, tx.get('store_transaction_id') or tx.get('id', ''))
+            for tx in transactions
+        ]
+        pairs = [(tx, tx_id) for tx, tx_id in pairs if tx_id]
+        if not pairs:
+            return Response(
+                {'error': 'Purchase not found on RevenueCat'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        pairs.sort(key=lambda pair: pair[0].get('purchase_date') or '')
+
         redeemed = set(
-            Purchase.objects.filter(iap_transaction_id__in=[i for i in tx_ids if i])
+            Purchase.objects.filter(iap_transaction_id__in=[i for _, i in pairs])
             .values_list('iap_transaction_id', flat=True)
         )
-        unredeemed = [
-            (tx, tx_id) for tx, tx_id in zip(transactions, tx_ids)
-            if tx_id and tx_id not in redeemed
-        ]
-        if not unredeemed:
-            return Response(
-                {'error': 'This purchase has already been redeemed'},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        unredeemed.sort(key=lambda pair: pair[0].get('purchase_date') or '')
-        _, transaction_id = unredeemed[-1]
+        unredeemed = [pair for pair in pairs if pair[1] not in redeemed]
+        _, transaction_id = (unredeemed or pairs)[-1]
         return self._grant(user, product_id, transaction_id)
 
     def _handle_rc_vip(self, user, product_id, subscriber):
@@ -1054,12 +1057,34 @@ class VerifyPurchaseView(APIView):
     # ── Grant ─────────────────────────────────────────────────────────────────
 
     def _grant(self, user, product_id, transaction_id, expires_at=None):
-        # Replay protection: reject a transaction ID we've already processed
-        if transaction_id and Purchase.objects.filter(iap_transaction_id=transaction_id).exists():
-            return Response(
-                {'error': 'This purchase has already been redeemed'},
-                status=status.HTTP_409_CONFLICT,
-            )
+        # Replay protection. A transaction we already processed for THIS user
+        # is not an error — the webhook usually grants before the app verifies,
+        # so answer idempotently with the current state. Only a transaction
+        # redeemed by a DIFFERENT account is rejected.
+        existing = (
+            Purchase.objects.filter(iap_transaction_id=transaction_id).first()
+            if transaction_id else None
+        )
+        if existing:
+            if existing.user_id != user.pk:
+                return Response(
+                    {'error': 'This purchase has already been redeemed'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            user.refresh_from_db()
+            if product_id in self.COIN_PRODUCTS:
+                return Response({
+                    'coins_granted': existing.coins_granted,
+                    'new_balance': user.coin_balance,
+                    'already_granted': True,
+                })
+            return Response({
+                'is_vip': user.is_vip,
+                'plan_id': self.VIP_PRODUCTS.get(product_id),
+                'expires_at': user.vip_expires.isoformat() if user.vip_expires else None,
+                'coins_granted': existing.coins_granted,
+                'already_granted': True,
+            })
 
         if product_id in self.COIN_PRODUCTS:
             return self._grant_coins(user, product_id, transaction_id)

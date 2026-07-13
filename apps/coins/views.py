@@ -1003,8 +1003,27 @@ class VerifyPurchaseView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        latest = transactions[-1]
-        transaction_id = latest.get('store_transaction_id') or latest.get('id', '')
+        # The array ordering from RevenueCat isn't guaranteed, and a stale
+        # response may not include the newest receipt yet — so instead of
+        # assuming transactions[-1] is the new purchase, grant the newest
+        # transaction we haven't redeemed yet.
+        tx_ids = [t.get('store_transaction_id') or t.get('id', '') for t in transactions]
+        redeemed = set(
+            Purchase.objects.filter(iap_transaction_id__in=[i for i in tx_ids if i])
+            .values_list('iap_transaction_id', flat=True)
+        )
+        unredeemed = [
+            (tx, tx_id) for tx, tx_id in zip(transactions, tx_ids)
+            if tx_id and tx_id not in redeemed
+        ]
+        if not unredeemed:
+            return Response(
+                {'error': 'This purchase has already been redeemed'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        unredeemed.sort(key=lambda pair: pair[0].get('purchase_date') or '')
+        _, transaction_id = unredeemed[-1]
         return self._grant(user, product_id, transaction_id)
 
     def _handle_rc_vip(self, user, product_id, subscriber):

@@ -3680,6 +3680,10 @@ def _editorial_context(request):
         )
         incoming_chapters = _Chapter.objects.filter(
             story__author__editor_link__assigned_se=user,
+            # Only contracted books — pre-contract stories are reviewed at
+            # story level via the contract application, never chapter by
+            # chapter, so their chapters must not reach this queue.
+            story__contract_status='signed',
             status__in=['pending_review', 'submitted', 'se_reviewing'],
         ).annotate(
             has_pending_edit=_Exists(_pending_edit),

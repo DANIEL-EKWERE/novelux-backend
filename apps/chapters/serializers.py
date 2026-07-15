@@ -153,8 +153,13 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
 
             return instance
 
-        # Ensure saved as draft when not publishing
-        validated_data['status'] = validated_data.get('status', Chapter.STATUS_DRAFT)
+        # Ensure saved as draft when not publishing. Pre-contract chapters
+        # are ALWAYS drafts, even if the client sent status='submitted' —
+        # they must never enter the SE chapter queue.
+        if story is not None and story.contract_status != 'signed':
+            validated_data['status'] = Chapter.STATUS_DRAFT
+        else:
+            validated_data['status'] = validated_data.get('status', Chapter.STATUS_DRAFT)
         instance = super().create(validated_data)
         return instance
 

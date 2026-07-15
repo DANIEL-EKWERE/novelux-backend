@@ -30,4 +30,4 @@ Disallow: /book-request/
 Disallow: /newsletter/
 
 # Sitemap
-Sitemap: {{ request.scheme }}://{{ request.get_host }}/sitemap.xml
+Sitemap: {{ canonical_base }}/sitemap.xml

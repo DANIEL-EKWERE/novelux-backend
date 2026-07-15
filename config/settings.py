@@ -77,6 +77,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'novelux_web.middleware.CanonicalHostRedirectMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -106,6 +107,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'novelux_web.context_processors.site_globals',
             ],
         },
     },
@@ -156,8 +158,29 @@ AUTH_PASSWORD_VALIDATORS = [
 # firebase messgging config
 
 
-SITE_DOMAIN = config('SITE_DOMAIN', default='www.novelux.app')
+# Canonical public host — every SEO signal (canonical tags, sitemap, og:url,
+# host redirect) derives from this. Templates historically hardcoded the apex
+# domain, so the apex is the canonical choice.
+SITE_DOMAIN = config('SITE_DOMAIN', default='novelux.app')
 SITE_URL = config('SITE_URL', default=f'https://{SITE_DOMAIN}')
+
+
+def _canonical_site_base():
+    """The public base URL search engines should index. Rejects hosting/dev
+    hosts (onrender, localhost) even if SITE_URL is misconfigured to one."""
+    from urllib.parse import urlparse
+    for candidate in (SITE_URL, f'https://{SITE_DOMAIN}'):
+        parsed = urlparse(candidate if '://' in candidate else f'https://{candidate}')
+        host = (parsed.netloc or parsed.path).strip('/').split(':')[0].lower()
+        if not host or host in {'example.com', 'localhost', '127.0.0.1', '0.0.0.0'}:
+            continue
+        if host.endswith('.onrender.com') or host.endswith('.render.com'):
+            continue
+        return f'https://{host}'
+    return 'https://novelux.app'
+
+
+CANONICAL_BASE = _canonical_site_base()
 
 # cred_path = os.path.join(BASE_DIR, 'novelux-credentials.json')
 

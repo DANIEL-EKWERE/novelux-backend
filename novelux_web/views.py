@@ -2525,6 +2525,14 @@ from apps.users.models import AuthorProfile
 # HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 
+def _canonical_url(request):
+    """Absolute URL of the current page on the canonical host,
+    regardless of which host the request arrived on. Used for canonical
+    tags and og:url so search engines get one consistent address."""
+    from django.conf import settings
+    return settings.CANONICAL_BASE + request.path
+
+
 def _jwt_from_request(request):
     """Read JWT from the nux_access cookie (set after login)."""
     return request.COOKIES.get('nux_access', '')
@@ -4669,7 +4677,7 @@ def story_preview(request, slug):
         'title':       story.title,
         'description': story.synopsis or (story.description[:200] if story.description else ''),
         'image':       cover_abs,
-        'url':         request.build_absolute_uri(),
+        'url':         _canonical_url(request),
         'type':        'website',
         'author':      story.author.get_full_name() or story.author.username,
     }
@@ -4732,7 +4740,7 @@ def article_detail(request, slug):
             'title':       post.title,
             'description': post.excerpt or post.title,
             'image':       request.build_absolute_uri(post.cover_image.url) if post.cover_image else '',
-            'url':         request.build_absolute_uri(),
+            'url':         _canonical_url(request),
             'type':        'article',
             'published':   post.created_at.isoformat(),
             'modified':    post.updated_at.isoformat(),

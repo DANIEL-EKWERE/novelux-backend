@@ -970,6 +970,24 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
               <label class="form-label">Preferred Update Days</label>
               <input class="form-input" id="editUpdateSchedule" type="text" placeholder="e.g. Mon/Wed/Fri"/>
             </div>
+            <div class="form-group">
+              <label class="form-label">Age Rating</label>
+              <select class="form-select" id="editAgeRating" onchange="syncEditExplicitAge()">
+                <option value="13+">13+ — Teen</option>
+                <option value="16+">16+ — Older Teen</option>
+                <option value="18+">18+ — Mature</option>
+              </select>
+              <span class="form-hint">Minimum reader age for this story.</span>
+            </div>
+            <div class="form-group" style="grid-column:1/-1">
+              <label class="form-label">Content Declaration</label>
+              <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" id="editExplicit" onchange="syncEditExplicitAge()" style="accent-color:var(--primary);width:16px;height:16px;margin-top:2px;flex-shrink:0;"/>
+                <span>This story contains <strong>explicit sexual content</strong>.
+                  <br><span style="color:var(--muted-fg);font-size:12px;">Explicit stories are automatically rated 18+ and are not shown in the mobile app catalog (app-store policy). Mis-declaring content may lead to removal by the editorial team.</span>
+                </span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -2714,6 +2732,11 @@ function openEditStory(slug, title){
       const cpwEl = document.getElementById('editChaptersPerWeek');
       if (cpwEl) cpwEl.value = data.chapters_per_week != null ? String(data.chapters_per_week) : '';
 
+      const ageEl = document.getElementById('editAgeRating');
+      if (ageEl) ageEl.value = data.age_rating || '13+';
+      const expEl = document.getElementById('editExplicit');
+      if (expEl) expEl.checked = !!data.is_explicit;
+
       if(data.cover_image){
         document.getElementById('editCoverPreviewImg').src = data.cover_image;
         document.getElementById('editCoverPreview').style.display = 'block';
@@ -2739,7 +2762,7 @@ function openEditStory(slug, title){
         if(deleteBtn) deleteBtn.style.display = 'none';
         if(notice)    { notice.style.display = 'block'; }
         // Make fields read-only
-        ['editStoryTitle','editStoryDesc','editStoryOutline','editUpdateSchedule','editChaptersPerWeek'].forEach(id => {
+        ['editStoryTitle','editStoryDesc','editStoryOutline','editUpdateSchedule','editChaptersPerWeek','editAgeRating','editExplicit'].forEach(id => {
           const el = document.getElementById(id);
           if(el) { el.setAttribute('readonly', true); el.setAttribute('disabled', true); }
         });
@@ -2747,10 +2770,11 @@ function openEditStory(slug, title){
         if(saveBtn)   { saveBtn.disabled = false; saveBtn.style.opacity = ''; saveBtn.style.cursor = ''; }
         if(deleteBtn) deleteBtn.style.display = '';
         if(notice)    { notice.style.display = 'none'; }
-        ['editStoryTitle','editStoryDesc','editStoryOutline','editUpdateSchedule','editChaptersPerWeek'].forEach(id => {
+        ['editStoryTitle','editStoryDesc','editStoryOutline','editUpdateSchedule','editChaptersPerWeek','editAgeRating','editExplicit'].forEach(id => {
           const el = document.getElementById(id);
           if(el) { el.removeAttribute('readonly'); el.removeAttribute('disabled'); }
         });
+        syncEditExplicitAge();  // re-apply the explicit→18+ lock after unlocking
       }
     }).catch(() => {});
 }
@@ -2767,12 +2791,15 @@ async function saveEditStory(){
   if(!slug || !token){ showToast('Not ready'); return; }
 
   const _cpwVal = document.getElementById('editChaptersPerWeek')?.value;
+  const _isExplicit = !!document.getElementById('editExplicit')?.checked;
   const body = {
     title:              document.getElementById('editStoryTitle').value.trim(),
     synopsis:           document.getElementById('editStoryDesc').value.trim(),
     story_outline:      document.getElementById('editStoryOutline').value.trim(),
     update_schedule:    document.getElementById('editUpdateSchedule').value.trim() || null,
     chapters_per_week:  _cpwVal ? parseInt(_cpwVal) : null,
+    age_rating:         _isExplicit ? '18+' : (document.getElementById('editAgeRating')?.value || '13+'),
+    is_explicit:        _isExplicit,
   };
   if(_editGenreId) body.genre_id = _editGenreId;
 
@@ -2840,6 +2867,15 @@ function syncExplicitAge(){
   const sel = document.getElementById('storyAgeRating');
   if(!sel) return;
   if(explicit){ sel.value = '18+'; sel.disabled = true; }
+  else { sel.disabled = false; }
+}
+
+// Same rule on the Edit Story form; no-op while the form is contract-locked
+function syncEditExplicitAge(){
+  const exp = document.getElementById('editExplicit');
+  const sel = document.getElementById('editAgeRating');
+  if(!sel || !exp || exp.disabled) return;
+  if(exp.checked){ sel.value = '18+'; sel.disabled = true; }
   else { sel.disabled = false; }
 }
 

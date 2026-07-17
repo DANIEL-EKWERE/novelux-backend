@@ -455,6 +455,7 @@ class StoryListCreateView(generics.ListCreateAPIView):
                 )
             else:
                 qs = qs.exclude(status=Story.STATUS_DRAFT)
+            qs = exclude_explicit(qs, self.request.user)
         return qs
 
 
@@ -471,6 +472,14 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method in ('PUT', 'PATCH', 'DELETE'):
             return [IsAuthorOrReadOnly()]
         return [permissions.AllowAny()]
+
+    def get_object(self):
+        story = super().get_object()
+        from .models import explicit_blocked
+        if explicit_blocked(story, self.request.user):
+            from django.http import Http404
+            raise Http404
+        return story
 
     def update(self, request, *args, **kwargs):
         story = self.get_object()
@@ -638,11 +647,27 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 #         return Story.objects.filter(is_editors_pick=True).exclude(status=Story.STATUS_DRAFT)
 
 
+def exclude_explicit(qs, user=None):
+    """Hide stories that must not be public: those in deactivated genres,
+    and explicit ones while the PlatformSettings switch is off.
+    Authors keep seeing their own stories when a user is given."""
+    from .models import PlatformSettings
+    from django.db.models import Q
+    hidden = Q(genre__is_active=False)
+    if not PlatformSettings.explicit_visible():
+        hidden = hidden | Q(is_explicit=True)
+    if user is not None and getattr(user, 'is_authenticated', False):
+        return qs.exclude(hidden & ~Q(author=user))
+    return qs.exclude(hidden)
+
+
 def published_stories():
-    """Base queryset: excludes drafts, eager-loads relations."""
-    return Story.objects.exclude(status=Story.STATUS_DRAFT)\
-                        .select_related('genre')\
-                        .prefetch_related('tags')
+    """Base queryset: excludes drafts and hidden explicit stories,
+    eager-loads relations."""
+    qs = Story.objects.exclude(status=Story.STATUS_DRAFT)\
+                      .select_related('genre')\
+                      .prefetch_related('tags')
+    return exclude_explicit(qs)
 
 
 def apply_gender_filter(qs, user):
@@ -682,7 +707,9 @@ def _promoted_qs(category):
             ).values_list('story_id', flat=True)
         )
         if ids:
-            return Story.objects.filter(pk__in=ids).select_related('genre').prefetch_related('tags')
+            return exclude_explicit(
+                Story.objects.filter(pk__in=ids).select_related('genre').prefetch_related('tags')
+            )
     except Exception:
         pass
     return None
@@ -836,10 +863,62 @@ class RateStoryView(generics.CreateAPIView):
         serializer.save(user=self.request.user, story=story)
 
 
+class ReportStoryView(APIView):
+    """POST /api/stories/<slug>/report/
+    Reader reports a story: { "reason": "...", "details": "...", "chapter_number": 3 }
+    Anonymous reports are allowed — the app stores require a working
+    report mechanism for all users."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, slug):
+        from .models import ContentReport
+        story = get_object_or_404(Story, slug=slug)
+
+        reason = (request.data.get('reason') or '').strip()
+        valid  = {c for c, _ in ContentReport.REASON_CHOICES}
+        if reason not in valid:
+            return Response(
+                {'detail': 'reason must be one of: ' + ', '.join(sorted(valid))},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            raw = request.data.get('chapter_number')
+            chapter_number = int(raw) if raw not in (None, '') else None
+        except (TypeError, ValueError):
+            chapter_number = None
+
+        ContentReport.objects.create(
+            story=story,
+            chapter_number=chapter_number,
+            reporter=request.user if request.user.is_authenticated else None,
+            reason=reason,
+            details=(request.data.get('details') or '').strip()[:2000],
+        )
+
+        # Alert CEs so reports get human eyes quickly (best effort)
+        try:
+            from django.contrib.auth import get_user_model
+            from apps.notifications.services import create_notification
+            for ce in get_user_model().objects.filter(role='ce')[:5]:
+                create_notification(
+                    ce, 'content_report',
+                    f'Content report on "{story.title}" ({reason}) — review required.',
+                )
+        except Exception:
+            pass
+
+        return Response(
+            {'ok': True,
+             'detail': 'Thank you — your report has been received and will be '
+                       'reviewed by our editorial team.'},
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class GenreListView(generics.ListAPIView):
-    """GET /api/stories/genres/ — all genres with nested subgenres."""
+    """GET /api/stories/genres/ — active genres with nested subgenres."""
     serializer_class = GenreSerializer
-    queryset         = Genre.objects.prefetch_related('subgenres').all()
+    queryset         = Genre.objects.filter(is_active=True).prefetch_related('subgenres')
     pagination_class = None
 
 

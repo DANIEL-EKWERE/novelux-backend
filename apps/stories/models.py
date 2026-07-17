@@ -207,6 +207,12 @@ class Genre(models.Model):
     slug        = models.SlugField(unique=True)
     description = models.TextField(blank=True)
     cover_image = models.ImageField(upload_to='genres/', blank=True, null=True)
+    is_active   = models.BooleanField(
+        default=True,
+        help_text='Toggle OFF to hide this genre and all of its stories '
+                  'from the app and website. Authors keep access to their '
+                  'own stories.',
+    )
 
     class Meta:
         db_table = 'genres'
@@ -538,6 +544,13 @@ class PlatformSettings(models.Model):
             'e.g. 10000 means the story needs 10 000 words total after signing.'
         ),
     )
+    show_explicit_content = models.BooleanField(
+        default=False,
+        help_text='Master switch. When OFF, stories marked explicit are hidden '
+                  'from all public listings, search, story pages and reading '
+                  'endpoints on every platform (app and web). Authors always '
+                  'keep access to their own stories, and editors to their queues.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -559,10 +572,65 @@ class PlatformSettings(models.Model):
         obj, _ = cls.objects.get_or_create(pk=1, defaults={'post_contract_word_threshold': 10000})
         return obj.post_contract_word_threshold
 
+    @classmethod
+    def explicit_visible(cls):
+        """Global admin switch: may explicit stories be shown publicly?"""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj.show_explicit_content
+
     def save(self, *args, **kwargs):
         # Enforce singleton — always use pk=1
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+def explicit_blocked(story, user=None):
+    """True when this story must be hidden from the viewer: its genre is
+    deactivated, or it is explicit while the platform switch hides explicit
+    content — unless the viewer is the author or editorial staff."""
+    genre_off    = story.genre_id is not None and not story.genre.is_active
+    explicit_off = story.is_explicit and not PlatformSettings.explicit_visible()
+    if not (genre_off or explicit_off):
+        return False
+    if user is not None and getattr(user, 'is_authenticated', False):
+        if story.author_id == user.pk:
+            return False
+        if getattr(user, 'role', '') in ('se', 'ce') or user.is_staff:
+            return False
+    return True
+
+
+class ContentReport(models.Model):
+    """Reader-submitted report on a story (UGC safeguard required by the
+    app stores). Reviewed by CE/admin via Django admin."""
+    REASON_CHOICES = [
+        ('sexual',    'Sexual or explicit content'),
+        ('violence',  'Graphic violence'),
+        ('hate',      'Hate speech or harassment'),
+        ('copyright', 'Copyright infringement'),
+        ('spam',      'Spam or misleading'),
+        ('other',     'Other'),
+    ]
+    STATUS_PENDING  = 'pending'
+    STATUS_REVIEWED = 'reviewed'
+    STATUS_CHOICES  = [(STATUS_PENDING, 'Pending'), (STATUS_REVIEWED, 'Reviewed')]
+
+    story          = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='content_reports')
+    chapter_number = models.PositiveIntegerField(null=True, blank=True)
+    reporter       = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='content_reports')
+    reason         = models.CharField(max_length=20, choices=REASON_CHOICES)
+    details        = models.TextField(blank=True, default='')
+    status         = models.CharField(max_length=10, choices=STATUS_CHOICES,
+                                      default=STATUS_PENDING, db_index=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'content_reports'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Report on "{self.story.title}" — {self.reason} [{self.status}]'
 
 
 class StoryDailyStats(models.Model):

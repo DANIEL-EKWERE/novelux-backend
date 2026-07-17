@@ -4560,6 +4560,7 @@ def _build_stories_list(request, qs):
             'total_chapters':  s.total_chapters,
             'is_featured':     s.is_featured,
             'is_editors_pick': s.is_editors_pick,
+            'age_rating':      s.age_rating or '13+',
         })
     return result
 
@@ -4580,12 +4581,14 @@ def _build_explore_sections(request):
     """Build sectioned story data for the explore page home view."""
     from apps.stories.models import Story, Genre
 
+    from apps.stories.views import exclude_explicit
+
     PUB = ['published', 'ongoing', 'completed']
     sections = []
     seen_slugs = set()
 
     def add_section(title, genre_name, qs, limit=12):
-        stories = _build_stories_list(request, qs[:limit])
+        stories = _build_stories_list(request, exclude_explicit(qs)[:limit])
         if stories:
             sections.append({'title': title, 'genre': genre_name, 'stories': stories})
             seen_slugs.update(s['slug'] for s in stories)
@@ -4610,17 +4613,19 @@ def _build_explore_sections(request):
         status__in=PUB,
     ).select_related('author', 'genre').order_by('-created_at'))
 
-    # Per-genre sections
-    for genre in Genre.objects.order_by('name'):
+    # Per-genre sections (active genres only)
+    for genre in Genre.objects.filter(is_active=True).order_by('name'):
         add_section(genre.name, genre.name, Story.objects.filter(
             status__in=PUB, genre=genre,
         ).select_related('author', 'genre').order_by('-total_views'), limit=10)
 
     # All stories flat list for search (union of everything above + any extras)
-    all_qs = Story.objects.filter(status__in=PUB).select_related('author', 'genre').order_by('-total_views')[:80]
+    all_qs = exclude_explicit(
+        Story.objects.filter(status__in=PUB).select_related('author', 'genre').order_by('-total_views')
+    )[:80]
     all_stories = _build_stories_list(request, all_qs)
 
-    genres = list(Genre.objects.values_list('name', flat=True).order_by('name'))
+    genres = list(Genre.objects.filter(is_active=True).values_list('name', flat=True).order_by('name'))
     return sections, all_stories, genres
 
 
@@ -4650,6 +4655,10 @@ def story_preview(request, slug):
             slug=slug, status__in=['published', 'ongoing', 'completed'],
         )
     except Story.DoesNotExist:
+        return explore_stories(request)
+
+    from apps.stories.models import explicit_blocked
+    if explicit_blocked(story):
         return explore_stories(request)
 
     # First published chapter — full content, no truncation
@@ -4712,6 +4721,9 @@ def explore_chapter_api(request, slug):
 
     try:
         story = Story.objects.get(slug=slug, status__in=['published', 'ongoing', 'completed'])
+        from apps.stories.models import explicit_blocked
+        if explicit_blocked(story):
+            return JsonResponse({'chapter_number': None, 'title': '', 'excerpt': ''})
         ch = (
             Chapter.objects
             .filter(story=story, is_published=True)

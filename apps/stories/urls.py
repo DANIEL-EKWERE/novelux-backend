@@ -31,6 +31,7 @@ urlpatterns = [
     path('<slug:slug>/bookmark/',       views.BookmarkView.as_view()),
     path('<slug:slug>/progress/',       views.UpdateReadingProgressView.as_view()),
     path('<slug:slug>/rate/',           views.RateStoryView.as_view()),
+    path('<slug:slug>/report/',         views.ReportStoryView.as_view()),
     path('<slug:slug>/characters/',            views.StoryCharactersView.as_view()),
     path('<slug:slug>/characters/<int:pk>/',   views.StoryCharacterDetailView.as_view()),
     path('<slug:slug>/apply-contract/',   views.apply_for_contract),

@@ -86,9 +86,10 @@ class StorySitemap(BaseSitemap):
     priority   = 0.8
 
     def items(self):
-        return Story.objects.filter(
+        from apps.stories.views import exclude_explicit
+        return exclude_explicit(Story.objects.filter(
             status__in=['published', 'ongoing', 'completed'],
-        ).order_by('-total_views')
+        )).order_by('-total_views')
 
     def location(self, obj):
         return reverse('novelux:story_preview', kwargs={'slug': obj.slug})

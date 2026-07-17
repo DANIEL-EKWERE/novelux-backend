@@ -13,6 +13,7 @@ urlpatterns = [
     path('story-queue/<slug:slug>/escalate/', views.se_escalate_story_to_ce, name='story-escalate'),
     path('story-queue/<slug:slug>/mark-complete/', views.se_mark_story_complete, name='story-mark-complete'),
     path('story-queue/<slug:slug>/set-lock/', views.se_set_lock_chapter, name='story-set-lock'),
+    path('story-queue/<slug:slug>/set-explicit/', views.se_set_story_explicit, name='story-set-explicit'),
     path('story-queue/<slug:slug>/panel/', views.se_story_panel, name='story-panel'),
     path('story-queue/<slug:slug>/edit/', views.se_edit_story, name='se-story-edit'),
     path('chapters/<int:pk>/edit/', views.se_edit_chapter, name='se-chapter-edit'),

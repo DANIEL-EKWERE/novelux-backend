@@ -182,7 +182,11 @@ class ChapterListCreateView(generics.ListCreateAPIView):
         return response
 
     def get_queryset(self):
+        from django.http import Http404
+        from apps.stories.models import explicit_blocked
         story = get_object_or_404(Story, slug=self.kwargs['story_slug'])
+        if explicit_blocked(story, self.request.user):
+            raise Http404
         qs    = Chapter.objects.filter(story=story, is_published=True)
         if self.request.user.is_authenticated and story.author == self.request.user:
             qs = Chapter.objects.filter(story=story)
@@ -331,11 +335,15 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Chapter.objects.filter(story=story)
 
     def get_object(self):
+        from django.http import Http404
+        from apps.stories.models import explicit_blocked
         chapter = get_object_or_404(
             Chapter,
             story__slug=self.kwargs['story_slug'],
             chapter_number=self.kwargs['chapter_number']
         )
+        if explicit_blocked(chapter.story, self.request.user):
+            raise Http404
         return chapter
 
     def retrieve(self, request, *args, **kwargs):

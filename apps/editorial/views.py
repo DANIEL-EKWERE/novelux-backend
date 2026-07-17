@@ -3466,6 +3466,8 @@ def se_story_panel(request, slug):
             'status':            story.status,
             'contract_status':   story.contract_status,
             'lock_from_chapter': story.lock_from_chapter,
+            'is_explicit':       story.is_explicit,
+            'age_rating':        story.age_rating,
             'word_count':        story.word_count,
             'total_views':       story.total_views,
             'total_unlocks':     story.total_unlocks,
@@ -3624,6 +3626,33 @@ def se_set_lock_chapter(request, slug):
     story.save(update_fields=['lock_from_chapter'])
     apply_lock_from_chapter(story)
     return Response({'ok': True, 'lock_from_chapter': lock_from})
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_set_story_explicit(request, slug):
+    """POST /api/editorial/story-queue/<slug>/set-explicit/
+    SE/CE classify a story's content.
+    Body: { "is_explicit": true|false }
+    Explicit stories are forced to the 18+ age rating. Visibility of
+    explicit stories platform-wide is controlled by the PlatformSettings
+    'show explicit content' switch.
+    """
+    from apps.stories.models import Story
+
+    qs = Story.objects.all()
+    # SEs may only classify their own authors' stories; CE/admin see all
+    if getattr(request.user, 'role', '') == 'se' and not request.user.is_staff:
+        qs = qs.filter(author__editor_link__assigned_se=request.user)
+    story = get_object_or_404(qs, slug=slug)
+
+    is_explicit = str(request.data.get('is_explicit')).lower() in ('1', 'true', 'yes', 'on')
+    story.is_explicit = is_explicit
+    if is_explicit:
+        story.age_rating = '18+'
+    story.save(update_fields=['is_explicit', 'age_rating'])
+    return Response({'ok': True, 'is_explicit': story.is_explicit,
+                     'age_rating': story.age_rating})
 
 
 @api_view(['PATCH'])

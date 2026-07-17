@@ -1,8 +1,17 @@
 from django.contrib import admin
 from .models import (
-    BookRequest, FeaturedAuthor, PlatformSettings, Story, Genre, Tag,
+    BookRequest, ContentReport, FeaturedAuthor, PlatformSettings, Story, Genre, Tag,
     Rating, Bookmark, PromoBanner, ReadingProgress, StoryDailyStats, UserStoryInteraction,
 )
+
+
+@admin.register(ContentReport)
+class ContentReportAdmin(admin.ModelAdmin):
+    list_display  = ['story', 'reason', 'chapter_number', 'reporter', 'status', 'created_at']
+    list_filter   = ['reason', 'status']
+    list_editable = ['status']
+    search_fields = ['story__title', 'details']
+    readonly_fields = ['story', 'chapter_number', 'reporter', 'reason', 'details', 'created_at']
 
 
 @admin.register(Story)
@@ -46,7 +55,9 @@ admin.site.register(PlatformSettings)
 
 @admin.register(Genre)
 class GenreAdmin(admin.ModelAdmin):
-    list_display        = ['name', 'slug']
+    list_display        = ['name', 'slug', 'is_active']
+    list_editable       = ['is_active']
+    list_filter         = ['is_active']
     prepopulated_fields = {'slug': ('name',)}
 
 

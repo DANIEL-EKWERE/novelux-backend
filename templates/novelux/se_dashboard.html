@@ -2035,6 +2035,20 @@ function closeStoryPanel() {
   document.getElementById('storyPanelOverlay').style.display = 'none';
 }
 
+async function setStoryExplicit(slug, makeExplicit) {
+  const msg = makeExplicit
+    ? 'Mark this story as EXPLICIT? It will be rated 18+ and hidden from the public catalog while the platform switch is off.'
+    : 'Remove the explicit flag from this story?';
+  if (!confirm(msg)) return;
+  try {
+    await NUX.post('/editorial/story-queue/' + slug + '/set-explicit/', { is_explicit: makeExplicit });
+    toast(makeExplicit ? 'Marked explicit — rated 18+' : 'Explicit flag removed');
+    openStoryPanel(slug);  // refresh the panel with the new state
+  } catch (e) {
+    toast('Could not update classification');
+  }
+}
+
 function renderStoryPanel(d) {
   const s = d.story, ch = d.chapters, r = d.readers, a = d.author, c = d.contract;
 
@@ -2102,6 +2116,21 @@ function renderStoryPanel(d) {
             <div style="font-size:17px;font-weight:700;margin-top:2px;">${val}</div>
           </div>`).join('')}
       </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px;"/>
+
+    <!-- Content Classification -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);margin-bottom:10px;">Content Classification</div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;">
+        <span>Age rating: <strong style="${s.age_rating==='18+'?'color:hsl(0 68% 44%);':''}">${s.age_rating||'13+'}</strong></span>
+        <span>Explicit: <strong style="${s.is_explicit?'color:hsl(0 68% 44%);':''}">${s.is_explicit?'Yes':'No'}</strong></span>
+        <button class="btn bo bsm" style="${s.is_explicit?'':'border-color:hsl(0 68% 50%);color:hsl(0 68% 44%);'}" onclick="setStoryExplicit('${s.slug}', ${s.is_explicit?'false':'true'})">
+          ${s.is_explicit?'Remove explicit flag':'Mark as explicit (18+)'}
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--muted-fg);margin-top:6px;">Explicit stories are always rated 18+ and stay hidden platform-wide while the admin "show explicit content" switch is off.</div>
     </div>
 
     <hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px;"/>

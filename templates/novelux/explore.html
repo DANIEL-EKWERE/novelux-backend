@@ -420,6 +420,23 @@ nav {
       <div class="chapter-content" id="pvChapterContent"></div>
     </div>
     <div class="chapter-loading" id="pvLoading">Loading preview…</div>
+
+    <div style="margin-top:18px;">
+      <a href="#" onclick="event.preventDefault();toggleReportForm()" style="font-size:12px;color:var(--muted-fg);text-decoration:underline;">🚩 Report this story</a>
+      <div id="pvReportForm" style="display:none;margin-top:10px;border:1px solid var(--border);border-radius:8px;padding:14px;">
+        <select id="pvReportReason" style="width:100%;padding:8px;font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--bg,#fff);margin-bottom:8px;">
+          <option value="sexual">Sexual or explicit content</option>
+          <option value="violence">Graphic violence</option>
+          <option value="hate">Hate speech or harassment</option>
+          <option value="copyright">Copyright infringement</option>
+          <option value="spam">Spam or misleading</option>
+          <option value="other">Other</option>
+        </select>
+        <textarea id="pvReportDetails" placeholder="Tell us more (optional)…" style="width:100%;height:60px;padding:8px;font-family:inherit;font-size:13px;border:1px solid var(--border);border-radius:6px;resize:vertical;margin-bottom:8px;"></textarea>
+        <button class="btn-primary" style="font-size:13px;padding:8px 16px;" onclick="submitReport()">Submit report</button>
+        <span id="pvReportMsg" style="font-size:12px;margin-left:10px;"></span>
+      </div>
+    </div>
   </div>
 
   <div class="preview-cta">
@@ -575,6 +592,16 @@ function openPreview(slug) {
   const editorsBadge = story.is_editors_pick
     ? `<div class="preview-editors-badge"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></svg> Editor's Pick</div>` : '';
 
+  window._pvSlug = story.slug || '';
+  const rf = document.getElementById('pvReportForm');
+  if (rf) rf.style.display = 'none';
+  const rm = document.getElementById('pvReportMsg');
+  if (rm) rm.textContent = '';
+
+  const ageTag = story.age_rating
+    ? `<span class="preview-stat" style="border:1px solid ${story.age_rating === '18+' ? '#e53e3e' : 'var(--border)'};color:${story.age_rating === '18+' ? '#e53e3e' : 'inherit'};padding:2px 8px;border-radius:4px;font-weight:600;">${esc(story.age_rating)}</span>`
+    : '';
+
   document.getElementById('pvHeader').innerHTML = `
     ${coverHtml}
     <div class="preview-info">
@@ -585,6 +612,7 @@ function openPreview(slug) {
         <span class="preview-stat">${stars(story.average_rating)} ${story.average_rating.toFixed(1)}</span>
         <span class="preview-stat">📖 ${fmtViews(story.total_views)} reads</span>
         <span class="preview-stat">📄 ${story.total_chapters} ch.</span>
+        ${ageTag}
       </div>
       ${editorsBadge}
     </div>`;
@@ -642,6 +670,38 @@ function closePreview() {
 }
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+
+// ── Report story ────────────────────────────────────────────────────────────────
+function toggleReportForm() {
+  const f = document.getElementById('pvReportForm');
+  if (f) f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function submitReport() {
+  const slug = window._pvSlug || '';
+  const msg  = document.getElementById('pvReportMsg');
+  if (!slug) { if (msg) msg.textContent = 'Could not identify the story.'; return; }
+  const reason  = document.getElementById('pvReportReason')?.value || 'other';
+  const details = document.getElementById('pvReportDetails')?.value?.trim() || '';
+  if (msg) msg.textContent = 'Sending…';
+  try {
+    const res = await fetch(`/api/stories/${encodeURIComponent(slug)}/report/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason, details }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      if (msg) { msg.textContent = '✓ Report received — thank you.'; msg.style.color = 'green'; }
+      document.getElementById('pvReportDetails').value = '';
+      setTimeout(toggleReportForm, 1800);
+    } else {
+      if (msg) msg.textContent = data.detail || 'Could not submit — try again.';
+    }
+  } catch (e) {
+    if (msg) msg.textContent = 'Network error — try again.';
+  }
+}
 
 // ── Mobile drawer ────────────────────────────────────────────────────────────────
 function openDrawer() {

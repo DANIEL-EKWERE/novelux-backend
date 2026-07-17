@@ -68,6 +68,7 @@ class StoryListSerializer(serializers.ModelSerializer):
             'free_until', 'is_free_download',
             'all_chapters_count', 'contract_status', 'contract_eligible', 'can_apply_contract',
             'rejection_reason', 'story_characters',
+            'age_rating', 'is_explicit',
         ]
 
     def get_all_chapters_count(self, obj):
@@ -143,6 +144,7 @@ class StoryCreateUpdateSerializer(serializers.ModelSerializer):
             'language', 'status', 'update_schedule', 'chapters_per_week',
             'plot_summary', 'gender', 'target_word_count', 'target_audience',
             'characters', 'external_link', 'lock_from_chapter',
+            'age_rating', 'is_explicit',
         ]
 
     def validate_cover_image(self, value):
@@ -157,6 +159,14 @@ class StoryCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {'subgenre_id': 'This subgenre does not belong to the selected genre.'}
             )
+        # Explicit content is always age-restricted to 18+, regardless of
+        # what the client sent.
+        is_explicit = data.get(
+            'is_explicit',
+            self.instance.is_explicit if self.instance else False,
+        )
+        if is_explicit:
+            data['age_rating'] = '18+'
         return data
 
     def create(self, validated_data):

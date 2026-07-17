@@ -287,6 +287,21 @@ class Story(models.Model):
         default=False,
         help_text='True when chapter threshold is hit and author can apply for contract.',
     )
+    AGE_RATING_CHOICES = [
+        ('13+', '13+ — Teen'),
+        ('16+', '16+ — Older Teen'),
+        ('18+', '18+ — Mature'),
+    ]
+    age_rating = models.CharField(
+        max_length=4, choices=AGE_RATING_CHOICES, default='13+',
+        help_text='Minimum reader age, declared by the author.',
+    )
+    is_explicit = models.BooleanField(
+        default=False,
+        help_text='Author-declared explicit sexual content. Explicit stories '
+                  'are always 18+ and are excluded from store-restricted '
+                  'catalogs (e.g. the iOS app).',
+    )
     gender           = models.CharField(max_length=30, choices=GENDER_CHOICES,
                            blank=True, default='')
     author          = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stories')

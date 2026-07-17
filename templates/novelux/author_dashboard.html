@@ -840,8 +840,22 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
                 <span class="form-hint">Optional: which days of the week you plan to post.</span>
               </div>
               <div class="form-group">
-                <label class="form-label">Audience</label>
-                <select class="form-select" id="storyAudience"><option>General (13+)</option><option selected>Teen (13-17)</option><option>Young Adult (18+)</option><option>Mature (18+)</option></select>
+                <label class="form-label">Age Rating <span class="req">*</span></label>
+                <select class="form-select" id="storyAgeRating" onchange="syncExplicitAge()">
+                  <option value="13+" selected>13+ — Teen</option>
+                  <option value="16+">16+ — Older Teen</option>
+                  <option value="18+">18+ — Mature</option>
+                </select>
+                <span class="form-hint">Minimum reader age for this story.</span>
+              </div>
+              <div class="form-group" style="grid-column:1/-1">
+                <label class="form-label">Content Declaration <span class="req">*</span></label>
+                <label style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;">
+                  <input type="checkbox" id="storyExplicit" onchange="syncExplicitAge()" style="accent-color:var(--primary);width:16px;height:16px;margin-top:2px;flex-shrink:0;"/>
+                  <span>This story contains <strong>explicit sexual content</strong>.
+                    <br><span style="color:var(--muted-fg);font-size:12px;">Explicit stories are automatically rated 18+ and are not shown in the mobile app catalog (app-store policy). Mis-declaring content may lead to removal by the editorial team.</span>
+                  </span>
+                </label>
               </div>
               <div class="form-group">
                 <label class="form-label">Language</label>
@@ -2820,6 +2834,15 @@ async function deleteStory(){
 
 function selectTone(btn){btn.classList.toggle('selected');}
 
+// Explicit content forces the 18+ rating and locks the selector
+function syncExplicitAge(){
+  const explicit = !!document.getElementById('storyExplicit')?.checked;
+  const sel = document.getElementById('storyAgeRating');
+  if(!sel) return;
+  if(explicit){ sel.value = '18+'; sel.disabled = true; }
+  else { sel.disabled = false; }
+}
+
 function selectGender(radio){
   document.querySelectorAll('.gender-option').forEach(lbl => {
     lbl.style.borderColor = 'var(--border)';
@@ -3001,8 +3024,9 @@ function goToStep2(){
   const updateSchedule    = (document.getElementById('storyUpdateSchedule')?.value || '').trim();
   const chaptersPerWeek   = (document.getElementById('storyChaptersPerWeek')?.value || '').trim();
   const targetWordCount   = (document.getElementById('storyTargetWordCount')?.value || '').trim();
-  const audience          = (document.getElementById('storyAudience')?.value || '').trim();
   const externalLink      = (document.getElementById('storyExternalLink')?.value || '').trim();
+  const isExplicit        = !!document.getElementById('storyExplicit')?.checked;
+  const ageRating         = isExplicit ? '18+' : (document.getElementById('storyAgeRating')?.value || '13+');
 
   // Collect characters from dynamic list
   const characters = [...document.querySelectorAll('#characterList .card')].map(card => ({
@@ -3029,7 +3053,14 @@ fd.append('genre_id', parseInt(selectedGenreId));
 if (updateSchedule)  fd.append('update_schedule', updateSchedule);
 if (chaptersPerWeek) fd.append('chapters_per_week', chaptersPerWeek);
 if (targetWordCount) fd.append('target_word_count', targetWordCount);
-if (audience)        fd.append('target_audience', audience);
+fd.append('age_rating', ageRating);
+fd.append('is_explicit', isExplicit ? 'true' : 'false');
+// Legacy display field kept in sync with the structured rating
+fd.append('target_audience',
+  isExplicit ? 'Mature (18+)'
+  : ageRating === '18+' ? 'Young Adult (18+)'
+  : ageRating === '16+' ? 'Teen (13-17)'
+  : 'General (13+)');
 if (characters.length) fd.append('characters', JSON.stringify(characters));
 if (externalLink)    fd.append('external_link', externalLink);
 const lockFromChapter = parseInt(document.getElementById('storyLockFromChapter')?.value || '');

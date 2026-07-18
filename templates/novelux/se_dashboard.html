@@ -262,6 +262,10 @@ html.dark .brd{color:hsl(0 70% 65%);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
       My Authors
     </button>
+    <button class="nbtn" id="nb-kyc" onclick="gp('kyc',this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/><circle cx="17" cy="17" r="3"/><path d="m19.5 19.5 1.5 1.5"/></svg>
+      KYC Review {% if kyc_pending_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ kyc_pending_count }}</span>{% endif %}
+    </button>
     <button class="nbtn" id="nb-invite" onclick="gp('invite',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
       Invite Authors
@@ -903,6 +907,122 @@ html.dark .brd{color:hsl(0 70% 65%);}
     {% else %}
     <div class="empty"><h3>No authors yet</h3><p>Share your invite code to recruit authors.</p></div>
     {% endif %}
+  </div>
+
+  <!-- ── KYC REVIEW ── -->
+  <div class="page" id="page-kyc">
+    <div class="ph"><h1>Author KYC Review</h1><p>Identity and payment verification submissions from your assigned authors.</p></div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn bo bsm kyc-tab" style="background:var(--muted);" onclick="kycTab('pending',this)">Pending <span class="bdg brd" style="font-size:10px;margin-left:4px;">{{ kyc_pending_count }}</span></button>
+      <button class="btn bo bsm kyc-tab" onclick="kycTab('all',this)">All Submissions</button>
+    </div>
+
+    <!-- Pending tab -->
+    <div id="kyc-pending-tab">
+      {% if kyc_pending %}
+      <div class="card">
+      <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead><tr><th>Author</th><th>Full Name</th><th>Country</th><th>ID Type</th><th>Payment</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for k in kyc_pending %}
+        <tr id="kyc-row-{{ k.pk }}">
+          <td><strong>{{ k.user.username }}</strong><br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.user.email }}</span></td>
+          <td>{{ k.full_name }}</td>
+          <td>{{ k.country }}</td>
+          <td>{{ k.get_id_type_display }}<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.id_number }}</span></td>
+          <td>
+            {% if k.payment_method == 'bank_account' %}
+              Bank — {{ k.bank_name }}<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.account_number }}</span>
+            {% else %}
+              PayPal<br/><span style="color:var(--muted-fg);font-size:11px;">{{ k.paypal_email }}</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted-fg);">{{ k.submitted_at|date:"M d, Y" }}</td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              {% if k.id_front %}
+              <a href="{{ k.id_front.url }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--role);">View ID Front ↗</a>
+              {% elif k.id_document %}
+              <a href="{{ k.id_document.url }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--role);">View ID Doc ↗</a>
+              {% endif %}
+              {% if k.id_back %}
+              <a href="{{ k.id_back.url }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--role);">View ID Back ↗</a>
+              {% endif %}
+              <button class="btn bp bsm" data-kyc-id="{{ k.id }}" onclick="openKycApprove(parseInt(this.dataset.kycId))">Approve</button>
+              <button class="btn bo bsm" style="border-color:hsl(0 68% 50%);color:hsl(0 68% 44%);" data-kyc-id="{{ k.id }}" onclick="openKycReject(parseInt(this.dataset.kycId))">Reject</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      </div>
+      {% else %}
+      <div class="empty"><h3>No pending KYC submissions</h3><p>All your assigned authors' identity verifications are up to date.</p></div>
+      {% endif %}
+    </div>
+
+    <!-- All submissions tab -->
+    <div id="kyc-all-tab" style="display:none;">
+      {% if kyc_all %}
+      <div class="card">
+      <div style="overflow-x:auto;">
+      <table class="tbl">
+        <thead><tr><th>Author</th><th>Full Name</th><th>Country</th><th>Status</th><th>Submitted</th><th>Notes</th></tr></thead>
+        <tbody>
+        {% for k in kyc_all %}
+        <tr>
+          <td><strong>{{ k.user.username }}</strong></td>
+          <td>{{ k.full_name }}</td>
+          <td>{{ k.country }}</td>
+          <td>
+            {% if k.status == 'approved' %}<span class="bdg bgr">Approved</span>
+            {% elif k.status == 'rejected' %}<span class="bdg brd">Rejected</span>
+            {% elif k.status == 'under_review' %}<span class="bdg byw2">Under Review</span>
+            {% else %}<span class="bdg bgy">{{ k.get_status_display }}</span>{% endif %}
+          </td>
+          <td style="color:var(--muted-fg);">{{ k.submitted_at|date:"M d, Y" }}</td>
+          <td style="color:var(--muted-fg);font-size:12px;">{{ k.admin_notes|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      </div>
+      {% else %}
+      <div class="empty"><h3>No KYC submissions yet</h3></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KYC Approve Modal -->
+  <div id="kycApproveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--bg);border:1px solid var(--border);padding:28px;width:100%;max-width:440px;border-radius:4px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Approve KYC Submission</h3>
+      <p style="font-size:13px;color:var(--muted-fg);margin-bottom:14px;">Optional: add a note for the author.</p>
+      <textarea id="kycApproveNote" placeholder="Approval note (optional)…" style="width:100%;padding:10px 12px;font-family:inherit;font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;resize:vertical;min-height:90px;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+        <button class="btn bo bsm" onclick="closeKycApproveModal()">Cancel</button>
+        <button class="btn bp bsm" onclick="submitKycApprove()">Approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KYC Reject Modal -->
+  <div id="kycRejectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--bg);border:1px solid var(--border);padding:28px;width:100%;max-width:440px;border-radius:4px;">
+      <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;">Reject KYC Submission</h3>
+      <p style="font-size:13px;color:var(--muted-fg);margin-bottom:14px;">Provide a reason so the author knows what to correct and resubmit.</p>
+      <textarea id="kycRejectNote" placeholder="Reason for rejection…" style="width:100%;padding:10px 12px;font-family:inherit;font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--fg);outline:none;resize:vertical;min-height:90px;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">
+        <button class="btn bo bsm" onclick="closeKycRejectModal()">Cancel</button>
+        <button class="btn bsm" style="background:hsl(0 68% 50%);color:#fff;" onclick="submitKycReject()">Reject</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── INVITE AUTHORS ── -->
@@ -1728,7 +1848,7 @@ function openSb()  { document.getElementById('sb').classList.add('open');  docum
 function closeSb() { document.getElementById('sb').classList.remove('open'); document.getElementById('ovl').classList.remove('show'); }
 
 // Pages
-const ptitles = { dashboard:'Dashboard', queue:'Story Queue', rejected:'Rejected Stories', approved:'Approved Stories', authors:'My Authors', invite:'Invite Authors', profile:'Profile' };
+const ptitles = { dashboard:'Dashboard', queue:'Story Queue', rejected:'Rejected Stories', approved:'Approved Stories', authors:'My Authors', kyc:'KYC Review', invite:'Invite Authors', profile:'Profile' };
 function gp(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + id)?.classList.add('active');
@@ -1736,6 +1856,71 @@ function gp(id, btn) {
   if (btn) btn.classList.add('active');
   document.getElementById('ptitle').textContent = ptitles[id] || id;
   closeSb();
+}
+
+// ── KYC Review ────────────────────────────────────────────────────────────────
+function kycTab(tab, btn) {
+  document.querySelectorAll('.kyc-tab').forEach(b => b.style.background = '');
+  btn.style.background = 'var(--muted)';
+  document.getElementById('kyc-pending-tab').style.display = tab === 'pending' ? '' : 'none';
+  document.getElementById('kyc-all-tab').style.display     = tab === 'all'     ? '' : 'none';
+}
+
+let _kycApproveId = null;
+function openKycApprove(id) {
+  _kycApproveId = id;
+  document.getElementById('kycApproveNote').value = '';
+  document.getElementById('kycApproveModal').style.display = 'flex';
+}
+function closeKycApproveModal() {
+  document.getElementById('kycApproveModal').style.display = 'none';
+  _kycApproveId = null;
+}
+async function submitKycApprove() {
+  const note = document.getElementById('kycApproveNote').value.trim();
+  const kycId = _kycApproveId;
+  closeKycApproveModal();
+  await reviewKyc(kycId, 'approve', note);
+}
+
+let _kycRejectId = null;
+function openKycReject(id) {
+  _kycRejectId = id;
+  document.getElementById('kycRejectNote').value = '';
+  const m = document.getElementById('kycRejectModal');
+  m.style.display = 'flex';
+}
+function closeKycRejectModal() {
+  document.getElementById('kycRejectModal').style.display = 'none';
+  _kycRejectId = null;
+}
+
+async function reviewKyc(id, action, note='') {
+  const token = document.querySelector('meta[name="nux-token"]')?.content || '';
+  try {
+    const r = await fetch(`/api/editorial/kyc/${id}/se-review/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ action, note }),
+    });
+    const data = await r.json();
+    if (r.ok && data.ok) {
+      toast(action === 'approve' ? 'KYC approved.' : 'KYC rejected.');
+      window.location.reload();
+    } else {
+      alert(data.detail || data.error || 'Action failed.');
+    }
+  } catch(e) {
+    alert('Network error.');
+  }
+}
+
+async function submitKycReject() {
+  const note = document.getElementById('kycRejectNote').value.trim();
+  if (!note) { alert('Please provide a rejection reason.'); return; }
+  const kycId = _kycRejectId;
+  closeKycRejectModal();
+  await reviewKyc(kycId, 'reject', note);
 }
 
 // Toast

@@ -3799,6 +3799,19 @@ def _editorial_context(request):
             for s in _status_qs
         ])
 
+        # KYC submissions — scoped to authors assigned to this SE
+        from apps.users.models import AuthorKYC
+        from apps.editorial.models import AuthorEditorLink as _AEL
+        _assigned_author_ids = _AEL.objects.filter(assigned_se=user).values_list('author_id', flat=True)
+        kyc_pending = AuthorKYC.objects.filter(
+            user_id__in=_assigned_author_ids,
+            status=AuthorKYC.STATUS_REVIEW,
+        ).select_related('user').order_by('submitted_at')
+        kyc_all = AuthorKYC.objects.filter(
+            user_id__in=_assigned_author_ids,
+        ).select_related('user').order_by('-submitted_at')[:100]
+        kyc_pending_count = kyc_pending.count()
+
         ctx.update({
             'pending_count':       review_stories.count(),
             'review_stories':      review_stories,
@@ -3825,6 +3838,9 @@ def _editorial_context(request):
             'author_books_chart_data':   author_books_chart_data,
             'top_platform_stories_data': top_platform_stories_data,
             'platform_status_data':      platform_status_data,
+            'kyc_pending':              kyc_pending,
+            'kyc_all':                  kyc_all,
+            'kyc_pending_count':        kyc_pending_count,
         })
 
     elif role == 'ce':

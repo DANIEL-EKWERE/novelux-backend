@@ -48,12 +48,21 @@ def notify_user(user, title: str, body: str,
     send_to_tokens(tokens, title, body, data, image_url)
 
 
-def notify_all(title: str, body: str, data: dict = None, image_url: str = ''):
-    """Send FCM push to every active token in chunks of 500."""
+def notify_all(title: str, body: str, data: dict = None, image_url: str = '',
+               exclude_user_ids=None):
+    """Send FCM push to every active token in chunks of 500.
+
+    Push-only — no per-user DB record, so this is safe to use for
+    platform-wide broadcasts without flooding the notifications table.
+    Pass exclude_user_ids to skip users who were already notified
+    individually (e.g. bookmarkers who get a targeted push elsewhere).
+    """
     total_ok = 0
     total_fail = 0
-    qs = FCMDevice.objects.filter(is_active=True).values_list('token', flat=True)
-    tokens = list(qs)
+    qs = FCMDevice.objects.filter(is_active=True)
+    if exclude_user_ids:
+        qs = qs.exclude(user_id__in=exclude_user_ids)
+    tokens = list(qs.values_list('token', flat=True))
     for i in range(0, len(tokens), CHUNK):
         chunk = tokens[i:i + CHUNK]
         r = send_to_tokens(chunk, title, body, data, image_url)
@@ -211,62 +220,77 @@ def on_tip_received(author, tipper_name: str, gift_label: str, story_title: str)
 
 
 def on_new_chapter(story, chapter_title: str):
-    """Notify everyone who bookmarked this story."""
+    """Bookmarkers get an in-app notification + push. Every other reader
+    gets a push-only broadcast so no one misses a new chapter."""
     bookmarker_ids = list(story.bookmarked_by.values_list('user_id', flat=True))
-    if not bookmarker_ids:
-        return
-    notifications = [
-        Notification(
-            recipient_id=uid,
-            notification_type=Notification.TYPE_NEW_CHAPTER,
-            title=f'📖 New chapter: {story.title}',
-            message=chapter_title,
-            data={'screen': 'story', 'slug': story.slug},
+    if bookmarker_ids:
+        notifications = [
+            Notification(
+                recipient_id=uid,
+                notification_type=Notification.TYPE_NEW_CHAPTER,
+                title=f'📖 New chapter: {story.title}',
+                message=chapter_title,
+                data={'screen': 'story', 'slug': story.slug},
+            )
+            for uid in bookmarker_ids
+        ]
+        Notification.objects.bulk_create(notifications, batch_size=500)
+        tokens = list(
+            FCMDevice.objects
+                .filter(user_id__in=bookmarker_ids, is_active=True)
+                .values_list('token', flat=True)
         )
-        for uid in bookmarker_ids
-    ]
-    Notification.objects.bulk_create(notifications, batch_size=500)
-    tokens = list(
-        FCMDevice.objects
-            .filter(user_id__in=bookmarker_ids, is_active=True)
-            .values_list('token', flat=True)
+        if tokens:
+            send_to_tokens(tokens,
+                title=f'📖 New chapter: {story.title}',
+                body=chapter_title,
+                data={'screen': 'story', 'slug': story.slug},
+            )
+
+    notify_all(
+        title=f'📖 New chapter: {story.title}',
+        body=chapter_title,
+        data={'screen': 'story', 'slug': story.slug},
+        exclude_user_ids=bookmarker_ids,
     )
-    if tokens:
-        send_to_tokens(tokens,
-            title=f'📖 New chapter: {story.title}',
-            body=chapter_title,
-            data={'screen': 'story', 'slug': story.slug},
-        )
 
 
 def on_book_signed_live(story):
-    """Notify bookmarkers that a signed book has joined the Novelux programme."""
+    """Bookmarkers get an in-app notification + push. Every other reader
+    gets a push-only broadcast announcing the new book."""
     bookmarker_ids = list(story.bookmarked_by.values_list('user_id', flat=True))
-    if not bookmarker_ids:
-        return
     author_name = story.author.get_full_name() or story.author.username
-    notifications = [
-        Notification(
-            recipient_id=uid,
-            notification_type=Notification.TYPE_SYSTEM,
-            title=f'🎉 "{story.title}" is now live!',
-            message=f'{author_name}\'s story has joined the Novelux programme. New chapters are coming — stay tuned!',
-            data={'screen': 'story', 'slug': story.slug},
+
+    if bookmarker_ids:
+        notifications = [
+            Notification(
+                recipient_id=uid,
+                notification_type=Notification.TYPE_SYSTEM,
+                title=f'🎉 "{story.title}" is now live!',
+                message=f'{author_name}\'s story has joined the Novelux programme. New chapters are coming — stay tuned!',
+                data={'screen': 'story', 'slug': story.slug},
+            )
+            for uid in bookmarker_ids
+        ]
+        Notification.objects.bulk_create(notifications, batch_size=500)
+        tokens = list(
+            FCMDevice.objects
+                .filter(user_id__in=bookmarker_ids, is_active=True)
+                .values_list('token', flat=True)
         )
-        for uid in bookmarker_ids
-    ]
-    Notification.objects.bulk_create(notifications, batch_size=500)
-    tokens = list(
-        FCMDevice.objects
-            .filter(user_id__in=bookmarker_ids, is_active=True)
-            .values_list('token', flat=True)
+        if tokens:
+            send_to_tokens(tokens,
+                title=f'🎉 "{story.title}" is now signed & live!',
+                body=f'{author_name}\'s story has just joined the Novelux programme!',
+                data={'screen': 'story', 'slug': story.slug},
+            )
+
+    notify_all(
+        title=f'🎉 New book on Novelux: "{story.title}"',
+        body=f'{author_name} just joined the Novelux author programme — check it out!',
+        data={'screen': 'story', 'slug': story.slug},
+        exclude_user_ids=bookmarker_ids,
     )
-    if tokens:
-        send_to_tokens(tokens,
-            title=f'🎉 "{story.title}" is now signed & live!',
-            body=f'{author_name}\'s story has just joined the Novelux programme!',
-            data={'screen': 'story', 'slug': story.slug},
-        )
 
 
 def on_daily_reward_available():

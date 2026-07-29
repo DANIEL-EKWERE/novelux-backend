@@ -149,6 +149,7 @@ class UserSerializer(serializers.ModelSerializer):
     followers_count   = serializers.SerializerMethodField()
     following_count   = serializers.SerializerMethodField()
     display_name      = serializers.SerializerMethodField()
+    has_password      = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
@@ -159,6 +160,7 @@ class UserSerializer(serializers.ModelSerializer):
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
             'author_profile', 'followers_count', 'following_count', 'created_at',
+            'has_password',
         ]
         read_only_fields = ['coin_balance', 'is_vip', 'vip_expires',
                             'ad_free_expires', 'audiobook_expires',
@@ -169,6 +171,11 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_following_count(self, obj):
         return obj.following.count()
+
+    def get_has_password(self, obj):
+        # False for social-login accounts (Google) created with an unusable
+        # password — the app uses this to pick the delete-account confirmation.
+        return obj.has_usable_password()
 
     def get_display_name(self, obj):
         try:
@@ -250,17 +257,26 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
 
 
 class DeleteAccountSerializer(serializers.Serializer):
-    """Serializer for account deletion with password confirmation."""
+    """Serializer for account deletion with password confirmation.
+
+    Accounts created via social login (Google) have no usable password, so
+    for them the password check is skipped — the JWT auth on the request is
+    the confirmation. Accounts with a password must still provide it.
+    """
     password = serializers.CharField(
         write_only=True,
-        required=True,
+        required=False,
+        allow_blank=True,
         style={'input_type': 'password'},
-        help_text='Current password for account confirmation'
+        help_text='Current password for account confirmation (omit for social-login accounts)'
     )
 
-    def validate_password(self, value):
-        """Validate the provided password matches the user's password."""
+    def validate(self, attrs):
         user = self.context.get('request').user
-        if not user.check_password(value):
-            raise serializers.ValidationError('Password is incorrect.')
-        return value
+        if user.has_usable_password():
+            password = attrs.get('password') or ''
+            if not password:
+                raise serializers.ValidationError({'password': 'Password is required.'})
+            if not user.check_password(password):
+                raise serializers.ValidationError({'password': 'Password is incorrect.'})
+        return attrs

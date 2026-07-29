@@ -1814,11 +1814,9 @@ class GenreTabSectionView(APIView):
 
     _PAGE_SIZE = 20
 
-    _TAG_MAP = {
-        'werewolf':    ['werewolf', 'alpha', 'luna'],
-        'billionaire': ['billionaire', 'ceo-office', 'tycoon', 'ceo'],
-        'suspense':    ['suspense-horror', 'thriller', 'mystery', 'horror', 'suspense'],
-    }
+    # Must stay in sync with ExploreTabView._TAG_MAP — the "View All" list has
+    # to cover at least every story the tab page itself can show.
+    _TAG_MAP = ExploreTabView._TAG_MAP
 
     def get(self, request):
         tab     = request.query_params.get('tab', '')
@@ -1836,7 +1834,10 @@ class GenreTabSectionView(APIView):
             scoped = qs.filter(gender='male')
             qs     = scoped if scoped.exists() else qs
         elif tab in self._TAG_MAP:
-            qs = qs.filter(tags__slug__in=self._TAG_MAP[tab]).distinct()
+            # Same scoping as ExploreTabView._genre_tab: tag OR genre-name match
+            qs = qs.filter(
+                Q(tags__slug__in=self._TAG_MAP[tab]) | Q(genre__name__iexact=tab)
+            ).distinct()
 
         # ── scope by section ─────────────────────────────────────────────────
         if section in ('picks-for-you', 'just-your-style'):
@@ -1845,7 +1846,10 @@ class GenreTabSectionView(APIView):
         elif section in ('fresh-releases', 'fresh-reads', 'fresh-drops'):
             base = qs.filter(published_at__gte=cutoff).order_by('-published_at')
             qs   = base if base.exists() else qs.order_by('-published_at')
-        elif section in ('still-rolling-out', 'trending-up'):
+        elif section == 'still-rolling-out':
+            base = qs.filter(status='ongoing').order_by('-total_views')
+            qs   = base if base.exists() else qs.order_by('-total_views')
+        elif section == 'trending-up':
             qs = qs.order_by('-total_views')
         elif section in ('completed-classics', 'the-ends'):
             qs = qs.filter(Q(is_completed=True) | Q(status='completed')).order_by('-total_views')

@@ -3805,7 +3805,11 @@ def _editorial_context(request):
         _assigned_author_ids = _AEL.objects.filter(assigned_se=user).values_list('author_id', flat=True)
         kyc_pending = AuthorKYC.objects.filter(
             user_id__in=_assigned_author_ids,
-            status=AuthorKYC.STATUS_REVIEW,
+            status__in=[
+                AuthorKYC.STATUS_PENDING,
+                AuthorKYC.STATUS_PROCESSING,
+                AuthorKYC.STATUS_REVIEW,
+            ],
         ).select_related('user').order_by('submitted_at')
         kyc_all = AuthorKYC.objects.filter(
             user_id__in=_assigned_author_ids,

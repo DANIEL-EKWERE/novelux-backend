@@ -3322,9 +3322,10 @@ def se_review_kyc(request, pk):
     from apps.users.models import AuthorKYC
     from apps.editorial.models import AuthorEditorLink
 
-    kyc = get_object_or_404(AuthorKYC, pk=pk, status=AuthorKYC.STATUS_REVIEW)
+    kyc = get_object_or_404(AuthorKYC, pk=pk)
 
-    # SE can only review their own authors
+    # SE can only review their own authors — same freedom as CE otherwise
+    # (any status can be acted on, not just 'under_review').
     if not AuthorEditorLink.objects.filter(assigned_se=request.user, author=kyc.user).exists():
         return Response({'detail': 'This author is not assigned to you.'}, status=403)
 

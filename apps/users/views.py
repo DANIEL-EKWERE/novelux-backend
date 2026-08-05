@@ -155,6 +155,100 @@ def _make_username(display_name: str, email: str) -> str:
     return username
 
 
+APPLE_BUNDLE_ID = 'com.daniel.novelux.novelux'
+_apple_jwk_client = None
+
+
+def _get_apple_jwk_client():
+    """Lazily build (and cache) the PyJWT client that fetches/caches Apple's
+    public signing keys from https://appleid.apple.com/auth/keys."""
+    global _apple_jwk_client
+    if _apple_jwk_client is None:
+        import jwt as _jwt
+        _apple_jwk_client = _jwt.PyJWKClient('https://appleid.apple.com/auth/keys')
+    return _apple_jwk_client
+
+
+class AppleSignInView(APIView):
+    """
+    POST /api/auth/apple/
+    Body: { identity_token, email?, full_name? }
+    Verifies the Apple-issued identity_token (a signed JWT) against Apple's
+    public keys, then get_or_creates a user exactly like GoogleSignInView.
+    Returns the same access/refresh tokens as a normal login.
+    """
+    permission_classes = []   # public
+
+    def post(self, request):
+        import jwt as _jwt
+
+        identity_token = request.data.get('identity_token', '').strip()
+        display_name   = request.data.get('full_name', '') or request.data.get('name', '')
+
+        if not identity_token:
+            return Response({'detail': 'identity_token is required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            signing_key = _get_apple_jwk_client().get_signing_key_from_jwt(identity_token)
+            idinfo = _jwt.decode(
+                identity_token,
+                signing_key.key,
+                algorithms=['RS256'],
+                audience=APPLE_BUNDLE_ID,
+                issuer='https://appleid.apple.com',
+            )
+        except _jwt.PyJWTError as e:
+            return Response({'detail': f'Invalid Apple token: {e}'},
+                            status=status.HTTP_401_UNAUTHORIZED)
+
+        apple_email = (idinfo.get('email') or request.data.get('email', '')).lower()
+        if not apple_email:
+            return Response({'detail': 'Could not determine email from Apple account'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # ── Get or create user ───────────────────────────────────────────────
+        client_ip = _get_client_ip(request)
+
+        from apps.users.models import BlacklistedIP
+        if client_ip and BlacklistedIP.objects.filter(ip_address=client_ip).exists():
+            return Response(
+                {'detail': 'Registration is not available from this network.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        user, created = User.objects.get_or_create(
+            email=apple_email,
+            defaults={
+                'username': _make_username(display_name, apple_email),
+                'first_name': display_name.split()[0] if display_name else '',
+                'last_name':  ' '.join(display_name.split()[1:]) if display_name else '',
+                'registration_ip': client_ip,
+            }
+        )
+        code = 200
+        if created:
+            code = 201
+            user.set_unusable_password()   # Apple users have no password
+            user.save()
+
+            try:
+                from apps.notifications.services import on_user_signup
+                on_user_signup(user)
+            except Exception:
+                pass
+
+        # ── Issue JWT tokens ─────────────────────────────────────────────────
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            'access':    str(refresh.access_token),
+            'refresh':   str(refresh),
+            'username':  user.username,
+            'email':     user.email,
+            'is_new':    created,
+            'code':      code
+        })
+
 
 class MeView(generics.RetrieveUpdateAPIView):
     """Get or update the authenticated user's profile."""
@@ -602,11 +696,52 @@ class DeleteAccountView(APIView):
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error deleting user account: {str(e)}")
-            
+
             return Response(
                 {'detail': 'An error occurred while deleting your account. Please try again.'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+class RestrictedModeView(APIView):
+    """
+    POST /api/auth/restricted-mode/
+
+    Opt-in parental control: hides 18+/explicit content on this account
+    regardless of age, locked behind a PIN so a child sharing a parent's
+    device can't turn it back off.
+
+    Enabling:  { "enable": true,  "pin": "1234" }  — no PIN required to turn on.
+    Disabling: { "enable": false, "pin": "1234" }  — must match the stored PIN.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from django.contrib.auth.hashers import make_password, check_password
+
+        user   = request.user
+        enable = request.data.get('enable')
+        pin    = str(request.data.get('pin', '')).strip()
+
+        if enable is None:
+            return Response({'detail': "'enable' is required (true or false)."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if enable:
+            if not pin.isdigit() or not (4 <= len(pin) <= 6):
+                return Response({'detail': 'PIN must be 4–6 digits.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+            user.restricted_mode_pin = make_password(pin)
+            user.restricted_mode_enabled = True
+            user.save(update_fields=['restricted_mode_pin', 'restricted_mode_enabled'])
+            return Response({'ok': True, 'restricted_mode_enabled': True})
+
+        # Disabling requires the correct PIN
+        if not user.restricted_mode_pin or not check_password(pin, user.restricted_mode_pin):
+            return Response({'detail': 'Incorrect PIN.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.restricted_mode_enabled = False
+        user.save(update_fields=['restricted_mode_enabled'])
+        return Response({'ok': True, 'restricted_mode_enabled': False})
 
 
 @api_view(['GET'])

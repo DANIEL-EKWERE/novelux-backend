@@ -54,6 +54,10 @@ class NoveluXTokenObtainPairView(TokenObtainPairView):
 class RegisterSerializer(BaseRegisterSerializer):
     username    = serializers.CharField(required=True)
     role        = serializers.ChoiceField(choices=User.ROLE_CHOICES, default=User.ROLE_READER)
+    date_of_birth = serializers.DateField(
+        required=True,
+        help_text='Required for age-appropriate content filtering. Format: YYYY-MM-DD.',
+    )
     editor_code = serializers.CharField(
         required=False, allow_blank=True, default='',
         help_text=(
@@ -63,9 +67,22 @@ class RegisterSerializer(BaseRegisterSerializer):
 
     def get_cleaned_data(self):
         data = super().get_cleaned_data()
-        data['role']        = self.validated_data.get('role', User.ROLE_READER)
-        data['editor_code'] = self.validated_data.get('editor_code', '').strip().upper()
+        data['role']          = self.validated_data.get('role', User.ROLE_READER)
+        data['date_of_birth'] = self.validated_data.get('date_of_birth')
+        data['editor_code']   = self.validated_data.get('editor_code', '').strip().upper()
         return data
+
+    def validate_date_of_birth(self, value):
+        from datetime import date
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        if age < 13:
+            raise serializers.ValidationError(
+                'You must be at least 13 years old to create a NoveluX account.'
+            )
+        if value > today:
+            raise serializers.ValidationError('Date of birth cannot be in the future.')
+        return value
 
     def validate_editor_code(self, value):
         value = value.strip().upper()
@@ -93,6 +110,7 @@ class RegisterSerializer(BaseRegisterSerializer):
 
         user = super().save(request)
         user.role = self.cleaned_data.get('role', User.ROLE_READER)
+        user.date_of_birth = self.cleaned_data.get('date_of_birth')
         user.registration_ip = ip
         user.save()
 
@@ -150,6 +168,7 @@ class UserSerializer(serializers.ModelSerializer):
     following_count   = serializers.SerializerMethodField()
     display_name      = serializers.SerializerMethodField()
     has_password      = serializers.SerializerMethodField()
+    is_minor          = serializers.SerializerMethodField()
 
     class Meta:
         model  = User
@@ -160,11 +179,12 @@ class UserSerializer(serializers.ModelSerializer):
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
             'author_profile', 'followers_count', 'following_count', 'created_at',
-            'has_password',
+            'has_password', 'date_of_birth', 'is_minor', 'restricted_mode_enabled',
         ]
         read_only_fields = ['coin_balance', 'is_vip', 'vip_expires',
                             'ad_free_expires', 'audiobook_expires',
-                            'reading_xp', 'reading_level', 'total_chapters_read', 'created_at']
+                            'reading_xp', 'reading_level', 'total_chapters_read', 'created_at',
+                            'restricted_mode_enabled']
 
     def get_followers_count(self, obj):
         return obj.followers.count()
@@ -176,6 +196,9 @@ class UserSerializer(serializers.ModelSerializer):
         # False for social-login accounts (Google) created with an unusable
         # password — the app uses this to pick the delete-account confirmation.
         return obj.has_usable_password()
+
+    def get_is_minor(self, obj):
+        return obj.is_minor
 
     def get_display_name(self, obj):
         try:
@@ -213,9 +236,28 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class UpdatePreferencesSerializer(serializers.ModelSerializer):
+    date_of_birth = serializers.DateField(required=False)
+
     class Meta:
         model  = User
-        fields = ['preferred_genres', 'preferred_language', 'night_mode', 'font_size', 'bio', 'avatar']
+        fields = ['preferred_genres', 'preferred_language', 'night_mode', 'font_size', 'bio', 'avatar',
+                  'date_of_birth']
+
+    def validate_date_of_birth(self, value):
+        # Write-once: backfills DOB for legacy/social-login accounts, but
+        # can't be edited afterwards to fake a different age.
+        if self.instance and self.instance.date_of_birth:
+            raise serializers.ValidationError('Date of birth is already on file and cannot be changed.')
+        from datetime import date
+        today = date.today()
+        age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
+        if age < 13:
+            raise serializers.ValidationError(
+                'You must be at least 13 years old to use NoveluX.'
+            )
+        if value > today:
+            raise serializers.ValidationError('Date of birth cannot be in the future.')
+        return value
 
 
 class FollowSerializer(serializers.ModelSerializer):

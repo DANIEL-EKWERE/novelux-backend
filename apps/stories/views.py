@@ -130,7 +130,7 @@
 # #         return Story.objects.filter(is_editors_pick=True).exclude(status=Story.STATUS_DRAFT)
 
 
-# def published_stories():
+# def published_stories(self.request.user):
 #     """Base queryset: excludes drafts, eager-loads relations."""
 #     return Story.objects.exclude(status=Story.STATUS_DRAFT)\
 #                         .select_related('genre')\
@@ -164,7 +164,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().order_by('-total_views')
+#         qs = published_stories(self.request.user).order_by('-total_views')
 #         return apply_gender_filter(qs, self.request.user)[:20]
 
 
@@ -172,7 +172,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_featured=True)
+#         qs = published_stories(self.request.user).filter(is_featured=True)
 #         return apply_gender_filter(qs, self.request.user)
 
 
@@ -180,7 +180,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_world_famous=True)
+#         qs = published_stories(self.request.user).filter(is_world_famous=True)
 #         return apply_gender_filter(qs, self.request.user)
 
 
@@ -188,7 +188,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_completed=True)
+#         qs = published_stories(self.request.user).filter(is_completed=True)
 #         return apply_gender_filter(qs, self.request.user)
 
 
@@ -196,7 +196,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_african_folktale=True)
+#         qs = published_stories(self.request.user).filter(is_african_folktale=True)
 #         return apply_gender_filter(qs, self.request.user)
 
 
@@ -204,7 +204,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_free_download=True)
+#         qs = published_stories(self.request.user).filter(is_free_download=True)
 #         return apply_gender_filter(qs, self.request.user)
 
 
@@ -212,7 +212,7 @@
 #     serializer_class = StoryListSerializer
 
 #     def get_queryset(self):
-#         qs = published_stories().filter(is_editors_pick=True)
+#         qs = published_stories(self.request.user).filter(is_editors_pick=True)
 #         return apply_gender_filter(qs, self.request.user)
     
     
@@ -649,25 +649,27 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 def exclude_explicit(qs, user=None):
     """Hide stories that must not be public: those in deactivated genres,
-    and explicit ones while the PlatformSettings switch is off.
+    and explicit ones while the PlatformSettings switch is off OR this
+    viewer is age/PIN restricted (see user_is_restricted_from_explicit —
+    additive, never reveals content the global switch already hides).
     Authors keep seeing their own stories when a user is given."""
-    from .models import PlatformSettings
+    from .models import PlatformSettings, user_is_restricted_from_explicit
     from django.db.models import Q
     hidden = Q(genre__is_active=False)
-    if not PlatformSettings.explicit_visible():
+    if not PlatformSettings.explicit_visible() or user_is_restricted_from_explicit(user):
         hidden = hidden | Q(is_explicit=True)
     if user is not None and getattr(user, 'is_authenticated', False):
         return qs.exclude(hidden & ~Q(author=user))
     return qs.exclude(hidden)
 
 
-def published_stories():
+def published_stories(user=None):
     """Base queryset: excludes drafts and hidden explicit stories,
     eager-loads relations."""
     qs = Story.objects.exclude(status=Story.STATUS_DRAFT)\
                       .select_related('genre')\
                       .prefetch_related('tags')
-    return exclude_explicit(qs)
+    return exclude_explicit(qs, user)
 
 
 def apply_gender_filter(qs, user):
@@ -722,7 +724,7 @@ class TrendingStoriesView(generics.ListAPIView):
         promoted = _promoted_qs('trending')
         if promoted is not None:
             return promoted
-        qs = published_stories().order_by('-total_views')
+        qs = published_stories(self.request.user).order_by('-total_views')
         return apply_gender_filter(qs, self.request.user)[:20]
 
 
@@ -733,7 +735,7 @@ class FeaturedStoriesView(generics.ListAPIView):
         promoted = _promoted_qs('featured')
         if promoted is not None:
             return promoted
-        qs = published_stories().filter(is_featured=True)
+        qs = published_stories(self.request.user).filter(is_featured=True)
         return apply_gender_filter(qs, self.request.user)
 
 
@@ -741,7 +743,7 @@ class WorldFamousStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(is_world_famous=True)
+        qs = published_stories(self.request.user).filter(is_world_famous=True)
         return apply_gender_filter(qs, self.request.user)
 
 
@@ -749,7 +751,7 @@ class CompletedStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(is_completed=True)
+        qs = published_stories(self.request.user).filter(is_completed=True)
         return apply_gender_filter(qs, self.request.user)
 
 
@@ -757,7 +759,7 @@ class AfricanFolktaleStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(is_african_folktale=True)
+        qs = published_stories(self.request.user).filter(is_african_folktale=True)
         return apply_gender_filter(qs, self.request.user)
 
 
@@ -765,7 +767,7 @@ class FreeDownloadStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(is_free_download=True)
+        qs = published_stories(self.request.user).filter(is_free_download=True)
         return apply_gender_filter(qs, self.request.user)
 
 
@@ -773,7 +775,7 @@ class EditorsPickView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(is_editors_pick=True)
+        qs = published_stories(self.request.user).filter(is_editors_pick=True)
         return apply_gender_filter(qs, self.request.user)
     
     
@@ -974,9 +976,9 @@ class LibraryBannerView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        qs = list(published_stories().filter(is_library_banner=True).order_by('-created_at')[:5])
+        qs = list(published_stories(self.request.user).filter(is_library_banner=True).order_by('-created_at')[:5])
         if not qs:
-            qs = list(published_stories().order_by('-total_views')[:5])
+            qs = list(published_stories(self.request.user).order_by('-total_views')[:5])
         serializer = StoryListSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -1326,7 +1328,7 @@ class ShortStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories()\
+        qs = published_stories(self.request.user)\
             .filter(target_word_count='50,000 – 80,000')\
             .order_by('-average_rating', '-total_views')
         return apply_gender_filter(qs, self.request.user)
@@ -1339,7 +1341,7 @@ class NewArrivalsView(generics.ListAPIView):
 
     def get_queryset(self):
         cutoff = now() - timedelta(days=30)
-        qs = published_stories()\
+        qs = published_stories(self.request.user)\
             .filter(published_at__gte=cutoff)\
             .order_by('-published_at')
         return apply_gender_filter(qs, self.request.user)
@@ -1354,7 +1356,7 @@ class RecommendedForYouView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs   = published_stories()
+        qs   = published_stories(self.request.user)
 
         if user.is_authenticated:
             # Genres from stories the user has actually interacted with
@@ -1396,7 +1398,7 @@ class FreeDiscountView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        qs = published_stories().filter(
+        qs = published_stories(self.request.user).filter(
             Q(free_until__gt=now()) | Q(is_free_download=True)
         ).order_by('-free_until', '-created_at')
         return apply_gender_filter(qs, self.request.user)
@@ -1413,7 +1415,7 @@ class RankingsView(generics.ListAPIView):
         if promoted is not None:
             return promoted
         period = self.request.query_params.get('period', 'all-time')
-        qs     = published_stories()
+        qs     = published_stories(self.request.user)
 
         if period == 'all-time':
             qs = qs.order_by('-total_views')
@@ -1582,7 +1584,7 @@ class ExploreTabView(APIView):
         if promoted_response is not None:
             return promoted_response
 
-        qs = published_stories()
+        qs = published_stories(self.request.user)
 
         if tab == 'short-fics':
             return self._short_fics(request, qs)
@@ -1775,7 +1777,7 @@ class RankingSectionView(APIView):
         filter_type = request.query_params.get('filter', 'daily')
         page        = max(int(request.query_params.get('page', 1)), 1)
 
-        qs       = published_stories()
+        qs       = published_stories(self.request.user)
         week_ago = now() - timedelta(days=7)
 
         if section == 'new-releases':
@@ -1823,7 +1825,7 @@ class GenreTabSectionView(APIView):
         section = request.query_params.get('section', '')
         page    = max(int(request.query_params.get('page', 1)), 1)
 
-        qs       = published_stories()
+        qs       = published_stories(self.request.user)
         cutoff   = now() - timedelta(days=60)
 
         # ── scope by tab ─────────────────────────────────────────────────────
@@ -1857,7 +1859,7 @@ class GenreTabSectionView(APIView):
             base = qs.filter(is_editors_pick=True).order_by('-total_views')
             qs   = base if base.exists() else qs.filter(is_featured=True).order_by('-total_views')
             if not qs.exists():
-                qs = published_stories().filter(tags__slug__in=self._TAG_MAP.get(tab, [])).distinct().order_by('-total_views')
+                qs = published_stories(self.request.user).filter(tags__slug__in=self._TAG_MAP.get(tab, [])).distinct().order_by('-total_views')
         elif section == 'stars-of-tomorrow':
             base = qs.filter(is_featured=False, is_editors_pick=False).order_by('-published_at', '-total_views')
             qs   = base if base.exists() else qs.order_by('-published_at')

@@ -4678,7 +4678,7 @@ def story_preview(request, slug):
         return explore_stories(request)
 
     from apps.stories.models import explicit_blocked
-    if explicit_blocked(story):
+    if explicit_blocked(story, request.user):
         return explore_stories(request)
 
     # First published chapter — full content, no truncation
@@ -4742,7 +4742,7 @@ def explore_chapter_api(request, slug):
     try:
         story = Story.objects.get(slug=slug, status__in=['published', 'ongoing', 'completed'])
         from apps.stories.models import explicit_blocked
-        if explicit_blocked(story):
+        if explicit_blocked(story, request.user):
             return JsonResponse({'chapter_number': None, 'title': '', 'excerpt': ''})
         ch = (
             Chapter.objects

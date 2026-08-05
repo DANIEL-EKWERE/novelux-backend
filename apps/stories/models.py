@@ -584,12 +584,33 @@ class PlatformSettings(models.Model):
         super().save(*args, **kwargs)
 
 
+def user_is_restricted_from_explicit(user):
+    """True if this viewer must not see explicit (18+) content regardless of
+    the platform-wide toggle: anonymous visitors (age unknown), confirmed
+    minors (date_of_birth-derived), or accounts with the opt-in parental
+    PIN lock (restricted_mode_enabled) turned on."""
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return True
+    if getattr(user, 'is_minor', False):
+        return True
+    if getattr(user, 'restricted_mode_enabled', False):
+        return True
+    return False
+
+
 def explicit_blocked(story, user=None):
     """True when this story must be hidden from the viewer: its genre is
     deactivated, or it is explicit while the platform switch hides explicit
-    content — unless the viewer is the author or editorial staff."""
+    content OR this specific viewer is age/PIN restricted — unless the
+    viewer is the author or editorial staff.
+
+    Additive, never subtractive: the platform switch and the per-user
+    restriction are OR'd together, so a viewer can never see explicit
+    content the global switch is already hiding."""
     genre_off    = story.genre_id is not None and not story.genre.is_active
-    explicit_off = story.is_explicit and not PlatformSettings.explicit_visible()
+    explicit_off = story.is_explicit and (
+        not PlatformSettings.explicit_visible() or user_is_restricted_from_explicit(user)
+    )
     if not (genre_off or explicit_off):
         return False
     if user is not None and getattr(user, 'is_authenticated', False):

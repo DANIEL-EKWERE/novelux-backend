@@ -842,6 +842,22 @@ class User(AbstractUser):
     night_mode          = models.BooleanField(default=False)
     font_size           = models.PositiveSmallIntegerField(default=16)
 
+    # Age assurance / parental controls
+    date_of_birth = models.DateField(
+        null=True, blank=True,
+        help_text='Collected at signup (or backfilled post-login for legacy '
+                   'and social-login accounts). Write-once via the API.',
+    )
+    restricted_mode_enabled = models.BooleanField(
+        default=False,
+        help_text='Opt-in parental control: hides 18+/explicit content on '
+                   'this account regardless of age. Locked behind a PIN.',
+    )
+    restricted_mode_pin = models.CharField(
+        max_length=128, blank=True,
+        help_text='Hashed via make_password — never store the raw PIN.',
+    )
+
     registration_ip = models.GenericIPAddressField(null=True, blank=True)
     is_banned       = models.BooleanField(default=False)
     ban_reason      = models.TextField(blank=True)
@@ -861,6 +877,20 @@ class User(AbstractUser):
     @property
     def is_author(self):
         return self.role == self.ROLE_AUTHOR
+
+    @property
+    def is_minor(self):
+        """True when date_of_birth implies age < 18. Unknown DOB (legacy
+        accounts that haven't backfilled yet) is treated as NOT a minor —
+        the DOB gate screen gets them on record shortly after login."""
+        if not self.date_of_birth:
+            return False
+        from datetime import date
+        today = date.today()
+        age = today.year - self.date_of_birth.year - (
+            (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+        )
+        return age < 18
 
     @property
     def total_balance(self):

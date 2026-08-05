@@ -16,6 +16,8 @@ urlpatterns = [
     path('<str:username>/following/',  views.FollowingListView.as_view()),
     path('save-fcm-token/',            views.SaveFCMToken.as_view(), name='save-fcm-token'),
     path('google/',                    views.GoogleSignInView.as_view(),  name='google-signin'),
+    path('apple/',                     views.AppleSignInView.as_view(),   name='apple-signin'),
+    path('restricted-mode/',           views.RestrictedModeView.as_view(), name='restricted-mode'),
     path('preferences/',               views.UserPreferencesView.as_view(), name='user-preferences'),
     path('kyc/',                       views.KYCView.as_view(),            name='kyc'),
     path('kyc/app-redirect/',          views.kyc_app_redirect,             name='kyc-app-redirect'),

@@ -4734,6 +4734,17 @@ def story_preview(request, slug):
     })
 
 
+def story_share(request, slug):
+    """Shared-link entry point — /story/<slug>/ (the URL the mobile app puts in share sheets).
+
+    This route is reserved for deep-link handoff: once the app registers
+    universal links / app links, this view will attempt to open the story in
+    the app and fall back to the web preview. Until then, everyone lands on
+    the public story preview page.
+    """
+    return redirect('novelux:story_preview', slug=slug)
+
+
 def explore_chapter_api(request, slug):
     """GET /explore/<slug>/chapter/ — full first chapter as JSON. Public, no auth."""
     from apps.stories.models import Story

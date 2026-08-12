@@ -50,6 +50,9 @@ urlpatterns = [
     path('explore/<slug:slug>/',                  views.story_preview,       name='story_preview'),
     path('explore/<slug:slug>/chapter/',          views.explore_chapter_api, name='explore_chapter_api'),
 
+    # ── Shared story links (from the mobile app's share sheet) ────────────────
+    path('story/<slug:slug>/',                    views.story_share,         name='story_share'),
+
     # ── APK download ──────────────────────────────────────────────────────────
     path('download/apk/',            views.download_apk,        name='download_apk'),
 

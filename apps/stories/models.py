@@ -598,20 +598,105 @@ def user_is_restricted_from_explicit(user):
     return False
 
 
-def explicit_blocked(story, user=None):
-    """True when this story must be hidden from the viewer: its genre is
-    deactivated, or it is explicit while the platform switch hides explicit
-    content OR this specific viewer is age/PIN restricted — unless the
-    viewer is the author or editorial staff.
+# Territories whose regulators do not accept a self-declared birthdate as age
+# assurance for mature fiction, or which restrict sexual content outright.
+# A starting point, not legal advice — override MATURE_RESTRICTED_TERRITORIES
+# in settings once you have counsel on the markets you actually sell in.
+DEFAULT_MATURE_RESTRICTED_TERRITORIES = frozenset({
+    'GB',                                      # Online Safety Act age assurance
+    'AE', 'SA', 'QA', 'KW', 'OM', 'BH',        # Gulf content rules
+    'ID', 'MY', 'PK', 'BD',                    # local content regulators
+    'CN', 'VN', 'IR', 'EG',
+})
 
-    Additive, never subtractive: the platform switch and the per-user
-    restriction are OR'd together, so a viewer can never see explicit
-    content the global switch is already hiding."""
-    genre_off    = story.genre_id is not None and not story.genre.is_active
-    explicit_off = story.is_explicit and (
-        not PlatformSettings.explicit_visible() or user_is_restricted_from_explicit(user)
+# Stores whose review rules make it cheaper to withhold mature fiction entirely
+# than to carry the corresponding age rating. iOS is here so the App Store
+# listing can stay below 18+; see Story.is_explicit's help_text.
+MATURE_RESTRICTED_PLATFORMS = frozenset({'ios', 'ipados'})
+
+
+def _request_or_current(request):
+    if request is not None:
+        return request
+    from apps.stories.middleware import get_current_request
+    return get_current_request()
+
+
+def client_country(request=None):
+    """Uppercase ISO country code for the caller, '' when it cannot be read.
+
+    Cached on the request — the gate runs once per story in a listing and the
+    GeoIP lookup is far too expensive to repeat that many times."""
+    request = _request_or_current(request)
+    if request is None:
+        return ''
+    cached = getattr(request, '_novelux_country', None)
+    if cached is not None:
+        return cached
+    code = ''
+    try:
+        from apps.analytics.middleware import _get_geoip_reader, _get_client_ip
+        reader = _get_geoip_reader()
+        ip = _get_client_ip(request)
+        if reader is not None and ip:
+            code = (reader.city(ip).country.iso_code or '').upper()
+    except Exception:
+        code = ''
+    try:
+        request._novelux_country = code
+    except Exception:
+        pass
+    return code
+
+
+def client_platform(request=None):
+    """Lowercased X-Platform header the mobile app sends ('ios', 'android')."""
+    request = _request_or_current(request)
+    if request is None:
+        return ''
+    return (request.META.get('HTTP_X_PLATFORM') or '').strip().lower()
+
+
+def mature_context_blocked(request=None):
+    """True when the caller's store or territory must not receive mature
+    fiction at all, whatever age the reader claims to be."""
+    from django.conf import settings
+    if client_platform(request) in MATURE_RESTRICTED_PLATFORMS:
+        return True
+    territories = getattr(
+        settings, 'MATURE_RESTRICTED_TERRITORIES',
+        DEFAULT_MATURE_RESTRICTED_TERRITORIES,
     )
-    if not (genre_off or explicit_off):
+    country = client_country(request)
+    return bool(country) and country in territories
+
+
+def explicit_blocked(story, user=None, request=None):
+    """True when this story must be hidden from the viewer: its genre is
+    deactivated, it is explicit while the platform switch hides explicit
+    content, or it is mature (explicit or 18+) and the viewer cannot be served
+    mature fiction — unless the viewer is the author or editorial staff.
+
+    Additive, never subtractive: the platform switch, the per-user age
+    restriction and the store/territory restriction are OR'd together, so a
+    viewer can never see content any one of them already hides.
+
+    `age_rating == '18+'` is gated as well as `is_explicit`, because a story
+    can be adults-only for violence or drug themes without being sexual."""
+    genre_off = story.genre_id is not None and not story.genre.is_active
+
+    # Anyone we cannot confirm is an adult, plus stores and territories where
+    # mature fiction must not be served regardless of declared age.
+    mature_gate = (
+        user_is_restricted_from_explicit(user)
+        or mature_context_blocked(request)
+    )
+    explicit_off = story.is_explicit and (
+        not PlatformSettings.explicit_visible() or mature_gate
+    )
+    adult_off = story.age_rating == '18+' and mature_gate
+
+    if not (genre_off or explicit_off or adult_off):
         return False
     if user is not None and getattr(user, 'is_authenticated', False):
         if story.author_id == user.pk:

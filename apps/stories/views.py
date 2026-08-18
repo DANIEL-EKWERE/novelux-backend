@@ -647,17 +647,28 @@ class StoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 #         return Story.objects.filter(is_editors_pick=True).exclude(status=Story.STATUS_DRAFT)
 
 
-def exclude_explicit(qs, user=None):
+def exclude_explicit(qs, user=None, request=None):
     """Hide stories that must not be public: those in deactivated genres,
-    and explicit ones while the PlatformSettings switch is off OR this
-    viewer is age/PIN restricted (see user_is_restricted_from_explicit —
-    additive, never reveals content the global switch already hides).
+    explicit ones while the PlatformSettings switch is off OR this viewer is
+    age/PIN restricted, and mature ones (explicit or 18+) when the caller's
+    store or territory must not be served mature fiction at all.
+
+    Must stay in lockstep with models.explicit_blocked — this is the list-level
+    half of the same gate, and a story slipping through here would appear in
+    search and carousels even though its detail page 404s.
     Authors keep seeing their own stories when a user is given."""
-    from .models import PlatformSettings, user_is_restricted_from_explicit
+    from .models import (
+        PlatformSettings, user_is_restricted_from_explicit, mature_context_blocked,
+    )
     from django.db.models import Q
     hidden = Q(genre__is_active=False)
-    if not PlatformSettings.explicit_visible() or user_is_restricted_from_explicit(user):
+    mature_gate = (
+        user_is_restricted_from_explicit(user) or mature_context_blocked(request)
+    )
+    if not PlatformSettings.explicit_visible() or mature_gate:
         hidden = hidden | Q(is_explicit=True)
+    if mature_gate:
+        hidden = hidden | Q(age_rating='18+')
     if user is not None and getattr(user, 'is_authenticated', False):
         return qs.exclude(hidden & ~Q(author=user))
     return qs.exclude(hidden)

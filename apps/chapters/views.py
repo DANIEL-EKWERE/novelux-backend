@@ -147,6 +147,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 from django.db.models import F
 from django.utils import timezone
 from .models import Chapter, ChapterUnlock, FreeChapterSchedule
@@ -366,13 +367,24 @@ class DownloadStoryView(APIView):
     Returns every published chapter with FULL content for offline reading.
     The app gates this behind a rewarded ad (method='ad') or a coin charge
     (method='coins'); VIP subscribers pay nothing.
+
+    Open to guests via the ad path only: downloading a story you can already
+    read is not an account-based feature (App Store guideline 5.1.1(v)), but
+    spending coins and VIP perks are, so those still require signing in.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     COIN_COST = 120
 
     def post(self, request, story_slug):
         story = get_object_or_404(Story, slug=story_slug)
         method = (request.data.get('method') or '').lower()
+        authed = bool(getattr(request.user, 'is_authenticated', False))
+
+        # Never hand out a story the caller isn't allowed to read in the first
+        # place — this is the same gate the reading endpoints use.
+        from apps.stories.models import explicit_blocked
+        if explicit_blocked(story, request.user, request):
+            raise Http404
 
         # Exclusive stories: offline download is a VIP perk — no ad/coin path
         if story.is_exclusive and not getattr(request.user, 'is_vip', False):
@@ -386,6 +398,11 @@ class DownloadStoryView(APIView):
         if getattr(request.user, 'is_vip', False):
             pass  # included with the VIP subscription
         elif method == 'coins':
+            if not authed:
+                return Response(
+                    {'detail': 'Sign in to spend coins on downloads.'},
+                    status=401,
+                )
             if not request.user.deduct_coins(
                     self.COIN_COST, reason=f'Offline download: {story.title}'):
                 return Response({'detail': 'Insufficient coins.'}, status=402)

@@ -18,6 +18,9 @@ urlpatterns = [
     path('sitemap.xml', sitemap, {'sitemaps': _sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     path('robots.txt',  TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
 
+    # AdMob authorised sellers — must sit at the domain root to be found.
+    path('app-ads.txt', TemplateView.as_view(template_name='app-ads.txt', content_type='text/plain')),
+
     #home page
     path('', include('novelux_web.urls')),
 

@@ -18,3 +18,14 @@ class IsOwnerOrReadOnly(BasePermission):
 class IsAdminUser(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role == 'admin'
+
+
+class IsEditorialStaff(BasePermission):
+    """SE, CE or admin — the roles allowed to release held author earnings."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user.is_authenticated
+            and (user.role in ('se', 'ce', 'admin') or user.is_staff)
+        )

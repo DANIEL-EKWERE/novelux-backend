@@ -418,7 +418,7 @@ SUBSCRIPTION_PLANS = [
     {'id': 'vip_yearly',    'label': 'VIP Yearly',    'price_usd': 479.99, 'original_price_usd': 587.88, 'coins_per_month': 66000, 'bonus_coins': 300, 'discount_pct': 18, 'duration_days': 365},
 ]
 
-AUTHOR_REVENUE_SHARE = 0.25   # 25% paid out to author (50% pool held by platform)
+AUTHOR_REVENUE_SHARE = 0.20   # 20% of a chapter unlock goes to the author
 TIP_AUTHOR_SHARE     = 0.25   # 25% of tip goes to author
 
 # ── Celery Beat Schedule ──────────────────────────────────────────────────────

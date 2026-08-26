@@ -146,14 +146,15 @@
 from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.http import Http404
 from django.db.models import F
 from django.utils import timezone
-from .models import Chapter, ChapterUnlock, FreeChapterSchedule
-from .serializers import ChapterListSerializer, ChapterDetailSerializer, ChapterCreateUpdateSerializer
+from .models import Chapter, ChapterUnlock, ChapterAdAccess, ChapterUnlockEarning, FreeChapterSchedule
+from .serializers import ChapterListSerializer, ChapterDetailSerializer, ChapterCreateUpdateSerializer, ChapterUnlockEarningSerializer
 from apps.stories.models import Story
-from apps.users.permissions import IsAuthorOrReadOnly
+from apps.users.permissions import IsAuthorOrReadOnly, IsEditorialStaff
 from apps.notifications.tasks import notify_followers_new_chapter
 from rest_framework.exceptions import APIException
 
@@ -454,21 +455,159 @@ class UnlockChapterView(APIView):
 
         coins_needed = 0 if free_today else chapter.coin_cost
 
+        author_cut = 0
         if coins_needed > 0:
             if not request.user.deduct_coins(coins_needed, reason=f'Unlock Ch.{chapter_number} of {story.title}'):
                 return Response({'detail': 'Insufficient coins.'}, status=402)
-            # Pay author
-            author_cut = int(coins_needed * 0.30)
-            story.author.add_coins(author_cut, reason=f'Chapter unlock revenue')
+            # The rate lives in settings alongside TIP_AUTHOR_SHARE so the two
+            # payout paths can't drift apart silently.
+            author_cut = int(coins_needed * settings.AUTHOR_REVENUE_SHARE)
 
-        ChapterUnlock.objects.create(
+        unlock = ChapterUnlock.objects.create(
             user=request.user, chapter=chapter, coins_spent=coins_needed
         )
+
+        # The author's cut is held, not paid. It reaches their balance only when
+        # an SE, CE or admin releases the earning — see ChapterUnlockEarning.
+        if author_cut > 0:
+            ChapterUnlockEarning.objects.create(
+                author=story.author,
+                chapter=chapter,
+                unlock=unlock,
+                coins=author_cut,
+                coins_spent=coins_needed,
+            )
         Chapter.objects.filter(pk=chapter.pk).update(unlocks=F('unlocks') + 1)
         # Chapter.objects.filter(pk=chapter.pk).update(is_unlocks=True)
         Story.objects.filter(pk=story.pk).update(total_unlocks=F('total_unlocks') + 1)
 
         return Response({'detail': 'Chapter unlocked.', 'coins_spent': coins_needed}, status=200)
+
+
+class HeldEarningsView(generics.ListAPIView):
+    """
+    GET /api/chapters/earnings/held/
+    Unlock earnings awaiting an editorial decision. SE / CE / admin only.
+
+    ?author=<username> and ?status=<held|released|rejected> narrow the list;
+    status defaults to held, which is the queue editorial actually works.
+    """
+    permission_classes = [IsEditorialStaff]
+    serializer_class   = ChapterUnlockEarningSerializer
+
+    def get_queryset(self):
+        qs = ChapterUnlockEarning.objects.select_related(
+            'author', 'chapter', 'chapter__story', 'released_by'
+        )
+        status_filter = self.request.query_params.get(
+            'status', ChapterUnlockEarning.STATUS_HELD)
+        if status_filter != 'all':
+            qs = qs.filter(status=status_filter)
+        author = self.request.query_params.get('author')
+        if author:
+            qs = qs.filter(author__username=author)
+        return qs
+
+
+class ReleaseEarningView(APIView):
+    """
+    POST /api/chapters/earnings/<pk>/release/   → credit the author
+    POST /api/chapters/earnings/<pk>/reject/    → resolve without paying
+
+    SE / CE / admin only. Both are idempotent: a second call on an already
+    resolved earning returns 200 with changed=False rather than paying twice.
+    """
+    permission_classes = [IsEditorialStaff]
+
+    def post(self, request, pk, action='release'):
+        earning = get_object_or_404(ChapterUnlockEarning, pk=pk)
+        note    = (request.data.get('note') or '').strip()
+
+        if action == 'reject':
+            changed = earning.reject(by=request.user, note=note)
+        else:
+            changed = earning.release(by=request.user, note=note)
+
+        return Response({
+            'changed': changed,
+            'status':  earning.status,
+            'detail':  (f'Earning {earning.status}.' if changed
+                        else f'Already {earning.status} — no change made.'),
+            'earning': ChapterUnlockEarningSerializer(earning).data,
+        })
+
+
+class AdAccessChapterView(APIView):
+    """
+    POST /api/chapters/<story_slug>/chapters/<chapter_number>/ad-access/
+    Trade a watched rewarded ad for a single read of a locked chapter.
+
+    Unlike UnlockChapterView this writes no ChapterUnlock and moves no coins.
+    The content comes back once, in this response; the next GET of the chapter
+    is locked again and costs coins or another ad. Callers who want the chapter
+    to stay open have to pay for it.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    # Ad reads per user per day, across all stories. Without a cap the ad path
+    # replaces coin purchases outright for anyone willing to sit through them.
+    DAILY_LIMIT = 10
+
+    def post(self, request, story_slug, chapter_number):
+        story   = get_object_or_404(Story, slug=story_slug)
+        chapter = get_object_or_404(
+            Chapter, story=story, chapter_number=chapter_number, is_published=True
+        )
+
+        # Same visibility gate the reading and download endpoints use.
+        from apps.stories.models import explicit_blocked
+        if explicit_blocked(story, request.user, request):
+            raise Http404
+
+        # Exclusive stories have no ad path, matching DownloadStoryView.
+        if story.is_exclusive and not getattr(request.user, 'is_vip', False):
+            return Response(
+                {'detail': 'This story is exclusive — reading it requires a '
+                           'VIP subscription.'},
+                status=403,
+            )
+
+        # Nothing to trade an ad for: the reader already has access. Return the
+        # content rather than burning their ad, and say it isn't temporary.
+        already_readable = (
+            not chapter.is_locked
+            or story.author == request.user
+            or getattr(request.user, 'is_vip', False)
+            or ChapterUnlock.objects.filter(user=request.user, chapter=chapter).exists()
+        )
+        if already_readable:
+            return Response({
+                'chapter_number': chapter.chapter_number,
+                'title':          chapter.title,
+                'content':        chapter.content,
+                'temporary':      False,
+            })
+
+        used_today = ChapterAdAccess.objects.filter(
+            user=request.user, created_at__date=timezone.now().date()
+        ).count()
+        if used_today >= self.DAILY_LIMIT:
+            return Response(
+                {'detail': f'Daily limit reached — you can read {self.DAILY_LIMIT} '
+                           'chapters with ads per day. Unlock with coins to keep reading.'},
+                status=429,
+            )
+
+        ChapterAdAccess.objects.create(user=request.user, chapter=chapter)
+        Chapter.objects.filter(pk=chapter.pk).update(views=F('views') + 1)
+
+        return Response({
+            'chapter_number': chapter.chapter_number,
+            'title':          chapter.title,
+            'content':        chapter.content,
+            'temporary':      True,
+            'ad_reads_left':  self.DAILY_LIMIT - used_today - 1,
+        })
 
 
 class SubmitChapterEditForReviewView(APIView):

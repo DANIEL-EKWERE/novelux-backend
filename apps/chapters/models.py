@@ -895,6 +895,124 @@ class ChapterUnlock(models.Model):
         unique_together = ('user', 'chapter')
 
 
+class ChapterUnlockEarning(models.Model):
+    """An author's share of one chapter unlock, held until editorial releases it.
+
+    The reader's coins are debited at unlock time, but the author's cut is only
+    recorded here — nothing reaches their balance until an SE, CE or admin calls
+    `release()`. Holding the money rather than paying it out and clawing it back
+    means a refund or a fraud reversal is a status change, not a negative
+    balance, and it gives editorial a checkpoint on unlock revenue.
+    """
+    STATUS_HELD     = 'held'
+    STATUS_RELEASED = 'released'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES  = [
+        (STATUS_HELD,     'Held — awaiting editorial release'),
+        (STATUS_RELEASED, 'Released to author'),
+        (STATUS_REJECTED, 'Rejected — never paid'),
+    ]
+
+    author      = models.ForeignKey(User, on_delete=models.CASCADE,
+                      related_name='chapter_unlock_earnings')
+    chapter     = models.ForeignKey(Chapter, on_delete=models.CASCADE,
+                      related_name='unlock_earnings')
+    unlock      = models.OneToOneField('ChapterUnlock', on_delete=models.SET_NULL,
+                      null=True, blank=True, related_name='earning')
+    coins       = models.PositiveIntegerField(
+                      help_text="The author's share, credited on release.")
+    coins_spent = models.PositiveIntegerField(
+                      help_text='What the reader paid, kept for audit.')
+    status      = models.CharField(max_length=10, choices=STATUS_CHOICES,
+                      default=STATUS_HELD, db_index=True)
+    released_by = models.ForeignKey(User, on_delete=models.SET_NULL,
+                      null=True, blank=True,
+                      related_name='released_chapter_earnings')
+    released_at = models.DateTimeField(null=True, blank=True)
+    note        = models.TextField(blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chapter_unlock_earnings'
+        ordering = ['-created_at']
+        indexes  = [models.Index(fields=['author', 'status'])]
+
+    def __str__(self):
+        return f'{self.author} · {self.coins} coins · {self.status}'
+
+    def release(self, by=None, note=''):
+        """Credit the held coins to the author. Idempotent.
+
+        Returns True if this call did the crediting, False if the earning was
+        already resolved — so a double-click in the admin can't pay twice.
+        """
+        from django.db import transaction
+        from django.utils import timezone as _tz
+
+        with transaction.atomic():
+            fresh = (ChapterUnlockEarning.objects
+                     .select_for_update().get(pk=self.pk))
+            if fresh.status != self.STATUS_HELD:
+                return False
+
+            self.author.add_coins(
+                self.coins,
+                reason=f'Chapter unlock revenue — Ch.{self.chapter.chapter_number} '
+                       f'of {self.chapter.story.title}',
+            )
+            fresh.status      = self.STATUS_RELEASED
+            fresh.released_by = by
+            fresh.released_at = _tz.now()
+            if note:
+                fresh.note = note
+            fresh.save(update_fields=['status', 'released_by', 'released_at', 'note'])
+
+        self.refresh_from_db()
+        return True
+
+    def reject(self, by=None, note=''):
+        """Resolve the earning without paying it. Idempotent, like release()."""
+        from django.db import transaction
+        from django.utils import timezone as _tz
+
+        with transaction.atomic():
+            fresh = (ChapterUnlockEarning.objects
+                     .select_for_update().get(pk=self.pk))
+            if fresh.status != self.STATUS_HELD:
+                return False
+            fresh.status      = self.STATUS_REJECTED
+            fresh.released_by = by
+            fresh.released_at = _tz.now()
+            if note:
+                fresh.note = note
+            fresh.save(update_fields=['status', 'released_by', 'released_at', 'note'])
+
+        self.refresh_from_db()
+        return True
+
+
+class ChapterAdAccess(models.Model):
+    """One rewarded-ad view of a locked chapter.
+
+    Deliberately *not* a ChapterUnlock. Nothing reads these rows when deciding
+    whether a chapter is unlocked, so the chapter re-locks the moment it is
+    fetched again — an ad buys a single read, coins buy the chapter. Rows exist
+    only to enforce the daily cap and to report on ad-funded reads, so repeats
+    are expected and there is no unique constraint.
+    """
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ad_chapter_accesses')
+    chapter    = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='ad_accesses')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'chapter_ad_accesses'
+        # The daily cap counts a user's rows for today on every ad read.
+        indexes  = [models.Index(fields=['user', 'created_at'])]
+
+    def __str__(self):
+        return f'{self.user} · Ch.{self.chapter.chapter_number} (ad)'
+
+
 class ChapterEditRequest(models.Model):
     """
     Holds a pending edit for a published chapter.

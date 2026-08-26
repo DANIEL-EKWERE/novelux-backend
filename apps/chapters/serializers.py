@@ -1,6 +1,6 @@
 # serializers.py
 from rest_framework import serializers
-from .models import Chapter, ChapterUnlock
+from .models import Chapter, ChapterUnlock, ChapterUnlockEarning
 
 
 class ChapterListSerializer(serializers.ModelSerializer):
@@ -192,3 +192,19 @@ class ChapterCreateUpdateSerializer(serializers.ModelSerializer):
         validated_data['status'] = Chapter.STATUS_DRAFT
         validated_data.pop('is_published', None)
         return super().update(instance, validated_data)
+
+
+class ChapterUnlockEarningSerializer(serializers.ModelSerializer):
+    """Editorial's view of a held author earning."""
+    author_username = serializers.CharField(source='author.username', read_only=True)
+    story_title     = serializers.CharField(source='chapter.story.title', read_only=True)
+    chapter_number  = serializers.IntegerField(source='chapter.chapter_number', read_only=True)
+    released_by_username = serializers.CharField(
+        source='released_by.username', read_only=True, default=None)
+
+    class Meta:
+        model  = ChapterUnlockEarning
+        fields = ['id', 'author_username', 'story_title', 'chapter_number',
+                  'coins', 'coins_spent', 'status', 'note',
+                  'released_by_username', 'released_at', 'created_at']
+        read_only_fields = fields

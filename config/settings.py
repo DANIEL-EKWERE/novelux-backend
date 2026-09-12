@@ -197,7 +197,8 @@ CANONICAL_BASE = _canonical_site_base()
 # FIREBASE_CREDENTIALS_PATH = os.path.join(BASE_DIR, 'novelux-1a13a-firebase-adminsdk-fbsvc-efebcdc03d.json')
 
 
-GOOGLE_ANDROID_CLIENT_ID = '302060725266-si3i60jiots71onc2o075ta6c63gnkfu.apps.googleusercontent.com'
+GOOGLE_ANDROID_CLIENT_ID = '302060725266-pu3ql5kg9q4puq6k2inmn52qljf1j35k.apps.googleusercontent.com'
+#'302060725266-si3i60jiots71onc2o075ta6c63gnkfu.apps.googleusercontent.com'
 GOOGLE_IOS_CLIENT_ID = '302060725266-8r9c6525a9c810f75geigek68a5339u6.apps.googleusercontent.com'
 GOOGLE_WEB_CLIENT_ID = '302060725266-8lm05k7jgm0dlbl1p2ht5hkfifdg1cq8.apps.googleusercontent.com'
 

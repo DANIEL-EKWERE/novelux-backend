@@ -422,6 +422,11 @@ SUBSCRIPTION_PLANS = [
 AUTHOR_REVENUE_SHARE = 0.20   # 20% of a chapter unlock goes to the author
 TIP_AUTHOR_SHARE     = 0.25   # 25% of tip goes to author
 
+# Real-money gifts (store consumables). Author earns GIFT_AUTHOR_SHARE of what's
+# left after Apple/Google take STORE_FEE_RATE (15% in the small-business tiers).
+STORE_FEE_RATE    = config('STORE_FEE_RATE', default=0.15, cast=float)
+GIFT_AUTHOR_SHARE = config('GIFT_AUTHOR_SHARE', default=TIP_AUTHOR_SHARE, cast=float)
+
 # ── Celery Beat Schedule ──────────────────────────────────────────────────────
 CELERY_BEAT_SCHEDULE = {
     'expire-promotions-hourly': {

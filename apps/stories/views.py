@@ -11,6 +11,7 @@
 #     GenreSerializer, TagSerializer, RatingSerializer
 # )
 # from .filters import StoryFilter
+from .search import RankedSearchFilter
 # from apps.users.permissions import IsAuthorOrReadOnly
 # from apps.users.models import UserPreferences
 # from apps.users.serializers import UserPreferencesSerializer
@@ -428,9 +429,10 @@ from apps.users.serializers import UserPreferencesSerializer
 
 class StoryListCreateView(generics.ListCreateAPIView):
     queryset         = Story.objects.select_related('author', 'genre').prefetch_related('tags')
-    filter_backends  = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # RankedSearchFilter runs last so its relevance order wins over the
+    # default ordering (an explicit ?ordering= still takes precedence).
+    filter_backends  = [DjangoFilterBackend, filters.OrderingFilter, RankedSearchFilter]
     filterset_class  = StoryFilter
-    search_fields    = ['book_code', 'title', 'description', 'author__username', 'tags__name', 'author__author_code']
     ordering_fields  = ['created_at', 'total_views', 'average_rating', 'total_chapters', 'total_comments', 'word_count', 'total_tips', 'status']
     ordering         = ['-created_at']
 

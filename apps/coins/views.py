@@ -1268,7 +1268,19 @@ class RevenueCatWebhookView(APIView):
 
         granter = VerifyPurchaseView()
 
-        if (event_type == 'NON_RENEWING_PURCHASE'
+        from apps.tips.models import LABEL_BY_PRODUCT
+        from apps.tips import services as gift_services
+
+        if product_id in LABEL_BY_PRODUCT:
+            # Real-money gift to an author (store consumable)
+            if event_type == 'NON_RENEWING_PURCHASE':
+                gift_services.handle_gift_webhook(
+                    user, product_id, transaction_id, event.get('price'),
+                    quantity=event.get('quantity') or 1)
+            elif event_type == 'CANCELLATION':   # refund of a one-time purchase
+                gift_services.refund_gift(transaction_id)
+
+        elif (event_type == 'NON_RENEWING_PURCHASE'
                 and product_id in VerifyPurchaseView.COIN_PRODUCTS):
             granter._grant(user, product_id, transaction_id)
 

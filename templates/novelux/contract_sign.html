@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="nux-token"   content="{{ access_token }}">
 <meta name="nux-api"     content="/api">
-<title>Sign Your Contract — {{ story.title }} · Novelux</title>
+<title>Sign Your Contract — {{ story.title }} · HuxNovel</title>
 <style>
 :root {
   --bg:         hsl(36 20% 97%);
@@ -339,7 +339,7 @@ a { text-decoration: none; color: inherit; }
         <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
       </svg>
     </div>
-    Novelux
+    HuxNovel
   </div>
   <a href="/dashboard/" class="back-link">
     ← Back to Dashboard
@@ -376,7 +376,7 @@ a { text-decoration: none; color: inherit; }
     <p>
       Congratulations! The Chief Editor has approved
       <strong>{{ story.title }}</strong> for a
-      <strong>{{ contract_type_label }}</strong> contract with Novelux.
+      <strong>{{ contract_type_label }}</strong> contract with HuxNovel.
       Review the terms below, sign, and submit to activate your contract.
     </p>
   </div>
@@ -415,16 +415,16 @@ a { text-decoration: none; color: inherit; }
     </div>
     <div class="terms-box" id="termsBox">
       <h3>1. Parties</h3>
-      <p>This agreement is between <strong>Novelux</strong> ("Platform") and the author identified by the account associated with this invitation ("Author").</p>
+      <p>This agreement is between <strong>HuxNovel</strong> ("Platform") and the author identified by the account associated with this invitation ("Author").</p>
 
       <h3>2. Grant of Rights</h3>
-      <p>{% if contract_type == 'exclusive' %}The Author grants Novelux an <strong>exclusive</strong> licence to publish, distribute, and monetise the Work on the Novelux platform and its affiliated channels. The Author may not publish the Work on any other platform during the term of this agreement without prior written consent.{% else %}The Author grants Novelux a <strong>non-exclusive</strong> licence to publish, distribute, and monetise the Work on the Novelux platform. The Author retains the right to publish the Work elsewhere.{% endif %}</p>
+      <p>{% if contract_type == 'exclusive' %}The Author grants HuxNovel an <strong>exclusive</strong> licence to publish, distribute, and monetise the Work on the HuxNovel platform and its affiliated channels. The Author may not publish the Work on any other platform during the term of this agreement without prior written consent.{% else %}The Author grants HuxNovel a <strong>non-exclusive</strong> licence to publish, distribute, and monetise the Work on the HuxNovel platform. The Author retains the right to publish the Work elsewhere.{% endif %}</p>
 
       <h3>3. Royalties & Revenue Share</h3>
       <p>The Author shall receive royalties based on the Platform's current published rate schedule. Revenue from coin unlocks, subscriptions, and tips attributed to the Work will be distributed monthly to the Author's earnings balance, subject to a minimum payout threshold.</p>
 
       <h3>4. Content Standards</h3>
-      <p>The Author agrees to maintain the Work in accordance with Novelux's Content Guidelines and Community Standards. The Platform reserves the right to request revisions or remove content that violates these standards.</p>
+      <p>The Author agrees to maintain the Work in accordance with HuxNovel's Content Guidelines and Community Standards. The Platform reserves the right to request revisions or remove content that violates these standards.</p>
 
       <h3>5. Term & Termination</h3>
       <p>This agreement remains in effect until terminated by either party with 30 days' written notice. Upon termination, previously published chapters remain available unless both parties agree otherwise.</p>
@@ -460,7 +460,7 @@ a { text-decoration: none; color: inherit; }
 
     <label class="consent-row" id="row3">
       <input type="checkbox" id="consent3" onchange="updateConsent()">
-      <span class="consent-text">I understand this is a legally binding <strong>{{ contract_type_label }}</strong> agreement between me and Novelux.</span>
+      <span class="consent-text">I understand this is a legally binding <strong>{{ contract_type_label }}</strong> agreement between me and HuxNovel.</span>
     </label>
   </div>
 
@@ -515,7 +515,7 @@ a { text-decoration: none; color: inherit; }
     Accept & Sign Contract
   </button>
   <p style="font-size:11px;color:var(--muted-fg);text-align:center;margin-top:10px;">
-    By clicking above you agree to Novelux's <a href="/terms/" style="color:var(--primary);">Terms of Service</a> and this contract.
+    By clicking above you agree to HuxNovel's <a href="/terms/" style="color:var(--primary);">Terms of Service</a> and this contract.
   </p>
 
   <!-- Divider -->

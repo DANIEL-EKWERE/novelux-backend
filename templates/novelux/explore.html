@@ -17,11 +17,11 @@
 <link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
 
 {% if og.title %}
-  <title>{{ og.title }} — Read on Novelux</title>
+  <title>{{ og.title }} — Read on HuxNovel</title>
   <meta name="description" content="{{ og.description }}"/>
   <link rel="canonical" href="{{ og.url }}"/>
   <meta property="og:type"        content="{{ og.type }}"/>
-  <meta property="og:site_name"   content="Novelux"/>
+  <meta property="og:site_name"   content="HuxNovel"/>
   <meta property="og:title"       content="{{ og.title }}"/>
   <meta property="og:description" content="{{ og.description }}"/>
   <meta property="og:url"         content="{{ og.url }}"/>
@@ -31,18 +31,18 @@
   <meta name="twitter:description" content="{{ og.description }}"/>
   {% if og.image %}<meta name="twitter:image" content="{{ og.image }}"/>{% endif %}
 {% else %}
-  <title>Explore Stories — Novelux</title>
-  <meta name="description" content="Browse and preview thousands of free African and world-class novels on Novelux. Read the first chapter free — no sign-up required."/>
+  <title>Explore Stories — HuxNovel</title>
+  <meta name="description" content="Browse and preview thousands of free African and world-class novels on HuxNovel. Read the first chapter free — no sign-up required."/>
   <link rel="canonical" href="{{ canonical_url }}"/>
   <meta property="og:type"        content="website"/>
-  <meta property="og:site_name"   content="Novelux"/>
-  <meta property="og:title"       content="Explore Stories — Novelux"/>
-  <meta property="og:description" content="Browse and preview thousands of free African and world-class novels on Novelux."/>
+  <meta property="og:site_name"   content="HuxNovel"/>
+  <meta property="og:title"       content="Explore Stories — HuxNovel"/>
+  <meta property="og:description" content="Browse and preview thousands of free African and world-class novels on HuxNovel."/>
   <meta property="og:url"         content="{{ canonical_url }}"/>
   <meta property="og:image"       content="{% static 'novelux/images/logo.png' %}"/>
   <meta name="twitter:card"        content="summary"/>
-  <meta name="twitter:title"       content="Explore Stories — Novelux"/>
-  <meta name="twitter:description" content="Browse and preview thousands of free African and world-class novels on Novelux."/>
+  <meta name="twitter:title"       content="Explore Stories — HuxNovel"/>
+  <meta name="twitter:description" content="Browse and preview thousands of free African and world-class novels on HuxNovel."/>
   <meta name="twitter:image"       content="{% static 'novelux/images/logo.png' %}"/>
 {% endif %}
 
@@ -341,8 +341,8 @@ nav {
 <nav>
   <div class="nav-inner">
     <a href="{% url 'novelux:index' %}" class="nav-brand">
-      <div class="nav-logo-box"><img src="{% static 'novelux/images/logo.png' %}" alt="Novelux"/></div>
-      <span>Novelux</span>
+      <div class="nav-logo-box"><img src="{% static 'novelux/images/logo.png' %}" alt="HuxNovel"/></div>
+      <span>HuxNovel</span>
     </a>
     <div class="nav-links">
       <a href="/explore/" class="active">Explore Stories</a>

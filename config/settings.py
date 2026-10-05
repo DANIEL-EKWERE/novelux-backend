@@ -469,7 +469,7 @@ SPECTACULAR_SETTINGS = {
 #         default='django.core.mail.backends.console.EmailBackend'
 #     )
  
-# DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='Novelux <onboarding@resend.dev>')
+# DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='HuxNovel <onboarding@resend.dev>')
  
 # EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST          = 'smtp-relay.brevo.com'
@@ -495,7 +495,7 @@ ANYMAIL = {
     "BREVO_API_KEY": config("BREVO_API_KEY", default=""),
 }
 
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="novelux <ekweredaniel8@gmail.com>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="HuxNovel <ekweredaniel8@gmail.com>")
 
 # Optional: Set a reply-to configuration if your business logic demands it
 SERVER_EMAIL = DEFAULT_FROM_EMAIL

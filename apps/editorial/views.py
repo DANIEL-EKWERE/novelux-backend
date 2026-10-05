@@ -551,7 +551,7 @@
 # #         notify_user(
 # #             story.author,
 # #             title='Contract ready to sign! 📝',
-# #             body=f'A contract for "{story.title}" has been sent to you. Open Novelux to review and sign.',
+# #             body=f'A contract for "{story.title}" has been sent to you. Open HuxNovel to review and sign.',
 # #             data={'screen': 'my_books', 'slug': story.slug, 'action': 'sign_contract'},
 # #         )
 # #     except Exception:
@@ -562,14 +562,14 @@
 # #         from django.core.mail import send_mail
 # #         from django.conf import settings as _settings
 # #         author         = story.author
-# #         platform       = 'Novelux'
+# #         platform       = 'HuxNovel'
 # #         contract_label = 'Exclusive' if contract_type == 'exclusive' else 'Non-Exclusive'
 # #         sign_url       = f'https://novelux.app/my-books/{story.slug}/contract/'
 # #         subject        = f'Your {platform} contract offer — "{story.title}"'
 # #         text_body      = (
 # #             f'Hi {author.first_name or author.username},\n\n'
 # #             f'Congratulations! The Chief Editor has reviewed "{story.title}" and is offering you a {contract_label} contract.\n\n'
-# #             f'Log in to Novelux to review and sign:\n{sign_url}\n\n'
+# #             f'Log in to HuxNovel to review and sign:\n{sign_url}\n\n'
 # #             + (f'CE note: {ce_note}\n\n' if ce_note else '')
 # #             + f'– The {platform} Editorial Team'
 # #         )
@@ -589,7 +589,7 @@
 # #         notify_user(
 # #             story.author,
 # #             title='Contract ready to sign! 📝',
-# #             body=f'A contract for "{story.title}" has been sent to your email. Open Novelux to review and sign.',
+# #             body=f'A contract for "{story.title}" has been sent to your email. Open HuxNovel to review and sign.',
 # #             data={'screen': 'my_books', 'slug': story.slug, 'action': 'sign_contract'},
 # #         )
 # #     except Exception:
@@ -1476,14 +1476,14 @@
 #         from django.core.mail import send_mail
 #         from django.conf import settings as _settings
 #         author         = story.author
-#         platform       = 'Novelux'
+#         platform       = 'HuxNovel'
 #         contract_label = 'Exclusive' if contract_type == 'exclusive' else 'Non-Exclusive'
 #         sign_url       = f'https://novelux-backend.com/my-books/{story.slug}/contract/'
 #         subject        = f'Your {platform} contract offer — "{story.title}"'
 #         text_body      = (
 #             f'Hi {author.first_name or author.username},\n\n'
 #             f'Congratulations! The Chief Editor has reviewed "{story.title}" and is offering you a {contract_label} contract.\n\n'
-#             f'Log in to Novelux to review and sign:\n{sign_url}\n\n'
+#             f'Log in to HuxNovel to review and sign:\n{sign_url}\n\n'
 #             + (f'CE note: {ce_note}\n\n' if ce_note else '')
 #             + f'– The {platform} Editorial Team'
 #         )
@@ -2556,7 +2556,7 @@ def ce_send_contract_story(request, slug):
         try:
             from django.core.mail import send_mail
             from django.conf import settings as _settings
-            platform       = 'Novelux'
+            platform       = 'HuxNovel'
             contract_label = 'Exclusive' if _contract_type_cap == 'exclusive' else 'Non-Exclusive'
             sign_url       = f'https://www.novelux.app/my-books/{_slug_cap}/contract/'
             subject        = f'Your {platform} contract offer — "{_story_title}"'
@@ -2565,7 +2565,7 @@ def ce_send_contract_story(request, slug):
                 f'congratulations!\n\n'
                 f'Your book "{_story_title}" has been reviewed, and we are offering you a {contract_label} contract.\n\n'
                 f'You can review carefully and sign your contract successfully using the attached link below:\n{sign_url}\n\n'
-                f'We\'re excited to have you as part of NoveluX and looking forward to supporting your journey as an author!\n\n'
+                f'We\'re excited to have you as part of HuxNovel (formerly NoveluX) and looking forward to supporting your journey as an author!\n\n'
                 'Warm regards,\n'
                 + (f'CE note: {_ce_note_cap}\n\n' if _ce_note_cap else '')
                 + f'– The {platform} Editorial Team'
@@ -5345,7 +5345,7 @@ def author_announcements(request):
         'id':         a.id,
         'title':      a.title,
         'body':       a.body,
-        'sent_by':    a.sent_by.get_full_name() or a.sent_by.username if a.sent_by else 'NoveluX',
+        'sent_by':    a.sent_by.get_full_name() or a.sent_by.username if a.sent_by else 'HuxNovel',
         'created_at': a.created_at.isoformat(),
     } for a in qs]
     return Response({'count': len(data), 'results': data})

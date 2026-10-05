@@ -1,5 +1,5 @@
 # """
-# Novelux Editorial Models
+# HuxNovel Editorial Models
 # ========================
 # Implements the 3-tier editorial hierarchy:
 
@@ -608,7 +608,7 @@
 
 
 """
-Novelux Editorial Models
+HuxNovel Editorial Models
 ========================
 Implements the 3-tier editorial hierarchy:
 

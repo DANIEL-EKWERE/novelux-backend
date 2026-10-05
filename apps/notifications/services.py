@@ -140,7 +140,7 @@ def on_contract_sent(author, story, contract_type: str = 'non_exclusive'):
         user=author,
         notification_type=Notification.TYPE_SYSTEM,
         title='Contract ready to sign! 📝',
-        message=f'A {label} contract for "{story.title}" has been sent to your email. Open Novelux to review and sign.',
+        message=f'A {label} contract for "{story.title}" has been sent to your email. Open HuxNovel to review and sign.',
         data={'screen': 'my_books', 'slug': story.slug, 'action': 'sign_contract'},
     )
 
@@ -151,7 +151,7 @@ def on_contract_signed(author, story, published_count: int = 0):
         user=author,
         notification_type=Notification.TYPE_SYSTEM,
         title='Contract signed — you\'re live! 🚀',
-        message=f'Welcome to the Novelux author programme! "{story.title}" is now live'
+        message=f'Welcome to the HuxNovel author programme! "{story.title}" is now live'
                 + (f' with {published_count} chapter(s) published.' if published_count else '.'),
         data={'screen': 'my_books', 'slug': story.slug},
     )
@@ -192,8 +192,8 @@ def on_user_signup(user):
     create_notification(
         user=user,
         notification_type=Notification.TYPE_SYSTEM,
-        title='Welcome to NoveluX! 🎉',
-        message='Your reading journey starts now. Earn 100 free coins just for signing up!',
+        title='Welcome to HuxNovel! 🎉',
+        message='HuxNovel (formerly NoveluX) — your reading journey starts now. Earn 100 free coins just for signing up!',
         data={'screen': 'rewards'},
     )
 
@@ -267,7 +267,7 @@ def on_book_signed_live(story):
                 recipient_id=uid,
                 notification_type=Notification.TYPE_SYSTEM,
                 title=f'🎉 "{story.title}" is now live!',
-                message=f'{author_name}\'s story has joined the Novelux programme. New chapters are coming — stay tuned!',
+                message=f'{author_name}\'s story has joined the HuxNovel programme. New chapters are coming — stay tuned!',
                 data={'screen': 'story', 'slug': story.slug},
             )
             for uid in bookmarker_ids
@@ -281,13 +281,13 @@ def on_book_signed_live(story):
         if tokens:
             send_to_tokens(tokens,
                 title=f'🎉 "{story.title}" is now signed & live!',
-                body=f'{author_name}\'s story has just joined the Novelux programme!',
+                body=f'{author_name}\'s story has just joined the HuxNovel programme!',
                 data={'screen': 'story', 'slug': story.slug},
             )
 
     notify_all(
-        title=f'🎉 New book on Novelux: "{story.title}"',
-        body=f'{author_name} just joined the Novelux author programme — check it out!',
+        title=f'🎉 New book on HuxNovel: "{story.title}"',
+        body=f'{author_name} just joined the HuxNovel author programme — check it out!',
         data={'screen': 'story', 'slug': story.slug},
         exclude_user_ids=bookmarker_ids,
     )

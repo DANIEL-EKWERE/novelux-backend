@@ -27,7 +27,7 @@
 # # #     invite_url = f'{scheme}://{host}/editorial/invite/{invite.token}/'
 
 # # #     role_label = ROLE_LABELS.get(invite.role, invite.role.upper())
-# # #     platform   = 'Novelux'
+# # #     platform   = 'HuxNovel'
 # # #     from_email = settings.DEFAULT_FROM_EMAIL
 
 # # #     subject = f'You have been invited to join {platform} as {role_label}'
@@ -150,7 +150,7 @@
 # #         invite_url = f'{scheme}://{request.get_host()}/editorial/invite/{invite.token}/'
 
 # #     role_label = ROLE_LABELS.get(invite.role, invite.role.upper())
-# #     platform   = 'Novelux'
+# #     platform   = 'HuxNovel'
 # #     from_email = settings.DEFAULT_FROM_EMAIL
 
 # #     subject = f'You have been invited to join {platform} as {role_label}'
@@ -286,7 +286,7 @@
 #     invite_url = f'{scheme}://{host}/editorial/invite/{invite.token}/'
 
 #     role_label = ROLE_LABELS.get(invite.role, invite.role.upper())
-#     platform   = 'Novelux'
+#     platform   = 'HuxNovel'
 #     from_email = settings.DEFAULT_FROM_EMAIL
 
 #     subject = f'You have been invited to join {platform} as {role_label}'
@@ -488,7 +488,7 @@ def send_editor_invite_email(invite, request):
     invite_url = f'https://novelux.onrender.com/editorial/invite/{invite.token}/'
 
     role_label = ROLE_LABELS.get(invite.role, invite.role.upper())
-    platform   = 'Novelux'
+    platform   = 'HuxNovel'
     from_email = settings.DEFAULT_FROM_EMAIL
 
     subject = f'You have been invited to join {platform} as {role_label}'
@@ -506,6 +506,7 @@ Use the link below to set up your account. This link expires in 7 days.
 If you did not expect this invitation, you can safely ignore this email.
 
 – The {platform} Team
+({platform} was formerly NoveluX)
 """.strip()
 
     # HTML version
@@ -579,7 +580,7 @@ If you did not expect this invitation, you can safely ignore this email.
     </div>
 
     <div class="footer">
-      <p>&copy; {platform}. This is an automated message &mdash; please do not reply.</p>
+      <p>&copy; {platform} (formerly NoveluX). This is an automated message &mdash; please do not reply.</p>
     </div>
   </div>
 </div>

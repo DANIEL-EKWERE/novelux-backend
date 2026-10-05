@@ -78,7 +78,7 @@ class RegisterSerializer(BaseRegisterSerializer):
         age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
         if age < 13:
             raise serializers.ValidationError(
-                'You must be at least 13 years old to create a NoveluX account.'
+                'You must be at least 13 years old to create a HuxNovel account.'
             )
         if value > today:
             raise serializers.ValidationError('Date of birth cannot be in the future.')
@@ -253,7 +253,7 @@ class UpdatePreferencesSerializer(serializers.ModelSerializer):
         age = today.year - value.year - ((today.month, today.day) < (value.month, value.day))
         if age < 13:
             raise serializers.ValidationError(
-                'You must be at least 13 years old to use NoveluX.'
+                'You must be at least 13 years old to use HuxNovel.'
             )
         if value > today:
             raise serializers.ValidationError('Date of birth cannot be in the future.')

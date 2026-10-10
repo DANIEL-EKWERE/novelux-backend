@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.utils.text import slugify
-from .models import FeaturedAuthor, PromoBanner, Story, Genre, Subgenre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter
+from .models import FeaturedAuthor, PromoBanner, Story, Genre, Subgenre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter, StoryLike
 from apps.users.serializers import PublicUserSerializer
 
 
@@ -48,6 +48,44 @@ class TagSerializer(serializers.ModelSerializer):
 #             'average_rating', 'is_featured', 'is_editors_pick', 'created_at',
 #         ]
 
+
+class StoryListBatchSerializer(serializers.ListSerializer):
+    """Loads the related data every StoryListSerializer row needs in a fixed
+    handful of queries for the whole list, instead of ~10 queries per story
+    (author, genre subgenres, tag genres, characters, chapter and follower
+    counts). Works on any queryset or list, so callers needn't remember
+    select_related/prefetch_related."""
+
+    def to_representation(self, data):
+        from django.db.models import Count, Manager, prefetch_related_objects
+        from apps.chapters.models import Chapter
+        from apps.users.models import Follow
+
+        stories = list(data.all() if isinstance(data, Manager) else data)
+        if not stories:
+            return []
+        prefetch_related_objects(
+            stories,
+            'author__author_profile', 'genre__subgenres', 'subgenre',
+            'tags__genre', 'story_characters',
+        )
+        story_ids = {st.pk for st in stories}
+        chapter_counts = dict(
+            Chapter.objects.filter(story_id__in=story_ids)
+            .values('story_id').annotate(n=Count('id')).values_list('story_id', 'n')
+        )
+        author_ids = {st.author_id for st in stories}
+        follower_counts = dict(
+            Follow.objects.filter(following_id__in=author_ids)
+            .values('following_id').annotate(n=Count('id')).values_list('following_id', 'n')
+        )
+        for st in stories:
+            st._all_chapters_count = chapter_counts.get(st.pk, 0)
+            if st.author is not None:
+                st.author._followers_count = follower_counts.get(st.author_id, 0)
+        return super().to_representation(stories)
+
+
 class StoryListSerializer(serializers.ModelSerializer):
     author             = PublicUserSerializer(read_only=True)
     genre              = GenreSerializer(read_only=True)
@@ -59,12 +97,13 @@ class StoryListSerializer(serializers.ModelSerializer):
     rejection_reason   = serializers.SerializerMethodField()
 
     class Meta:
+        list_serializer_class = StoryListBatchSerializer
         model  = Story
         fields = [
             'id', 'book_code', 'title', 'slug', 'cover_image', 'synopsis', 'description', 'story_outline',
             'author', 'genre', 'subgenre', 'tags', 'language', 'status',
             'total_views', 'total_chapters', 'total_comments', 'word_count', 'target_word_count',
-            'average_rating', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',
+            'average_rating', 'total_likes', 'is_featured', 'is_editors_pick', 'created_at', 'published_at',
             'free_until', 'is_free_download',
             'all_chapters_count', 'contract_status', 'contract_eligible', 'can_apply_contract',
             'rejection_reason', 'story_characters',
@@ -72,7 +111,8 @@ class StoryListSerializer(serializers.ModelSerializer):
         ]
 
     def get_all_chapters_count(self, obj):
-        return obj.chapters.count()
+        cached = getattr(obj, '_all_chapters_count', None)
+        return cached if cached is not None else obj.chapters.count()
 
     def get_can_apply_contract(self, obj):
         """True when threshold is hit and author hasn't applied yet."""
@@ -95,6 +135,7 @@ class StoryDetailSerializer(serializers.ModelSerializer):
     tags             = TagSerializer(many=True, read_only=True)
     story_characters = StoryCharacterSerializer(many=True, read_only=True)
     is_bookmarked    = serializers.SerializerMethodField()
+    is_liked         = serializers.SerializerMethodField()
     user_rating      = serializers.SerializerMethodField()
     reading_progress = serializers.SerializerMethodField()
 
@@ -106,6 +147,12 @@ class StoryDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Bookmark.objects.filter(user=request.user, story=obj).exists()
+        return False
+
+    def get_is_liked(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return StoryLike.objects.filter(user=request.user, story=obj).exists()
         return False
 
     def get_user_rating(self, obj):

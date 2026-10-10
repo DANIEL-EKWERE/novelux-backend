@@ -123,7 +123,11 @@ DATABASES = {
          'USER': 'postgres',#config('DB_USER', default='postgres'),
          'PASSWORD': 'MKPOIKANA1dt',#config('DB_PASSWORD', default='password'),
          'HOST': 'database-1.cdcs8iswifke.eu-north-1.rds.amazonaws.com',#config('DB_HOST', default='localhost'),
-         'PORT': '5432'#config('DB_PORT', default='5432'),
+         'PORT': '5432',#config('DB_PORT', default='5432'),
+         # Reuse connections across requests instead of a new TLS handshake
+         # to RDS each time; health checks drop connections that went stale.
+         'CONN_MAX_AGE': 60,
+         'CONN_HEALTH_CHECKS': True,
      }
  }
 '''

@@ -348,6 +348,7 @@ class Story(models.Model):
     total_ratings   = models.PositiveIntegerField(default=0)
     total_comments  = models.PositiveIntegerField(default=0)
     total_tips      = models.PositiveIntegerField(default=0)
+    total_likes     = models.PositiveIntegerField(default=0)
     word_count      = models.PositiveIntegerField(default=0)
 
     # Editorial override — CE can set a custom threshold for this story.
@@ -446,6 +447,18 @@ class Bookmark(models.Model):
 
     class Meta:
         db_table      = 'bookmarks'
+        unique_together = ('user', 'story')
+
+
+class StoryLike(models.Model):
+    """A reader liking a story. Story.total_likes is the denormalised count,
+    kept in step by StoryLikeView."""
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='story_likes')
+    story      = models.ForeignKey(Story, on_delete=models.CASCADE, related_name='likes')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table      = 'story_likes'
         unique_together = ('user', 'story')
 
 

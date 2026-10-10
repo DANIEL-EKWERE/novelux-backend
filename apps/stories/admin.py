@@ -23,7 +23,7 @@ class StoryAdmin(admin.ModelAdmin):
     search_fields  = ['title', 'author__username']
     prepopulated_fields = {'slug': ('title',)}
     readonly_fields= ['total_views', 'total_unlocks', 'total_chapters', 'target_word_count',
-                      'average_rating', 'total_ratings', 'word_count']
+                      'average_rating', 'total_ratings', 'total_likes', 'word_count']
     actions        = ['feature_stories', 'mark_editors_pick', 'add_to_library_banner',
                       'remove_from_library_banner', 'unfeature_stories']
 

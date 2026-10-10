@@ -29,6 +29,7 @@ urlpatterns = [
     path('request/',           views.BookRequestView.as_view(),       name='book-request'),
     path('<slug:slug>/',                views.StoryDetailView.as_view()),
     path('<slug:slug>/bookmark/',       views.BookmarkView.as_view()),
+    path('<slug:slug>/like/',           views.StoryLikeView.as_view()),
     path('<slug:slug>/progress/',       views.UpdateReadingProgressView.as_view()),
     path('<slug:slug>/rate/',           views.RateStoryView.as_view()),
     path('<slug:slug>/report/',         views.ReportStoryView.as_view()),

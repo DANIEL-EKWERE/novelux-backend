@@ -222,7 +222,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
                   'reading_level', 'author_profile', 'followers_count']
 
     def get_followers_count(self, obj):
-        return obj.followers.count()
+        cached = getattr(obj, '_followers_count', None)
+        return cached if cached is not None else obj.followers.count()
 
     def get_display_name(self, obj):
         """Returns pen name if set, otherwise falls back to username."""

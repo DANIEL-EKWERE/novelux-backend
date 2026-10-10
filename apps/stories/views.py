@@ -416,7 +416,7 @@ from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
 from django.shortcuts import get_object_or_404
 from django.db.models import F
-from .models import BookRequest, PromoBanner, Story, Genre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter
+from .models import BookRequest, PromoBanner, Story, Genre, Tag, Bookmark, ReadingProgress, Rating, StoryCharacter, StoryLike
 from .serializers import (
     PromoBannerSerializer, PromoBannerSerializer, StoryListSerializer, StoryDetailSerializer, StoryCreateUpdateSerializer,
     GenreSerializer, TagSerializer, RatingSerializer, StoryCharacterSerializer
@@ -433,7 +433,7 @@ class StoryListCreateView(generics.ListCreateAPIView):
     # default ordering (an explicit ?ordering= still takes precedence).
     filter_backends  = [DjangoFilterBackend, filters.OrderingFilter, RankedSearchFilter]
     filterset_class  = StoryFilter
-    ordering_fields  = ['created_at', 'total_views', 'average_rating', 'total_chapters', 'total_comments', 'word_count', 'total_tips', 'status']
+    ordering_fields  = ['created_at', 'total_views', 'average_rating', 'total_chapters', 'total_comments', 'word_count', 'total_tips', 'total_likes', 'status']
     ordering         = ['-created_at']
 
     def get_serializer_class(self):
@@ -808,6 +808,32 @@ class BookmarkView(APIView):
         story = get_object_or_404(Story, slug=slug)
         Bookmark.objects.filter(user=request.user, story=story).delete()
         return Response({'bookmarked': False}, status=204)
+
+
+class StoryLikeView(APIView):
+    """POST   /api/stories/<slug>/like/  — like a story
+    DELETE /api/stories/<slug>/like/  — remove the like
+    Both are idempotent; total_likes only changes when a like is actually
+    created or removed."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, slug):
+        story = get_object_or_404(Story, slug=slug)
+        _, created = StoryLike.objects.get_or_create(user=request.user, story=story)
+        if created:
+            Story.objects.filter(pk=story.pk).update(total_likes=F('total_likes') + 1)
+        story.refresh_from_db(fields=['total_likes'])
+        return Response({'liked': True, 'total_likes': story.total_likes},
+                        status=201 if created else 200)
+
+    def delete(self, request, slug):
+        story = get_object_or_404(Story, slug=slug)
+        deleted, _ = StoryLike.objects.filter(user=request.user, story=story).delete()
+        if deleted:
+            Story.objects.filter(pk=story.pk, total_likes__gt=0).update(
+                total_likes=F('total_likes') - 1)
+        story.refresh_from_db(fields=['total_likes'])
+        return Response({'liked': False, 'total_likes': story.total_likes})
 
 
 class MyBookmarksView(generics.ListAPIView):
@@ -1499,13 +1525,35 @@ class ExploreTabView(APIView):
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
-    def _s(self, story, request):
-        return StoryListSerializer(story, context={'request': request}).data
-
     def _sl(self, qs, request, limit=8):
         return StoryListSerializer(
             qs[:limit], many=True, context={'request': request}
         ).data
+
+    def _serialize_groups(self, groups, request):
+        """Serialize several lists of stories with ONE batched serializer
+        pass (stories shared between lists are serialized once), keeping each
+        list's order. Returns the lists as serialized dicts."""
+        unique = {}
+        for group in groups:
+            for story in group:
+                unique.setdefault(story.pk, story)
+        data = StoryListSerializer(
+            list(unique.values()), many=True, context={'request': request}
+        ).data
+        by_pk = {row['id']: row for row in data}
+        return [[by_pk[story.pk] for story in group] for group in groups]
+
+    def _finish_sections(self, sections, request):
+        """Fill in 'featured'/'stories' for sections built by _make_section
+        (or the short-fics grid), serializing every story in one pass."""
+        groups = self._serialize_groups([sec.pop('_items') for sec in sections], request)
+        for sec, rows in zip(sections, groups):
+            if sec.pop('_hero'):
+                sec['featured'], sec['stories'] = rows[0], rows[1:]
+            else:
+                sec['featured'], sec['stories'] = None, rows
+        return sections
 
     def _promoted_tab(self, tab, request):
         """If active promotions exist for this tab, return a full-replace response."""
@@ -1515,15 +1563,13 @@ class ExploreTabView(APIView):
         items = list(qs[:20])
         if not items:
             return None
+        rows, = self._serialize_groups([items], request)
         return Response({
             'tab':      tab,
             'layout':   'promoted',
             'promoted': True,
-            'featured': self._s(items[0], request),
-            'stories':  self._sl(
-                Story.objects.filter(pk__in=[s.pk for s in items[1:]]).select_related('genre').prefetch_related('tags'),
-                request, limit=19,
-            ),
+            'featured': rows[0],
+            'stories':  rows[1:],
         })
 
     def _pinned_ids(self, tab, section):
@@ -1576,21 +1622,15 @@ class ExploreTabView(APIView):
         items = list(qs[:limit])
         if not items:
             return None
-        base = {
+        # Serialized later, together with the tab's other sections, by
+        # _finish_sections.
+        return {
             'name':    name,
             'slug':    sec_slug,
             'display': display,
+            '_items':  items,
+            '_hero':   display not in ('row', 'hero-list'),
         }
-        if display in ('row', 'hero-list'):
-            base['featured'] = None
-            base['stories']  = self._sl(qs, request, limit=limit)
-        else:
-            base['featured'] = self._s(items[0], request)
-            base['stories']  = self._sl(
-                Story.objects.filter(pk__in=[s.pk for s in items[1:]]).select_related('genre').prefetch_related('tags'),
-                request,
-            )
-        return base
 
     # ── main dispatch ─────────────────────────────────────────────────────────
 
@@ -1637,18 +1677,15 @@ class ExploreTabView(APIView):
             if not stories.exists():
                 continue
 
-            items = list(stories[:9])
             sections.append({
-                'name':     display_name,
-                'emoji':    emoji,
-                'featured': self._s(items[0], request),
-                'stories':  self._sl(
-                    Story.objects.filter(pk__in=[s.pk for s in items[1:]]).select_related('genre').prefetch_related('tags'),
-                    request,
-                ),
+                'name':   display_name,
+                'emoji':  emoji,
+                '_items': list(stories[:9]),
+                '_hero':  True,
             })
 
-        return Response({'tab': 'short-fics', 'layout': 'genre-grid', 'sections': sections})
+        return Response({'tab': 'short-fics', 'layout': 'genre-grid',
+                         'sections': self._finish_sections(sections, request)})
 
     # ── genre tabs (werewolf, billionaire, suspense) ──────────────────────────
 
@@ -1682,7 +1719,8 @@ class ExploreTabView(APIView):
             self._make_section('Completed Classics',     classics,     request, slug='completed-classics', tab=tab),
         ] if s]
 
-        return Response({'tab': tab, 'layout': 'sections', 'sections': sections})
+        return Response({'tab': tab, 'layout': 'sections',
+                         'sections': self._finish_sections(sections, request)})
 
     # ── suspense/horror ──────────────────────────────────────────────────────
 
@@ -1718,7 +1756,8 @@ class ExploreTabView(APIView):
             self._make_section('Stars of Tomorrow',  stars,    request, slug='stars-of-tomorrow', display='hero-list', limit=8,  tab='suspense'),
         ] if s]
 
-        return Response({'tab': 'suspense', 'layout': 'sections', 'sections': sections})
+        return Response({'tab': 'suspense', 'layout': 'sections',
+                         'sections': self._finish_sections(sections, request)})
 
     # ── for-her / for-him ─────────────────────────────────────────────────────
 
@@ -1745,7 +1784,8 @@ class ExploreTabView(APIView):
             self._make_section('Completed Classics', classics, request, slug='completed-classics', tab=tab),
         ] if s]
 
-        return Response({'tab': tab, 'layout': 'sections', 'sections': sections})
+        return Response({'tab': tab, 'layout': 'sections',
+                         'sections': self._finish_sections(sections, request)})
 
     # ── ranking ───────────────────────────────────────────────────────────────
 
@@ -1762,18 +1802,22 @@ class ExploreTabView(APIView):
         popularity_qs = qs.order_by('-total_views', '-total_likes')
         short_qs      = qs.filter(target_word_count='50,000 – 80,000').order_by('-total_views')
 
+        daily, rising, must_read, popularity, short = self._serialize_groups([
+            list(daily_qs[:5]), list(rising_qs[:5]),
+            list(must_read_qs[:5]), list(popularity_qs[:5]), list(short_qs[:10]),
+        ], request)
         return Response({
             'tab':    'ranking',
             'layout': 'ranking',
             'new_releases': {
-                'daily':  self._sl(daily_qs,   request, limit=5),
-                'rising': self._sl(rising_qs,  request, limit=5),
+                'daily':  daily,
+                'rising': rising,
             },
             'most_read': {
-                'must_read':  self._sl(must_read_qs,   request, limit=5),
-                'popularity': self._sl(popularity_qs,  request, limit=5),
+                'must_read':  must_read,
+                'popularity': popularity,
             },
-            'short_stories': self._sl(short_qs, request, limit=10),
+            'short_stories': short,
         })
 
 

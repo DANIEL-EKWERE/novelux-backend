@@ -91,12 +91,6 @@ MIDDLEWARE = [
     'apps.stories.middleware.RequestContextMiddleware',
 ]
 
-# Territories where 18+/explicit stories are withheld regardless of the
-# reader's declared age. Unset means apps.stories.models
-# DEFAULT_MATURE_RESTRICTED_TERRITORIES applies; set to an empty set to serve
-# mature fiction everywhere age rules allow.
-# MATURE_RESTRICTED_TERRITORIES = frozenset({'GB', 'AE'})
-
 # Path to the directory containing GeoLite2-City.mmdb
 # Download free from https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
 GEOIP_PATH = BASE_DIR / 'geoip'

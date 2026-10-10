@@ -438,11 +438,22 @@ class VipStatusView(APIView):
     def get(self, request):
         user = request.user
         sub  = getattr(user, 'subscription', None)
- 
+        now  = timezone.now()
+        is_vip = bool(user.vip_expires and user.vip_expires > now)
+        # Only report a plan while that subscription is what's actually
+        # giving VIP — VIP redeemed with coins has no plan, and an old,
+        # expired subscription must not be shown as the current one.
+        sub_active = bool(
+            sub and sub.is_active and sub.plan
+            and sub.expires_at and sub.expires_at > now
+        )
+
         return Response({
-            'is_vip':      user.is_vip if hasattr(user, 'is_vip') else False,
-            'plan':        sub.plan_name if sub else None,
-            'expires_at':  sub.expires_at if sub else None,
+            'is_vip':      is_vip,
+            'plan':        sub.plan.plan_id if sub_active else None,
+            'plan_label':  sub.plan.label if sub_active else None,
+            'source':      ('subscription' if sub_active else 'coins') if is_vip else None,
+            'expires_at':  user.vip_expires if is_vip else None,
             'coin_balance': user.coin_balance,
         })
  

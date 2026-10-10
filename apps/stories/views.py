@@ -166,7 +166,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).order_by('-total_views')
-#         return apply_gender_filter(qs, self.request.user)[:20]
+#         return qs[:20]
 
 
 # class FeaturedStoriesView(generics.ListAPIView):
@@ -174,7 +174,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_featured=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
 
 
 # class WorldFamousStoriesView(generics.ListAPIView):
@@ -182,7 +182,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_world_famous=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
 
 
 # class CompletedStoriesView(generics.ListAPIView):
@@ -190,7 +190,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_completed=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
 
 
 # class AfricanFolktaleStoriesView(generics.ListAPIView):
@@ -198,7 +198,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_african_folktale=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
 
 
 # class FreeDownloadStoriesView(generics.ListAPIView):
@@ -206,7 +206,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_free_download=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
 
 
 # class EditorsPickView(generics.ListAPIView):
@@ -214,7 +214,7 @@ from .search import RankedSearchFilter
 
 #     def get_queryset(self):
 #         qs = published_stories(self.request.user).filter(is_editors_pick=True)
-#         return apply_gender_filter(qs, self.request.user)
+#         return qs
     
     
 
@@ -681,13 +681,19 @@ def published_stories(user=None):
     return exclude_explicit(qs, user)
 
 
-def apply_gender_filter(qs, user):
-    """Filter queryset by user gender preference if available."""
+def prefer_gender(qs, user):
+    """Rank stories matching the user's gender preference first, without
+    hiding the rest. Only used by the recommendation feed — every other
+    listing shows all stories regardless of gender."""
     if user.is_authenticated:
         prefs = UserPreferences.objects.filter(user=user).first()
         gender = prefs.gender if prefs else None
-        if gender is not None:
-            return qs.filter(gender=gender)
+        if gender:
+            from django.db.models import Case, When, IntegerField
+            return qs.annotate(
+                _gender_rank=Case(When(gender=gender, then=0), default=1,
+                                  output_field=IntegerField())
+            ).order_by('_gender_rank', *qs.query.order_by)
     return qs
 
 from django.db.models import Count
@@ -735,7 +741,7 @@ class TrendingStoriesView(generics.ListAPIView):
         if promoted is not None:
             return promoted
         qs = published_stories(self.request.user).order_by('-total_views')
-        return apply_gender_filter(qs, self.request.user)[:20]
+        return qs[:20]
 
 
 class FeaturedStoriesView(generics.ListAPIView):
@@ -746,7 +752,7 @@ class FeaturedStoriesView(generics.ListAPIView):
         if promoted is not None:
             return promoted
         qs = published_stories(self.request.user).filter(is_featured=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class WorldFamousStoriesView(generics.ListAPIView):
@@ -754,7 +760,7 @@ class WorldFamousStoriesView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_world_famous=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class CompletedStoriesView(generics.ListAPIView):
@@ -762,7 +768,7 @@ class CompletedStoriesView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_completed=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class AfricanFolktaleStoriesView(generics.ListAPIView):
@@ -770,7 +776,7 @@ class AfricanFolktaleStoriesView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_african_folktale=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class FreeDownloadStoriesView(generics.ListAPIView):
@@ -778,7 +784,7 @@ class FreeDownloadStoriesView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_free_download=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class EditorsPickView(generics.ListAPIView):
@@ -786,7 +792,7 @@ class EditorsPickView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_editors_pick=True)
-        return apply_gender_filter(qs, self.request.user)
+        return qs
     
     
 
@@ -1341,7 +1347,7 @@ class ShortStoriesView(generics.ListAPIView):
         qs = published_stories(self.request.user)\
             .filter(target_word_count='50,000 – 80,000')\
             .order_by('-average_rating', '-total_views')
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class NewArrivalsView(generics.ListAPIView):
@@ -1354,7 +1360,7 @@ class NewArrivalsView(generics.ListAPIView):
         qs = published_stories(self.request.user)\
             .filter(published_at__gte=cutoff)\
             .order_by('-published_at')
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class RecommendedForYouView(generics.ListAPIView):
@@ -1396,7 +1402,7 @@ class RecommendedForYouView(generics.ListAPIView):
                 qs = qs.exclude(id__in=read_story_ids)\
                        .order_by('-total_views')
 
-            return apply_gender_filter(qs, user)[:20]
+            return prefer_gender(qs, user)[:20]
 
         return qs.order_by('-total_views')[:20]
 
@@ -1411,7 +1417,7 @@ class FreeDiscountView(generics.ListAPIView):
         qs = published_stories(self.request.user).filter(
             Q(free_until__gt=now()) | Q(is_free_download=True)
         ).order_by('-free_until', '-created_at')
-        return apply_gender_filter(qs, self.request.user)
+        return qs
 
 
 class RankingsView(generics.ListAPIView):
@@ -1445,7 +1451,7 @@ class RankingsView(generics.ListAPIView):
                 )
             ).order_by('-period_views', '-total_views')
 
-        return apply_gender_filter(qs, self.request.user)[:50]
+        return qs[:50]
 
 
 class AuthorSpotlightView(APIView):

@@ -486,7 +486,7 @@ function storyCardHtml(s) {
     : `<div class="story-cover-placeholder">📖</div>`;
   const badge = s.is_editors_pick ? '<span class="story-badge">Pick</span>'
               : s.is_featured     ? '<span class="story-badge">Featured</span>' : '';
-  return `<div class="story-card" onclick="openPreview('${s.slug}')" role="button" tabindex="0">
+  return `<a class="story-card" href="/explore/${encodeURIComponent(s.slug)}/">
     <div class="story-cover-wrap">${img}${badge}<div class="preview-btn"><span>Read</span></div></div>
     <div class="story-genre">${esc(s.genre)}</div>
     <div class="story-title">${esc(s.title)}</div>
@@ -494,7 +494,7 @@ function storyCardHtml(s) {
     <div class="story-meta">
       <span class="story-rating">${stars(s.average_rating)} ${s.average_rating.toFixed(1)}</span>
     </div>
-  </div>`;
+  </a>`;
 }
 
 // ── Sections view ────────────────────────────────────────────────────────────────
@@ -719,7 +719,6 @@ function closeDrawer() {
 renderSections('');
 
 // Auto-open preview if URL is /explore/<slug>/
-{% if open_slug %}openPreview('{{ open_slug }}');{% endif %}
 </script>
 </body>
 </html>

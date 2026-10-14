@@ -49,6 +49,7 @@ urlpatterns = [
     path('explore/',                              views.explore_stories,     name='explore'),
     path('explore/<slug:slug>/',                  views.story_preview,       name='story_preview'),
     path('explore/<slug:slug>/chapter/',          views.explore_chapter_api, name='explore_chapter_api'),
+    path('explore/<slug:slug>/chapter/<int:number>/', views.book_chapter,   name='book_chapter'),
 
     # ── Shared story links (from the mobile app's share sheet) ────────────────
     path('story/<slug:slug>/',                    views.story_share,         name='story_share'),

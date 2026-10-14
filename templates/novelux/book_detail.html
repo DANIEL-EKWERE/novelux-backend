@@ -1,0 +1,230 @@
+{% load static humanize %}<!DOCTYPE html>
+<html lang="{{ story.language|default:'en' }}">
+<head>
+{% include 'novelux/partials/book_head.html' %}
+<title>{{ story.title }} by {{ author_name }} — Read Free Online | HuxNovel</title>
+<script type="application/ld+json">{{ book_ld|safe }}</script>
+<style>
+.hero{padding:32px 0 8px;}
+.hero-grid{display:grid;grid-template-columns:220px 1fr;gap:32px;align-items:start;}
+.cover{width:220px;aspect-ratio:2/3;border-radius:10px;overflow:hidden;background:var(--muted);box-shadow:0 12px 30px rgba(0,0,0,.15);}
+.cover img{width:100%;height:100%;object-fit:cover;display:block;}
+.cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center;font-weight:600;color:var(--muted-fg);}
+h1.title{font-size:30px;line-height:1.2;letter-spacing:-.02em;margin-bottom:8px;}
+.byline{font-size:14px;color:var(--muted-fg);margin-bottom:18px;}
+.byline strong{color:var(--fg);font-weight:600;}
+.stats{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:18px;}
+.stat .v{font-size:18px;font-weight:700;}
+.stat .k{font-size:12px;color:var(--muted-fg);}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.free-note{font-size:12px;color:var(--muted-fg);margin-top:10px;}
+@media(max-width:700px){
+  .hero-grid{grid-template-columns:1fr;gap:20px;}
+  .cover{width:150px;}
+  h1.title{font-size:24px;}
+  .stats{gap:18px;}
+}
+
+.layout{display:grid;grid-template-columns:1fr 300px;gap:32px;margin-top:32px;}
+@media(max-width:900px){.layout{grid-template-columns:1fr;}}
+.card{border:1px solid var(--border);border-radius:12px;background:var(--card);margin-bottom:20px;overflow:hidden;}
+.card-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.card-h h2{font-size:16px;}
+.card-h span{font-size:12px;color:var(--muted-fg);}
+.card-b{padding:18px;}
+.synopsis{font-size:15px;line-height:1.75;white-space:pre-line;}
+.synopsis.clamp{display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;}
+.link-btn{font-size:13px;color:var(--primary);font-weight:600;margin-top:8px;}
+
+.ch-list{list-style:none;}
+.ch-list li a,.ch-list li .row{display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid var(--border);font-size:14px;}
+.ch-list li:first-child a,.ch-list li:first-child .row{border-top:none;}
+.ch-list li a:hover{background:var(--muted);}
+.ch-num{color:var(--muted-fg);font-variant-numeric:tabular-nums;min-width:34px;}
+.ch-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ch-meta{font-size:12px;color:var(--muted-fg);white-space:nowrap;}
+.ch-list .locked .ch-title{color:var(--muted-fg);}
+.ch-hidden{display:none;}
+
+.review{padding:14px 18px;border-top:1px solid var(--border);}
+.review:first-child{border-top:none;}
+.review .who{font-size:13px;font-weight:600;}
+.review .when{font-size:12px;color:var(--muted-fg);font-weight:400;margin-left:6px;}
+.review p{font-size:14px;margin-top:4px;color:var(--fg);}
+
+.share{display:flex;gap:8px;flex-wrap:wrap;}
+.similar{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+@media(max-width:900px){.similar{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:560px){.similar{grid-template-columns:repeat(2,1fr);}}
+.sim .c{aspect-ratio:2/3;border-radius:8px;overflow:hidden;background:var(--muted);margin-bottom:8px;}
+.sim .c img{width:100%;height:100%;object-fit:cover;display:block;}
+.sim .t{font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.sim .a{font-size:12px;color:var(--muted-fg);}
+.side .card .ch-list li a{padding:9px 16px;}
+</style>
+</head>
+<body>
+{% include 'novelux/partials/book_nav.html' %}
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-grid">
+      <div class="cover">
+        {% if story.cover_image %}<img src="{{ story.cover_image.url }}" alt="{{ story.title }} cover"/>
+        {% else %}<div class="ph">{{ story.title }}</div>{% endif %}
+      </div>
+      <div>
+        <h1 class="title">{{ story.title }}</h1>
+        <p class="byline">by <strong>{{ author_name }}</strong>{% if story.genre %} · {{ story.genre.name }}{% endif %}{% if story.age_rating %} · {{ story.age_rating }}{% endif %}</p>
+
+        <div class="stats">
+          <div class="stat"><div class="v">{{ story.get_status_display|default:story.status|title }}</div><div class="k">Status</div></div>
+          <div class="stat"><div class="v">{{ chapters|length }}</div><div class="k">Chapters</div></div>
+          <div class="stat"><div class="v">{{ story.word_count|intcomma }}</div><div class="k">Words</div></div>
+          <div class="stat"><div class="v">{{ story.total_views|intcomma }}</div><div class="k">Views</div></div>
+          {% if story.total_ratings %}<div class="stat"><div class="v">{{ story.average_rating|floatformat:1 }} ★</div><div class="k">{{ story.total_ratings }} rating{{ story.total_ratings|pluralize }}</div></div>{% endif %}
+        </div>
+
+        {% if tags %}
+        <div class="tags">{% for t in tags %}<span class="chip">{{ t.name }}</span>{% endfor %}</div>
+        {% endif %}
+
+        <div class="actions">
+          {% if first_free %}
+          <a class="btn btn-primary" href="{% url 'novelux:book_chapter' story.slug first_free.chapter_number %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Start Reading
+          </a>
+          {% endif %}
+          <a class="btn btn-outline" href="{{ play_store_url|default:'/download/' }}" target="_blank" rel="noopener">Read in the App</a>
+        </div>
+        <p class="free-note">
+          {% if free_count == chapters|length and chapters %}All {{ free_count }} chapters are free to read here.
+          {% elif free_count %}{{ free_count }} of {{ chapters|length }} chapters free to read on the web · the rest in the app.
+          {% else %}Read this story in the HuxNovel app.{% endif %}
+          · Updated {{ story.updated_at|date:"j M Y" }}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="layout">
+    <div>
+      {% if story.synopsis or story.description %}
+      <section class="card">
+        <div class="card-h"><h2>Synopsis</h2></div>
+        <div class="card-b">
+          <div class="synopsis clamp" id="syn">{{ story.synopsis|default:story.description }}</div>
+          <button class="link-btn" id="synBtn" onclick="var s=document.getElementById('syn');s.classList.toggle('clamp');this.textContent=s.classList.contains('clamp')?'Read more':'Show less';">Read more</button>
+        </div>
+      </section>
+      {% endif %}
+
+      <section class="card" id="chapters">
+        <div class="card-h">
+          <h2>All Chapters</h2>
+          <span>{{ chapters|length }} chapter{{ chapters|length|pluralize }}{% if free_count %} · {{ free_count }} free{% endif %}</span>
+        </div>
+        {% if chapters %}
+        <ul class="ch-list" id="chList">
+          {% for c in chapters %}
+          <li class="{% if c.is_locked %}locked{% endif %}{% if forloop.counter > 30 %} ch-hidden{% endif %}">
+            {% if c.is_locked %}
+            <a href="{% url 'novelux:book_chapter' story.slug c.chapter_number %}" title="Read in the app">
+              <span class="ch-num">{{ c.chapter_number }}</span>
+              <span class="ch-title">{{ c.title|default:"Chapter" }}</span>
+              <span class="ch-meta lock">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                App
+              </span>
+            </a>
+            {% else %}
+            <a href="{% url 'novelux:book_chapter' story.slug c.chapter_number %}">
+              <span class="ch-num">{{ c.chapter_number }}</span>
+              <span class="ch-title">{{ c.title|default:"Chapter" }}</span>
+              <span class="ch-meta">Free</span>
+            </a>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if chapters|length > 30 %}
+        <div class="card-b" style="border-top:1px solid var(--border);padding:12px 18px;">
+          <button class="link-btn" style="margin:0" onclick="document.querySelectorAll('#chList .ch-hidden').forEach(function(e){e.classList.remove('ch-hidden')});this.remove();">Show all {{ chapters|length }} chapters</button>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="card-b" style="color:var(--muted-fg);font-size:14px;">No chapters published yet.</div>
+        {% endif %}
+      </section>
+
+      {% if reviews %}
+      <section class="card">
+        <div class="card-h"><h2>Reader Reviews</h2>{% if story.total_ratings %}<span>{{ story.average_rating|floatformat:1 }} ★ average</span>{% endif %}</div>
+        {% for r in reviews %}
+        <div class="review">
+          <div class="who">{{ r.user.username }}<span class="when">{{ r.created_at|timesince }} ago · {{ r.get_rating_display }}</span></div>
+          <p>{{ r.content|truncatechars:400 }}</p>
+        </div>
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      {% include 'novelux/partials/app_cta.html' %}
+    </div>
+
+    <aside class="side">
+      {% if latest %}
+      <section class="card">
+        <div class="card-h"><h2>Latest Chapters</h2><a href="#chapters" style="font-size:12px;color:var(--primary);font-weight:600;">All</a></div>
+        <ul class="ch-list">
+          {% for c in latest %}
+          <li class="{% if c.is_locked %}locked{% endif %}">
+            <a href="{% url 'novelux:book_chapter' story.slug c.chapter_number %}">
+              <span class="ch-num">{{ c.chapter_number }}</span>
+              <span class="ch-title">{{ c.title|default:"Chapter" }}</span>
+              {% if c.is_locked %}<span class="ch-meta lock">🔒</span>{% else %}<span class="ch-meta">{{ c.updated_at|date:"j M" }}</span>{% endif %}
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+      {% endif %}
+
+      <section class="card">
+        <div class="card-h"><h2>Share</h2></div>
+        <div class="card-b share">
+          <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://www.facebook.com/sharer/sharer.php?u={{ og.url|urlencode }}">Facebook</a>
+          <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?url={{ og.url|urlencode }}&text={{ story.title|urlencode }}">X</a>
+          <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text={{ story.title|urlencode }}%20{{ og.url|urlencode }}">WhatsApp</a>
+          <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('{{ og.url|escapejs }}').then(()=>{this.textContent='Copied!';})">Copy link</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  {% if similar %}
+  <section style="margin-top:12px;">
+    <h2 style="font-size:18px;margin-bottom:14px;">You Might Like</h2>
+    <div class="similar">
+      {% for s in similar %}
+      <a class="sim" href="{% url 'novelux:story_preview' s.story.slug %}">
+        <div class="c">{% if s.story.cover_image %}<img src="{{ s.story.cover_image.url }}" alt="" loading="lazy"/>{% endif %}</div>
+        <div class="t">{{ s.story.title }}</div>
+        <div class="a">{{ s.author_name }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>© HuxNovel (formerly NoveluX)</span>
+    <a href="/explore/">Explore</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/faq/">Help</a>
+  </div>
+</footer>
+</body>
+</html>

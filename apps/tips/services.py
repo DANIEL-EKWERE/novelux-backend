@@ -73,8 +73,9 @@ def _set_quantity(tip, quantity):
 
 
 def _credit_earnings(tip, price_usd):
-    """Credit the author once, from the store price RevenueCat reports
-    (the whole transaction, so it already covers the quantity)."""
+    """Record the author's share once, from the store price RevenueCat reports
+    (the whole transaction, so it already covers the quantity). It stays held
+    on the Tip until their SE approves it — see release_tip_earning."""
     if tip.author_earned_usd is not None or price_usd is None:
         return
     price  = Decimal(str(price_usd))
@@ -84,12 +85,51 @@ def _credit_earnings(tip, price_usd):
     tip.author_earned_usd = earned
     tip.save(update_fields=['amount_usd', 'author_earned_usd'])
 
-    profile = getattr(tip.recipient, 'author_profile', None)
-    if profile is not None:
-        type(profile).objects.filter(pk=profile.pk).update(
-            pending_payout=F('pending_payout') + earned,
-            total_earnings=F('total_earnings') + earned,
-        )
+
+def release_tip_earning(tip_id, by=None):
+    """Credit a held tip/gift earning to its author. Idempotent: returns True
+    only for the call that actually paid, so a double-click can't pay twice."""
+    with transaction.atomic():
+        tip = (Tip.objects.select_for_update().select_related('recipient', 'story')
+               .get(pk=tip_id))
+        if (tip.earning_status != Tip.EARNING_HELD
+                or tip.status != Tip.STATUS_COMPLETED):
+            return False
+
+        author = tip.recipient
+        if tip.author_coins_earned:
+            # Coin tip — same crediting the tip used to do immediately.
+            author.add_coins(tip.author_coins_earned,
+                             reason=f'{tip.label} received for {tip.story.title}')
+            earned = Decimal(tip.author_coins_earned) / 100
+        else:
+            earned = tip.author_earned_usd or Decimal('0')
+
+        profile = getattr(author, 'author_profile', None)
+        if profile is not None and earned:
+            type(profile).objects.filter(pk=profile.pk).update(
+                pending_payout=F('pending_payout') + earned,
+                total_earnings=F('total_earnings') + earned,
+            )
+
+        tip.earning_status = Tip.EARNING_RELEASED
+        tip.earning_reviewed_by = by
+        tip.earning_reviewed_at = timezone.now()
+        tip.save(update_fields=['earning_status', 'earning_reviewed_by', 'earning_reviewed_at'])
+    return True
+
+
+def reject_tip_earning(tip_id, by=None):
+    """Resolve a held tip/gift earning without paying it. Idempotent."""
+    with transaction.atomic():
+        tip = Tip.objects.select_for_update().get(pk=tip_id)
+        if tip.earning_status != Tip.EARNING_HELD:
+            return False
+        tip.earning_status = Tip.EARNING_REJECTED
+        tip.earning_reviewed_by = by
+        tip.earning_reviewed_at = timezone.now()
+        tip.save(update_fields=['earning_status', 'earning_reviewed_by', 'earning_reviewed_at'])
+    return True
 
 
 def find_rc_transactions(subscriber, product_id):
@@ -157,8 +197,14 @@ def refund_gift(transaction_id):
         Story.objects.filter(pk=tip.story_id).update(
             total_tips=Greatest(F('total_tips') - GIFTS[tip.gift_label].points * tip.quantity, 0)
         )
+        if tip.earning_status == Tip.EARNING_HELD:
+            # Never paid — just make sure it can't be approved later.
+            tip.earning_status = Tip.EARNING_REJECTED
+            tip.save(update_fields=['earning_status'])
+            return
         profile = getattr(tip.recipient, 'author_profile', None)
-        if tip.author_earned_usd and profile is not None:
+        if (tip.earning_status == Tip.EARNING_RELEASED
+                and tip.author_earned_usd and profile is not None):
             type(profile).objects.filter(pk=profile.pk).update(
                 pending_payout=F('pending_payout') - tip.author_earned_usd,
                 total_earnings=F('total_earnings') - tip.author_earned_usd,

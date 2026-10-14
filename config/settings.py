@@ -32,6 +32,7 @@ DJANGO_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'django.contrib.sitemaps',
+    'django.contrib.humanize',
 ]
 
 THIRD_PARTY_APPS = [
@@ -419,6 +420,10 @@ SUBSCRIPTION_PLANS = [
 
 AUTHOR_REVENUE_SHARE = 0.20   # 20% of a chapter unlock goes to the author
 TIP_AUTHOR_SHARE     = 0.25   # 25% of tip goes to author
+
+# Store listings, linked from the public book pages ("continue in the app").
+PLAY_STORE_URL = config('PLAY_STORE_URL', default='https://play.google.com/store/apps/details?id=com.daniel.huxnovel')
+APP_STORE_URL  = config('APP_STORE_URL',  default='https://apps.apple.com/app/novelux/id6787187018')
 
 # Real-money gifts (store consumables). Author earns GIFT_AUTHOR_SHARE of what's
 # left after Apple/Google take STORE_FEE_RATE (15% in the small-business tiers).

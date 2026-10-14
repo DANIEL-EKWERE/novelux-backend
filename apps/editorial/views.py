@@ -6111,3 +6111,240 @@ def se_review_cover_request(request, pk):
         pass
 
     return Response({'ok': True, 'status': cover_req.status})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SE: author details + earnings approval
+# ══════════════════════════════════════════════════════════════════════════════
+
+logger = logging.getLogger(__name__)
+
+
+def _scoped_authors(user):
+    """Authors an editor may see and act on: an SE only their linked authors,
+    a CE every author."""
+    qs = get_user_model().objects.filter(role='author')
+    if user.role != 'ce':
+        qs = qs.filter(editor_link__assigned_se=user)
+    return qs
+
+
+# Fields an SE may change. Email, password, KYC and payout details are
+# deliberately not editable here.
+_SE_EDITABLE_USER_FIELDS    = ('first_name', 'last_name', 'bio')
+_SE_EDITABLE_PROFILE_FIELDS = ('pen_name',)
+
+
+def _author_detail_payload(request, author):
+    from apps.stories.models import Story
+    from apps.users.models import AuthorKYC
+
+    profile = AuthorProfile.objects.filter(user=author).first()
+    kyc     = AuthorKYC.objects.filter(user=author).first()
+    link    = AuthorEditorLink.objects.filter(author=author).select_related('assigned_se').first()
+
+    stories = (Story.objects.filter(author=author)
+               .annotate(
+                   chapters_total=models.Count('chapters', distinct=True),
+                   chapters_published=models.Count(
+                       'chapters', filter=models.Q(chapters__is_published=True), distinct=True),
+               )
+               .order_by('-updated_at'))
+    books = [{
+        'id':                 s.pk,
+        'title':              s.title,
+        'slug':               s.slug,
+        'cover_image':        request.build_absolute_uri(s.cover_image.url) if s.cover_image else None,
+        'status':             s.status,
+        'contract_status':    s.contract_status,
+        'chapters_total':     s.chapters_total,
+        'chapters_published': s.chapters_published,
+        'word_count':         s.word_count,
+        'total_views':        s.total_views,
+        'updated_at':         s.updated_at.isoformat(),
+    } for s in stories]
+
+    return {
+        'id':           author.pk,
+        'username':     author.username,
+        'first_name':   author.first_name,
+        'last_name':    author.last_name,
+        'email':        author.email,
+        'bio':          author.bio,
+        'author_code':  author.author_code,
+        'date_joined':  author.date_joined.isoformat(),
+        'avatar':       request.build_absolute_uri(author.avatar.url) if author.avatar else None,
+        'followers':    author.followers.count(),
+        'pen_name':     profile.pen_name if profile else '',
+        'has_contract': profile.has_contract if profile else False,
+        'contract_type': profile.get_contract_type_display() if profile else '',
+        # Read-only, from the author's KYC submission
+        'kyc_status':   kyc.status if kyc else 'not_submitted',
+        'phone':        kyc.phone if kyc else '',
+        'country':      kyc.country if kyc else '',
+        'assigned_se':  (link.assigned_se.get_full_name() or link.assigned_se.username)
+                        if link and link.assigned_se else None,
+        'books':        books,
+        'totals': {
+            'books':  len(books),
+            'words':  sum(b['word_count'] or 0 for b in books),
+            'views':  sum(b['total_views'] or 0 for b in books),
+        },
+    }
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsSEOrAbove])
+def se_author_detail(request, author_id):
+    """GET   /api/editorial/authors/<id>/  — author details + all their books
+    PATCH /api/editorial/authors/<id>/  — edit first_name, last_name, bio, pen_name
+    """
+    author = get_object_or_404(_scoped_authors(request.user), pk=author_id)
+
+    if request.method == 'PATCH':
+        data = request.data
+        user_updates = {f: str(data[f]).strip() for f in _SE_EDITABLE_USER_FIELDS if f in data}
+        profile_updates = {f: str(data[f]).strip() for f in _SE_EDITABLE_PROFILE_FIELDS if f in data}
+        if 'first_name' in user_updates and len(user_updates['first_name']) > 150:
+            return Response({'detail': 'First name is too long.'}, status=400)
+        if 'last_name' in user_updates and len(user_updates['last_name']) > 150:
+            return Response({'detail': 'Last name is too long.'}, status=400)
+        if 'pen_name' in profile_updates and len(profile_updates['pen_name']) > 100:
+            return Response({'detail': 'Pen name is too long.'}, status=400)
+        if user_updates:
+            for f, v in user_updates.items():
+                setattr(author, f, v)
+            author.save(update_fields=list(user_updates))
+        if profile_updates:
+            profile, _ = AuthorProfile.objects.get_or_create(user=author)
+            for f, v in profile_updates.items():
+                setattr(profile, f, v)
+            profile.save(update_fields=list(profile_updates))
+        if user_updates or profile_updates:
+            logger.info('SE %s edited author %s: %s', request.user.pk, author.pk,
+                        sorted({**user_updates, **profile_updates}))
+
+    return Response(_author_detail_payload(request, author))
+
+
+def _held_earning_items(authors):
+    """Every held earning for these authors, grouped per author id.
+
+    Coin amounts are what the author is credited in coins (chapter unlocks and
+    coin tips); USD is what real-money gifts add to their payout balance."""
+    from collections import defaultdict
+    from apps.chapters.models import ChapterUnlockEarning
+    from apps.tips.models import Tip
+
+    grouped = defaultdict(list)
+    unlocks = (ChapterUnlockEarning.objects
+               .filter(author__in=authors, status=ChapterUnlockEarning.STATUS_HELD)
+               .select_related('chapter__story'))
+    for e in unlocks:
+        grouped[e.author_id].append({
+            'type': 'unlock', 'id': e.pk,
+            'created_at': e.created_at.isoformat(),
+            'description': f'Chapter {e.chapter.chapter_number} unlock',
+            'story': e.chapter.story.title,
+            'coins': e.coins, 'usd': None,
+            'reader_paid': f'{e.coins_spent} coins',
+        })
+    tips = (Tip.objects
+            .filter(recipient__in=authors, earning_status=Tip.EARNING_HELD,
+                    status=Tip.STATUS_COMPLETED)
+            .select_related('story', 'sender'))
+    for t in tips:
+        is_gift = not t.author_coins_earned
+        if is_gift and t.author_earned_usd is None:
+            continue   # store price not reported yet — nothing to approve
+        grouped[t.recipient_id].append({
+            'type': 'tip', 'id': t.pk,
+            'created_at': t.created_at.isoformat(),
+            'description': f'{t.label or "Tip"}{" ×" + str(t.quantity) if t.quantity > 1 else ""}'
+                           f' {"gift" if is_gift else "tip"} from {t.sender.username}',
+            'story': t.story.title,
+            'coins': None if is_gift else t.author_coins_earned,
+            'usd': str(t.author_earned_usd) if is_gift else None,
+            'reader_paid': f'${t.amount_usd}' if is_gift else f'{t.coins_amount} coins',
+        })
+    for items in grouped.values():
+        items.sort(key=lambda i: i['created_at'], reverse=True)
+    return grouped
+
+
+@api_view(['GET'])
+@permission_classes([IsSEOrAbove])
+def se_pending_earnings(request):
+    """GET /api/editorial/earnings/pending/
+    Held earnings for the editor's authors, one entry per author with a
+    total and a per-earning breakdown."""
+    from decimal import Decimal
+    authors = list(_scoped_authors(request.user).select_related('author_profile'))
+    grouped = _held_earning_items(authors)
+
+    result = []
+    for a in authors:
+        items = grouped.get(a.pk)
+        if not items:
+            continue
+        profile = getattr(a, 'author_profile', None)
+        result.append({
+            'author_id': a.pk,
+            'username':  a.username,
+            'name':      (profile.pen_name if profile and profile.pen_name else '')
+                         or a.get_full_name() or a.username,
+            'count':     len(items),
+            'coins':     sum(i['coins'] or 0 for i in items),
+            'usd':       str(sum((Decimal(i['usd']) for i in items if i['usd']), Decimal('0'))),
+            'items':     items,
+        })
+    result.sort(key=lambda r: r['name'].lower())
+    return Response({'authors': result, 'total_items': sum(r['count'] for r in result)})
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def se_review_earnings(request):
+    """POST /api/editorial/earnings/review/
+    Body: {"action": "approve"|"reject",
+           "author_id": <id>            (optional — omit for all your authors),
+           "items": [{"type": "unlock"|"tip", "id": <id>}, ...]  (optional)}
+    Approving credits the earnings to the author's balance, after which they
+    show on the author's dashboard. Rejecting closes them without paying."""
+    from apps.chapters.models import ChapterUnlockEarning
+    from apps.tips.models import Tip
+    from apps.tips import services as tip_services
+
+    action = request.data.get('action')
+    if action not in ('approve', 'reject'):
+        return Response({'detail': 'action must be "approve" or "reject".'}, status=400)
+
+    authors = _scoped_authors(request.user)
+    author_id = request.data.get('author_id')
+    if author_id is not None:
+        authors = authors.filter(pk=author_id)
+
+    unlocks = ChapterUnlockEarning.objects.filter(
+        author__in=authors, status=ChapterUnlockEarning.STATUS_HELD)
+    tips = Tip.objects.filter(
+        recipient__in=authors, earning_status=Tip.EARNING_HELD, status=Tip.STATUS_COMPLETED)
+
+    items = request.data.get('items')
+    if items:
+        unlock_ids = [i.get('id') for i in items if i.get('type') == 'unlock']
+        tip_ids    = [i.get('id') for i in items if i.get('type') == 'tip']
+        unlocks = unlocks.filter(pk__in=unlock_ids)
+        tips    = tips.filter(pk__in=tip_ids)
+
+    done = 0
+    for earning in unlocks.select_related('author', 'chapter__story'):
+        ok = earning.release(by=request.user) if action == 'approve' else earning.reject(by=request.user)
+        done += bool(ok)
+    for tip_id in tips.values_list('pk', flat=True):
+        if action == 'approve':
+            done += bool(tip_services.release_tip_earning(tip_id, by=request.user))
+        else:
+            done += bool(tip_services.reject_tip_earning(tip_id, by=request.user))
+
+    logger.info('Editor %s %sd %s earnings (author=%s)', request.user.pk, action, done, author_id)
+    return Response({'ok': True, 'action': action, 'processed': done})

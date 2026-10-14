@@ -1,0 +1,21 @@
+{% load static %}<div class="app-cta">
+  <div>
+    <h3>{{ cta_title|default:"Keep reading in the HuxNovel app" }}</h3>
+    <p>{{ cta_text|default:"Unlock every chapter, follow the author and get notified when new chapters drop." }}</p>
+  </div>
+  <div class="btns store-badges">
+    {% if app_store_url %}
+    <a class="badge-apple" href="{{ app_store_url }}" target="_blank" rel="noopener" aria-label="Download on the App Store">
+      <img src="{% static 'novelux/images/badges/app-store-badge.svg' %}" alt="Download on the App Store" height="44"/>
+    </a>
+    {% endif %}
+    {% if play_store_url %}
+    <a class="badge-google" href="{{ play_store_url }}" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+      <img src="{% static 'novelux/images/badges/google-play-badge.png' %}" alt="Get it on Google Play" height="66"/>
+    </a>
+    {% endif %}
+    {% if not play_store_url and not app_store_url %}
+    <a class="btn btn-primary" href="/download/">Get the App</a>
+    {% endif %}
+  </div>
+</div>

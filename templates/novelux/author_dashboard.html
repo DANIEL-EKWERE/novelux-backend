@@ -396,6 +396,13 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
 .modal-overlay.show .modal-box{transform:translateY(0);}
 .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
 .modal-head h2{font-size:16px;font-weight:600;}
+.bu-drop{display:block;border:1.5px dashed var(--border);padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;}
+.bu-drop:hover,.bu-drop.drag{border-color:var(--primary);background:color-mix(in srgb,var(--primary) 5%,transparent);}
+.bu-row{display:grid;grid-template-columns:44px 1fr 70px 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.bu-row input{width:100%;padding:6px 8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit;font-size:13px;}
+.bu-row .bu-x{background:none;border:none;color:var(--muted-fg);cursor:pointer;font-size:18px;line-height:1;}
+.bu-warn{color:hsl(38 92% 40%);font-size:11px;}
+.bu-err{color:hsl(0 68% 50%);}
 
 /* ── HERO STRIPE (dashboard) ── */
 .dash-hero{
@@ -1020,6 +1027,10 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
             <option value="">Loading stories…</option>
           </select>
           <button class="btn btn-primary btn-sm" onclick="const sel=document.getElementById('bookSelector');const slug=sel?.options[sel?.selectedIndex]?.dataset?.slug||'';newChapter(slug);showPage('editor',document.querySelector('[onclick*=editor]'))">+ New Chapter</button>
+          <button class="btn btn-outline btn-sm" onclick="openBulkUpload()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Bulk upload
+          </button>
         </div>
       </div>
     </div>
@@ -1612,6 +1623,51 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
   </div>
 </div>
 
+<!-- BULK UPLOAD -->
+<div class="modal-overlay" id="bulkUploadModal" onclick="if(event.target===this)closeBulkUpload()">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-head">
+      <div>
+        <h2>Bulk upload chapters</h2>
+        <p style="font-size:12px;color:var(--muted-fg);margin-top:4px;" id="buStoryLabel"></p>
+      </div>
+      <button onclick="closeBulkUpload()" style="background:none;border:none;color:var(--muted-fg);font-size:22px;line-height:1;cursor:pointer;">×</button>
+    </div>
+
+    <div id="buPick">
+      <label class="bu-drop" id="buDrop">
+        <input type="file" id="buFiles" accept=".docx,.txt,.md" multiple hidden onchange="buAddFiles(this.files);this.value=''">
+        <div style="font-size:14px;font-weight:500;margin-bottom:4px;">Choose files or drag them here</div>
+        <div style="font-size:12px;color:var(--muted-fg);">Word (.docx) or text (.txt) files. One chapter per file, or one file with many chapters.</div>
+      </label>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-size:12px;color:var(--muted-fg);cursor:pointer;">
+        <input type="checkbox" id="buSplit" checked onchange="buRebuild()">
+        <span>Split a file into separate chapters at headings like <strong>"Chapter 1"</strong> or <strong>"Chapter Two: The Knock"</strong></span>
+      </label>
+      <p style="font-size:11px;color:var(--muted-fg);margin-top:8px;">Old Word files (.doc) and PDFs can't be read — open them in Word or Google Docs and save as .docx first. Images in documents are left out.</p>
+    </div>
+
+    <div id="buPreview" style="display:none;margin-top:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <strong style="font-size:13px;" id="buCount"></strong>
+        <button class="btn btn-ghost btn-sm" onclick="buReset()">Clear all</button>
+      </div>
+      <div class="bu-row" style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);padding-top:0;">
+        <span>No.</span><span>Chapter title</span><span>Words</span><span></span>
+      </div>
+      <div id="buList" style="max-height:38vh;overflow-y:auto;"></div>
+      <p style="font-size:12px;color:var(--muted-fg);margin-top:10px;">Chapters are saved as <strong>drafts</strong>. Review them in the Chapter Manager, then publish as usual.</p>
+    </div>
+
+    <div id="buProgress" style="display:none;margin-top:16px;font-size:13px;"></div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+      <button class="btn btn-outline btn-sm" onclick="closeBulkUpload()" id="buCancel">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="buGo" onclick="buUpload()" disabled>Upload chapters</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast">
   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
@@ -1984,6 +2040,218 @@ function updateChapterBook(){
   const label = document.getElementById('chapterBookLabel');
   if(label) label.textContent = title + ' · loading…';
   if(window._loadChapters) window._loadChapters(slug);
+}
+
+// ── Bulk upload ───────────────────────────────────────────────────────────────
+// Documents are read in the browser (Word via mammoth.js) and each chapter is
+// created as a draft through the same endpoint the editor uses, so all the
+// usual rules (chapter lock at the review threshold, clean-up of the HTML,
+// word counts) apply unchanged.
+let _buFiles = [];      // [{name, html}]
+let _buChapters = [];   // [{title, html, words, file}]
+let _buBusy = false;
+
+function _buSlug(){
+  const sel = document.getElementById('bookSelector');
+  const opt = sel?.options[sel.selectedIndex];
+  return { slug: opt?.dataset?.slug || opt?.value || '', title: opt?.text || '' };
+}
+
+function openBulkUpload(){
+  const { slug, title } = _buSlug();
+  if(!slug){ showToast('Select a story first'); return; }
+  document.getElementById('buStoryLabel').textContent = 'Adding to: ' + title;
+  buReset();
+  document.getElementById('bulkUploadModal').classList.add('show');
+}
+function closeBulkUpload(){
+  if(_buBusy) return;
+  document.getElementById('bulkUploadModal').classList.remove('show');
+}
+function buReset(){
+  _buFiles = []; _buChapters = [];
+  document.getElementById('buProgress').style.display = 'none';
+  document.getElementById('buPick').style.display = '';
+  buRender();
+}
+
+let _mammothLoading = null;
+function _loadMammoth(){
+  if(window.mammoth) return Promise.resolve();
+  if(!_mammothLoading){
+    _mammothLoading = new Promise((resolve, reject) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+      sc.onload = resolve;
+      sc.onerror = () => { _mammothLoading = null; reject(new Error('Could not load the Word reader')); };
+      document.head.appendChild(sc);
+    });
+  }
+  return _mammothLoading;
+}
+
+function _buEsc(t){ return String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function _txtToHtml(text){
+  text = text.replace(/\r\n?/g, '\n').trim();
+  // Blank lines separate paragraphs; without any, every line is a paragraph.
+  const blocks = /\n\s*\n/.test(text) ? text.split(/\n\s*\n/) : text.split('\n');
+  return blocks.map(b => b.trim()).filter(Boolean)
+               .map(b => '<p>' + _buEsc(b).replace(/\n/g, '<br>') + '</p>').join('');
+}
+
+async function buAddFiles(fileList){
+  const files = [...fileList].sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}));
+  const bad = [];
+  for(const f of files){
+    const ext = f.name.split('.').pop().toLowerCase();
+    try {
+      let html;
+      if(ext === 'docx'){
+        await _loadMammoth();
+        const res = await mammoth.convertToHtml({ arrayBuffer: await f.arrayBuffer() });
+        html = res.value;
+      } else if(ext === 'txt' || ext === 'md'){
+        html = _txtToHtml(await f.text());
+      } else {
+        bad.push(f.name); continue;
+      }
+      // Drop images — embedded pictures would bloat the chapter.
+      const d = document.createElement('div'); d.innerHTML = html;
+      d.querySelectorAll('img').forEach(i => i.remove());
+      _buFiles.push({ name: f.name, html: d.innerHTML });
+    } catch(e){
+      bad.push(f.name);
+    }
+  }
+  if(bad.length) showToast("Couldn't read: " + bad.join(', '));
+  buRebuild();
+}
+
+// "Chapter 1", "CHAPTER TWO: The Knock", "Ch. 3 - Title", "Chapter IV"
+const _BU_HEAD = /^\s*(chapter|chap\.?|ch\.)\s*([0-9]+|[ivxlcdm]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty[\w-]*|thirty[\w-]*|forty[\w-]*|fifty[\w-]*)\b\s*[:.\-–—]?\s*(.*)$/i;
+
+function _words(html){
+  const d = document.createElement('div'); d.innerHTML = html;
+  return (d.textContent.match(/\S+/g) || []).length;
+}
+
+function _splitFile(file){
+  const base = file.name.replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ').trim();
+  const d = document.createElement('div'); d.innerHTML = file.html;
+  const nodes = [...d.childNodes];
+  const split = document.getElementById('buSplit').checked;
+  const parts = [];
+  let cur = null, intro = [];
+
+  for(const n of nodes){
+    const text = (n.textContent || '').trim();
+    const m = split && text.length && text.length <= 120 ? text.match(_BU_HEAD) : null;
+    if(m){
+      cur = { title: (m[3] || '').trim() || `Chapter ${m[2]}`, nodes: [] };
+      parts.push(cur);
+    } else if(cur){
+      cur.nodes.push(n);
+    } else {
+      intro.push(n);
+    }
+  }
+  const html = arr => arr.map(n => n.outerHTML || (n.textContent.trim() ? '<p>' + _buEsc(n.textContent) + '</p>' : '')).join('');
+
+  if(!parts.length){
+    // One chapter: use the first heading as the title when there is one.
+    const h = d.querySelector('h1,h2,h3');
+    let title = base;
+    if(h && h.textContent.trim().length <= 120){ title = h.textContent.trim(); h.remove(); }
+    return [{ title, html: d.innerHTML, file: file.name }];
+  }
+  const out = [];
+  if(_words(html(intro)) >= 30) out.push({ title: base, html: html(intro), file: file.name });
+  parts.forEach(p => out.push({ title: p.title, html: html(p.nodes), file: file.name }));
+  return out;
+}
+
+function buRebuild(){
+  _buChapters = _buFiles.flatMap(_splitFile).map(c => ({ ...c, words: _words(c.html) }));
+  buRender();
+}
+
+function buRemove(i){ _buChapters.splice(i, 1); buRender(); }
+
+async function _buNextNumber(slug){
+  const r = await fetch(`/api/chapters/${slug}/chapters/`, { headers: _editorHeaders() });
+  const data = r.ok ? await r.json() : { results: [] };
+  const list = data.results || data || [];
+  return list.reduce((m, ch) => Math.max(m, ch.chapter_number || 0), 0) + 1;
+}
+
+let _buStart = 1;
+async function buRender(){
+  const list = document.getElementById('buList');
+  const n = _buChapters.length;
+  document.getElementById('buPreview').style.display = n ? '' : 'none';
+  document.getElementById('buGo').disabled = !n;
+  document.getElementById('buGo').textContent = n ? `Upload ${n} chapter${n === 1 ? '' : 's'}` : 'Upload chapters';
+  document.getElementById('buCount').textContent = `${n} chapter${n === 1 ? '' : 's'} found`;
+  if(!n){ list.innerHTML = ''; return; }
+  try { _buStart = await _buNextNumber(_buSlug().slug); } catch(e) {}
+  list.innerHTML = _buChapters.map((c, i) => `
+    <div class="bu-row">
+      <span style="color:var(--muted-fg);">#${_buStart + i}</span>
+      <div>
+        <input value="${_buEsc(c.title)}" maxlength="255" oninput="_buChapters[${i}].title=this.value">
+        ${c.words < 100 ? '<div class="bu-warn">Very short — check this split</div>' : ''}
+      </div>
+      <span style="color:var(--muted-fg);">${c.words.toLocaleString()}</span>
+      <button class="bu-x" title="Remove" onclick="buRemove(${i})">×</button>
+    </div>`).join('');
+}
+
+async function buUpload(){
+  const { slug } = _buSlug();
+  if(!slug || !_buChapters.length || _buBusy) return;
+  if(_buChapters.some(c => !c.title.trim())){ showToast('Every chapter needs a title'); return; }
+
+  _buBusy = true;
+  const go = document.getElementById('buGo'), cancel = document.getElementById('buCancel');
+  go.disabled = true; cancel.disabled = true;
+  document.getElementById('buPick').style.display = 'none';
+  const prog = document.getElementById('buProgress');
+  prog.style.display = '';
+
+  let num = await _buNextNumber(slug).catch(() => _buStart);
+  let done = 0, stopMsg = '';
+  const total = _buChapters.length;
+  for(const c of _buChapters){
+    prog.textContent = `Uploading ${done + 1} of ${total}: ${c.title}…`;
+    try {
+      const res = await fetch(`/api/chapters/${slug}/chapters/`, {
+        method: 'POST', headers: _editorHeaders(),
+        body: JSON.stringify({ title: c.title.trim(), content: c.html, chapter_number: num, is_published: false }),
+      });
+      if(!res.ok){
+        const err = await res.json().catch(() => ({}));
+        stopMsg = err.detail || (err.chapter_number && err.chapter_number[0]) || `Upload stopped (error ${res.status}).`;
+        break;
+      }
+      done++; num++;
+    } catch(e){
+      stopMsg = 'Network error — check your connection and upload the remaining chapters again.';
+      break;
+    }
+  }
+  _buChapters = _buChapters.slice(done);
+  _buBusy = false; cancel.disabled = false;
+
+  if(window._loadChapters) window._loadChapters(slug);
+  if(!stopMsg){
+    showToast(`${done} chapter${done === 1 ? '' : 's'} uploaded as drafts`);
+    closeBulkUpload();
+    return;
+  }
+  prog.innerHTML = `<div>${done} of ${total} chapters uploaded as drafts.</div>
+                    <div class="bu-err" style="margin-top:6px;">${_buEsc(stopMsg)}</div>`;
+  buRender();
 }
 
 // Analytics chart

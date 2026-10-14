@@ -53,6 +53,24 @@ class Tip(models.Model):
     amount_usd         = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     author_earned_usd  = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
 
+    # The author's share is held until their SE approves it — nothing reaches
+    # the author's coins or payout balance before then (see services.release_tip_earning).
+    EARNING_HELD     = 'held'
+    EARNING_RELEASED = 'released'
+    EARNING_REJECTED = 'rejected'
+    EARNING_CHOICES  = [
+        (EARNING_HELD,     'Held — awaiting SE approval'),
+        (EARNING_RELEASED, 'Released to author'),
+        (EARNING_REJECTED, 'Rejected — never paid'),
+    ]
+    earning_status      = models.CharField(max_length=10, choices=EARNING_CHOICES,
+                              default=EARNING_HELD, db_index=True)
+    author_coins_earned = models.PositiveIntegerField(
+                              default=0, help_text="Coin tips: the author's share in coins.")
+    earning_reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='reviewed_tip_earnings')
+    earning_reviewed_at = models.DateTimeField(null=True, blank=True)
+
     created_at  = models.DateTimeField(auto_now_add=True)
 
     class Meta:

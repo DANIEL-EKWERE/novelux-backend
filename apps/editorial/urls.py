@@ -23,6 +23,9 @@ urlpatterns = [
     path('promotion-requests/', views.se_promotion_requests, name='se-promotion-requests'),
     path('author-balances/', views.se_author_balances, name='se-author-balances'),
     path('author-balance/<int:author_id>/approve/', views.se_approve_author_balance, name='se-approve-balance'),
+    path('authors/<int:author_id>/',  views.se_author_detail,    name='se-author-detail'),
+    path('earnings/pending/',         views.se_pending_earnings, name='se-pending-earnings'),
+    path('earnings/review/',          views.se_review_earnings,  name='se-review-earnings'),
     path('author-balance/<int:author_id>/award-bonus/', views.se_award_completion_bonus, name='se-award-bonus'),
     # CE story review
     path('ce-story-queue/', views.CEStoryQueueView.as_view(), name='ce-story-queue'),

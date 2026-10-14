@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.stories.models import Story
 from .models import Tip
+from . import services
 
 User = get_user_model()
 
@@ -37,9 +38,16 @@ class SendTipTests(TestCase):
         self.assertEqual(res.status_code, 201, res.data)
         self.reader.refresh_from_db(); self.author.refresh_from_db(); self.story.refresh_from_db()
         self.assertEqual(self.reader.coin_balance, 100)
-        self.assertEqual(self.author.coin_balance, res.data['author_earned'])
         self.assertEqual(self.story.total_tips, 500)
         self.assertEqual(notify.call_args.kwargs['gift_label'], 'Champagne')
+
+        # The author's share is held until their SE approves it
+        tip = Tip.objects.get()
+        self.assertEqual((self.author.coin_balance, tip.earning_status), (0, Tip.EARNING_HELD))
+        self.assertTrue(services.release_tip_earning(tip.pk))
+        self.assertFalse(services.release_tip_earning(tip.pk))   # can't pay twice
+        self.author.refresh_from_db()
+        self.assertEqual(self.author.coin_balance, res.data['author_earned'])
 
     def test_label_inferred_from_amount_for_old_clients(self, notify):
         self.assertEqual(self.tip(coins_amount=100).status_code, 201)
@@ -127,9 +135,26 @@ class PaidGiftTests(TestCase):
             self.webhook({'type': 'NON_RENEWING_PURCHASE', 'product_id': 'novelux_gift_coffee',
                           'transaction_id': 'GPA.1', 'price': 3.40})
         self.profile.refresh_from_db()
+        self.assertEqual(str(self.profile.pending_payout), '0.00')   # held for SE approval
+        self.assertEqual(notify.call_count, 1)
+
+        tip = Tip.objects.get(iap_transaction_id='GPA.1')
+        self.assertTrue(services.release_tip_earning(tip.pk))
+        self.assertFalse(services.release_tip_earning(tip.pk))
+        self.profile.refresh_from_db()
         # 3.40 × (1 − 0.15) × 0.25 = 0.7225 → 0.72
         self.assertEqual(str(self.profile.pending_payout), '0.72')
-        self.assertEqual(notify.call_count, 1)
+
+    def test_refund_after_approval_claws_back(self, rc, notify):
+        rc.return_value = rc_subscriber('GPA.1')
+        self.confirm(self.intent()['intent_id'])
+        self.webhook({'type': 'NON_RENEWING_PURCHASE', 'product_id': 'novelux_gift_coffee',
+                      'transaction_id': 'GPA.1', 'price': 3.40})
+        services.release_tip_earning(Tip.objects.get(iap_transaction_id='GPA.1').pk)
+        self.webhook({'type': 'CANCELLATION', 'product_id': 'novelux_gift_coffee',
+                      'transaction_id': 'GPA.1'})
+        self.profile.refresh_from_db()
+        self.assertEqual(str(self.profile.pending_payout), '0.00')
 
     def test_webhook_alone_completes_newest_intent(self, rc, notify):
         self.intent()
@@ -155,6 +180,10 @@ class PaidGiftTests(TestCase):
         self.profile.refresh_from_db(); self.story.refresh_from_db()
         self.assertEqual(str(self.profile.pending_payout), '0.00')
         self.assertEqual(self.story.total_tips, 0)
+        # Refunded before approval — it can never be approved afterwards
+        tip = Tip.objects.get(iap_transaction_id='GPA.1')
+        self.assertEqual(tip.earning_status, Tip.EARNING_REJECTED)
+        self.assertFalse(services.release_tip_earning(tip.pk))
         self.assertEqual(APIClient().get('/api/tips/tale/top-tippers/').data, [])
 
     def test_cancelled_purchase_drops_intent(self, rc, notify):

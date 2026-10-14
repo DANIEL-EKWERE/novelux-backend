@@ -1,5 +1,4 @@
 from collections import defaultdict
-from decimal import Decimal
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -54,18 +53,12 @@ class SendTipView(APIView):
                 if not sender.deduct_coins(coins, reason=f'{label} for {story.title}'):
                     return Response({'detail': 'Insufficient coins.'}, status=402)
 
+                # The author's share is held on the Tip until their SE approves
+                # it — services.release_tip_earning credits it then.
                 author_cut = int(coins * settings.TIP_AUTHOR_SHARE)
-                author.add_coins(author_cut, reason=f'{label} received for {story.title}')
                 User.objects.filter(pk=author.pk).update(
                     total_tips_received=F('total_tips_received') + coins
                 )
-
-                if hasattr(author, 'author_profile'):
-                    earned = Decimal(author_cut) / 100
-                    type(author.author_profile).objects.filter(pk=author.author_profile.pk).update(
-                        pending_payout=F('pending_payout') + earned,
-                        total_earnings=F('total_earnings') + earned,
-                    )
 
                 Story.objects.filter(pk=story.pk).update(total_tips=F('total_tips') + coins)
 
@@ -77,6 +70,8 @@ class SendTipView(APIView):
                 coins_amount=coins,
                 gift_label=label,
                 message=data.get('message', ''),
+                author_coins_earned=author_cut,
+                earning_status=Tip.EARNING_HELD if author_cut else Tip.EARNING_RELEASED,
             )
 
             transaction.on_commit(lambda: on_tip_received(

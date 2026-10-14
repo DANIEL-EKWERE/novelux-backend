@@ -4664,73 +4664,163 @@ def explore_stories(request):
     })
 
 
+_PUBLIC_STORY_STATUSES = ['published', 'ongoing', 'completed']
+
+
+def _public_story(request, slug):
+    """The story behind a public book URL, or None when it isn't public or
+    the viewer may not see it (same gate as the app)."""
+    from apps.stories.models import Story, explicit_blocked
+    story = (Story.objects
+             .select_related('author', 'author__author_profile', 'genre')
+             .filter(slug=slug, status__in=_PUBLIC_STORY_STATUSES).first())
+    if story is None or explicit_blocked(story, request.user):
+        return None
+    return story
+
+
+def _author_display_name(user):
+    profile = getattr(user, 'author_profile', None)
+    pen = (profile.pen_name or '').strip() if profile else ''
+    return pen or user.get_full_name() or user.username
+
+
+def _store_links():
+    from django.conf import settings
+    return {
+        'play_store_url': getattr(settings, 'PLAY_STORE_URL', ''),
+        'app_store_url':  getattr(settings, 'APP_STORE_URL', ''),
+    }
+
+
 def story_preview(request, slug):
-    """SEO permalink for a single story — /explore/<slug>/"""
-    import re, json as _json
-    from apps.stories.models import Story, Genre
+    """Public book page — /explore/<slug>/
+
+    Server-rendered so search engines index it. Lists every published
+    chapter; only free (unlocked) chapters can be read on the web, locked ones
+    point readers to the app."""
+    import json as _json
     from apps.chapters.models import Chapter
+    from apps.reviews.models import StoryReview
+    from apps.stories.views import published_stories
 
-    try:
-        story = Story.objects.select_related('author', 'genre').get(
-            slug=slug, status__in=['published', 'ongoing', 'completed'],
-        )
-    except Story.DoesNotExist:
+    story = _public_story(request, slug)
+    if story is None:
         return explore_stories(request)
 
-    from apps.stories.models import explicit_blocked
-    if explicit_blocked(story, request.user):
-        return explore_stories(request)
-
-    # First published chapter — full content, no truncation
-    chapter_excerpt = ''
-    chapter_title   = ''
-    try:
-        ch = (
-            Chapter.objects
-            .filter(story=story, is_published=True)
-            .order_by('chapter_number')
-            .first()
+    chapters = list(
+        Chapter.objects.filter(story=story, is_published=True)
+        .only('chapter_number', 'title', 'is_locked', 'word_count', 'updated_at')
+        .order_by('chapter_number')
+    )
+    free_chapters = [c for c in chapters if not c.is_locked]
+    latest        = sorted(chapters, key=lambda c: c.chapter_number, reverse=True)[:10]
+    similar = []
+    if story.genre_id:
+        similar = list(
+            published_stories(request.user)
+            .filter(genre_id=story.genre_id).exclude(pk=story.pk)
+            .select_related('author', 'author__author_profile')
+            .order_by('-total_views')[:8]
         )
-        if ch and ch.content:
-            chapter_excerpt = _strip_chapter_html(ch.content)
-            chapter_title   = ch.title or f'Chapter {ch.chapter_number}'
-    except Exception:
-        pass
+    reviews = list(
+        StoryReview.objects.filter(story=story).exclude(content='')
+        .select_related('user').order_by('-created_at')[:6]
+    )
 
     try:
         cover_abs = request.build_absolute_uri(story.cover_image.url) if story.cover_image else ''
     except Exception:
         cover_abs = ''
-
+    author_name = _author_display_name(story.author)
+    description = (story.synopsis or story.description or '').strip()
     og = {
         'title':       story.title,
-        'description': story.synopsis or (story.description[:200] if story.description else ''),
+        'description': description[:200],
         'image':       cover_abs,
         'url':         _canonical_url(request),
-        'type':        'website',
-        'author':      story.author.get_full_name() or story.author.username,
+        'type':        'book',
+        'author':      author_name,
     }
+    book_ld = {
+        '@context': 'https://schema.org',
+        '@type':    'Book',
+        'name':     story.title,
+        'author':   {'@type': 'Person', 'name': author_name},
+        'url':      og['url'],
+        'inLanguage': story.language or 'en',
+        'genre':    story.genre.name if story.genre else None,
+        'description': description[:500],
+        'image':    cover_abs or None,
+        'numberOfPages': len(chapters),
+    }
+    if story.total_ratings:
+        book_ld['aggregateRating'] = {
+            '@type': 'AggregateRating',
+            'ratingValue': str(story.average_rating), 'ratingCount': story.total_ratings,
+        }
 
-    sections, all_stories, genres = _build_explore_sections(request)
+    return render(request, 'novelux/book_detail.html', {
+        'story':          story,
+        'author_name':    author_name,
+        'tags':           list(story.tags.all()[:20]),
+        'chapters':       chapters,
+        'free_count':     len(free_chapters),
+        'first_free':     free_chapters[0] if free_chapters else None,
+        'latest':         latest,
+        'similar':        [{'story': s, 'author_name': _author_display_name(s.author)} for s in similar],
+        'reviews':        reviews,
+        'og':             og,
+        'book_ld':        _json.dumps({k: v for k, v in book_ld.items() if v is not None}, ensure_ascii=False),
+        **_store_links(),
+    })
 
-    # Inject full chapter content into the matching story entry
-    for s in all_stories:
-        if s['slug'] == slug:
-            s['chapter_excerpt'] = chapter_excerpt
-            s['chapter_title']   = chapter_title
-            break
-    for sec in sections:
-        for s in sec['stories']:
-            if s['slug'] == slug:
-                s['chapter_excerpt'] = chapter_excerpt
-                s['chapter_title']   = chapter_title
 
-    return render(request, 'novelux/explore.html', {
-        'sections_json': _json.dumps(sections, ensure_ascii=False),
-        'stories_json':  _json.dumps(all_stories, ensure_ascii=False),
-        'genres':        genres,
-        'open_slug':     slug,
+def book_chapter(request, slug, number):
+    """Web reader for one chapter — /explore/<slug>/chapter/<n>/
+
+    Free (unlocked) chapters are shown in full; locked chapters show only a
+    prompt to continue in the app."""
+    from apps.chapters.models import Chapter
+
+    story = _public_story(request, slug)
+    if story is None:
+        return redirect('novelux:explore')
+    chapter = (Chapter.objects.filter(story=story, is_published=True, chapter_number=number)
+               .only('chapter_number', 'title', 'is_locked', 'content', 'word_count', 'updated_at')
+               .first())
+    if chapter is None:
+        return redirect('novelux:story_preview', slug=slug)
+
+    siblings = Chapter.objects.filter(story=story, is_published=True).only('chapter_number', 'is_locked')
+    prev_ch  = siblings.filter(chapter_number__lt=number).order_by('-chapter_number').first()
+    next_ch  = siblings.filter(chapter_number__gt=number).order_by('chapter_number').first()
+
+    paragraphs = []
+    if not chapter.is_locked and chapter.content:
+        paragraphs = [p.strip() for p in _strip_chapter_html(chapter.content).split('\n\n') if p.strip()]
+
+    chapter_title = chapter.title or f'Chapter {chapter.chapter_number}'
+    og = {
+        'title':       f'{story.title} — Chapter {chapter.chapter_number}: {chapter_title}',
+        'description': (story.synopsis or story.description or '')[:200],
+        'image':       request.build_absolute_uri(story.cover_image.url) if story.cover_image else '',
+        'url':         _canonical_url(request),
+        'type':        'article',
+        'author':      _author_display_name(story.author),
+    }
+    return render(request, 'novelux/book_chapter.html', {
+        'story':         story,
+        'author_name':   og['author'],
+        'chapter':       chapter,
+        'chapter_title': chapter_title,
+        'paragraphs':    paragraphs,
+        'locked':        chapter.is_locked,
+        'prev_ch':       prev_ch,
+        'next_ch':       next_ch,
+        'total':         siblings.count(),
         'og':            og,
+        **_store_links(),
     })
 
 

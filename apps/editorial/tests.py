@@ -1,3 +1,102 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from rest_framework.test import APIClient
 
-# Create your tests here.
+from apps.chapters.models import Chapter, ChapterUnlockEarning
+from apps.stories.models import Story
+from apps.tips.models import Tip
+from apps.users.models import AuthorProfile
+from .models import AuthorEditorLink
+
+User = get_user_model()
+
+
+class SEAuthorAndEarningsTests(TestCase):
+    def setUp(self):
+        self.se       = User.objects.create_user(email='se@x.com', username='se', password='x', role='se')
+        self.other_se = User.objects.create_user(email='se2@x.com', username='se2', password='x', role='se')
+        self.author   = User.objects.create_user(email='a@x.com', username='author', password='x', role='author')
+        self.stranger = User.objects.create_user(email='b@x.com', username='stranger', password='x', role='author')
+        self.reader   = User.objects.create_user(email='r@x.com', username='reader', password='x')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=self.se)
+        AuthorEditorLink.objects.create(author=self.stranger, assigned_se=self.other_se)
+        self.profile = AuthorProfile.objects.create(user=self.author, pen_name='Pen')
+
+        self.story   = Story.objects.create(author=self.author, title='Tale', slug='tale')
+        chapter      = Chapter.objects.create(story=self.story, title='One', chapter_number=1)
+        self.unlock  = ChapterUnlockEarning.objects.create(
+            author=self.author, chapter=chapter, coins=4, coins_spent=20)
+        self.tip     = Tip.objects.create(
+            sender=self.reader, recipient=self.author, story=self.story,
+            coins_amount=100, gift_label='Coffee', author_coins_earned=25)
+
+        self.client = APIClient()
+        self.client.force_authenticate(self.se)
+
+    # ── author details ───────────────────────────────────────────────────────
+
+    def test_author_detail_lists_books(self):
+        res = self.client.get(f'/api/editorial/authors/{self.author.pk}/')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['pen_name'], 'Pen')
+        self.assertEqual([b['title'] for b in res.data['books']], ['Tale'])
+        self.assertEqual(res.data['books'][0]['chapters_total'], 1)
+
+    def test_se_cannot_see_another_se_author(self):
+        res = self.client.get(f'/api/editorial/authors/{self.stranger.pk}/')
+        self.assertEqual(res.status_code, 404)
+
+    def test_se_edits_only_allowed_fields(self):
+        res = self.client.patch(f'/api/editorial/authors/{self.author.pk}/', {
+            'first_name': 'Ada', 'pen_name': 'New Pen', 'bio': 'Hi',
+            'email': 'hacked@x.com', 'role': 'ce',
+        }, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.author.refresh_from_db(); self.profile.refresh_from_db()
+        self.assertEqual((self.author.first_name, self.author.bio, self.profile.pen_name),
+                         ('Ada', 'Hi', 'New Pen'))
+        self.assertEqual((self.author.email, self.author.role), ('a@x.com', 'author'))
+
+    # ── earnings approval ────────────────────────────────────────────────────
+
+    def test_pending_earnings_breakdown(self):
+        res = self.client.get('/api/editorial/earnings/pending/')
+        self.assertEqual(res.status_code, 200, res.data)
+        [entry] = res.data['authors']
+        self.assertEqual((entry['author_id'], entry['count'], entry['coins']), (self.author.pk, 2, 29))
+        self.assertEqual({i['type'] for i in entry['items']}, {'unlock', 'tip'})
+
+    def test_approve_one_item(self):
+        res = self.client.post('/api/editorial/earnings/review/', {
+            'action': 'approve', 'author_id': self.author.pk,
+            'items': [{'type': 'tip', 'id': self.tip.pk}],
+        }, format='json')
+        self.assertEqual(res.data['processed'], 1)
+        self.author.refresh_from_db(); self.tip.refresh_from_db(); self.unlock.refresh_from_db()
+        self.assertEqual(self.author.coin_balance, 25)
+        self.assertEqual(self.tip.earning_status, Tip.EARNING_RELEASED)
+        self.assertEqual(self.unlock.status, ChapterUnlockEarning.STATUS_HELD)
+
+    def test_approve_all_pays_once(self):
+        for _ in range(2):
+            self.client.post('/api/editorial/earnings/review/', {'action': 'approve'}, format='json')
+        self.author.refresh_from_db()
+        self.assertEqual(self.author.coin_balance, 29)
+        self.assertEqual(self.client.get('/api/editorial/earnings/pending/').data['authors'], [])
+
+    def test_approve_all_skips_other_se_authors(self):
+        Tip.objects.create(sender=self.reader, recipient=self.stranger, story=self.story,
+                           coins_amount=100, gift_label='Coffee', author_coins_earned=25)
+        self.client.post('/api/editorial/earnings/review/', {'action': 'approve'}, format='json')
+        self.stranger.refresh_from_db()
+        self.assertEqual(self.stranger.coin_balance, 0)
+
+    def test_reject_never_pays(self):
+        self.client.post('/api/editorial/earnings/review/', {'action': 'reject'}, format='json')
+        self.client.post('/api/editorial/earnings/review/', {'action': 'approve'}, format='json')
+        self.author.refresh_from_db()
+        self.assertEqual(self.author.coin_balance, 0)
+
+    def test_readers_cannot_use_endpoints(self):
+        self.client.force_authenticate(self.reader)
+        self.assertEqual(self.client.get('/api/editorial/earnings/pending/').status_code, 403)

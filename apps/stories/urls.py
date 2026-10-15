@@ -27,6 +27,7 @@ urlpatterns = [
     path('ranking-section/',       views.RankingSectionView.as_view(),   name='ranking-section'),
     path('genre-section/',         views.GenreTabSectionView.as_view(),  name='genre-section'),
     path('request/',           views.BookRequestView.as_view(),       name='book-request'),
+    path('my-promotions/',     views.my_promotions,                   name='my-promotions'),
     path('<slug:slug>/',                views.StoryDetailView.as_view()),
     path('<slug:slug>/bookmark/',       views.BookmarkView.as_view()),
     path('<slug:slug>/like/',           views.StoryLikeView.as_view()),

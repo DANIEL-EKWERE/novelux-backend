@@ -1941,3 +1941,123 @@ class GenreTabSectionView(APIView):
         })
 
 
+
+
+# ── Author: my promotions ─────────────────────────────────────────────────────
+
+_HIGHLIGHT_FLAGS = [
+    # (flag field, expiry field, label shown to the author)
+    ('is_featured',         'featured_expires_at',         'Featured'),
+    ('is_editors_pick',     'editors_pick_expires_at',     "Editor's Pick"),
+    ('is_world_famous',     'world_famous_expires_at',     'World Famous'),
+    ('is_african_folktale', 'african_folktale_expires_at', 'African Folktale'),
+    ('is_free_download',    'free_download_expires_at',    'Free Download'),
+]
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def my_promotions(request):
+    """GET /api/stories/my-promotions/
+
+    Everything about how the author's books are being promoted in the app:
+    SE promotion slots (live, scheduled, queued, ended) with dates and the
+    book's views/unlocks during the promotion vs the same length of time
+    before it, editorial highlights (Featured, Editor's Pick…) and promotion
+    requests the author's editor has filed. Editor notes are not exposed."""
+    from datetime import timedelta
+    from django.db.models import Sum
+    from django.utils import timezone
+    from apps.editorial.models import StoryPromotion, SEPromotionRequest, TAB_CHOICES
+
+    stories = list(Story.objects.filter(author=request.user))
+    by_id   = {s.pk: s for s in stories}
+    now     = timezone.now()
+    today   = timezone.localdate()
+
+    def story_info(s):
+        return {
+            'title': s.title, 'slug': s.slug,
+            'cover_image': request.build_absolute_uri(s.cover_image.url) if s.cover_image else None,
+        }
+
+    def window_stats(story_id, start, end):
+        if end < start:
+            return {'views': 0, 'unlocks': 0}
+        agg = StoryDailyStats.objects.filter(story_id=story_id, date__gte=start, date__lte=end) \
+                                     .aggregate(v=Sum('views'), u=Sum('unlocks'))
+        return {'views': agg['v'] or 0, 'unlocks': agg['u'] or 0}
+
+    promos = []
+    qs = (StoryPromotion.objects.filter(story_id__in=by_id)
+          .select_related('se').order_by('-starts_at'))
+    for p in qs:
+        if p.status == StoryPromotion.STATUS_QUEUED:
+            state = 'queued'
+        elif p.status == StoryPromotion.STATUS_EXPIRED or p.expires_at <= now:
+            state = 'ended'
+        elif p.starts_at > now:
+            state = 'scheduled'
+        else:
+            state = 'live'
+
+        total_secs = max((p.expires_at - p.starts_at).total_seconds(), 1)
+        elapsed    = min(max((now - p.starts_at).total_seconds(), 0), total_secs)
+        start_d    = timezone.localtime(p.starts_at).date()
+        end_d      = min(timezone.localtime(p.expires_at).date(), today)
+
+        performance = None
+        if state in ('live', 'ended'):
+            span   = (end_d - start_d).days + 1
+            during = window_stats(p.story_id, start_d, end_d)
+            before = window_stats(p.story_id, start_d - timedelta(days=span), start_d - timedelta(days=1))
+            change = (round((during['views'] - before['views']) * 100 / before['views'])
+                      if before['views'] else None)
+            performance = {'days_measured': span, 'during': during, 'before': before,
+                           'views_change_pct': change}
+
+        promos.append({
+            'id':             p.pk,
+            'story':          story_info(by_id[p.story_id]),
+            'section':        p.get_category_display(),
+            'state':          state,
+            'starts_at':      p.starts_at.isoformat(),
+            'expires_at':     p.expires_at.isoformat(),
+            'duration_days':  max(round(total_secs / 86400), 1),
+            'days_left':      max((p.expires_at - now).days, 0) if state in ('live', 'scheduled') else 0,
+            'progress_pct':   round(elapsed * 100 / total_secs) if state != 'queued' else 0,
+            'queue_position': p.queue_position if state == 'queued' else None,
+            'promoted_by':    (p.se.get_full_name() or p.se.username) if p.se else 'HuxNovel editorial',
+            'performance':    performance,
+        })
+
+    highlights = []
+    for s in stories:
+        for flag, exp_field, label in _HIGHLIGHT_FLAGS:
+            if getattr(s, flag, False):
+                exp = getattr(s, exp_field, None)
+                if exp and exp <= now:
+                    continue
+                highlights.append({'story': story_info(s), 'label': label,
+                                   'expires_at': exp.isoformat() if exp else None})
+
+    tab_labels = dict(TAB_CHOICES)
+    requests_ = [{
+        'story':      story_info(by_id[r.story_id]),
+        'section':    f'{tab_labels.get(r.tab, r.tab)} · {r.section.replace("-", " ").title()}',
+        'status':     r.status,
+        'created_at': r.created_at.isoformat(),
+        'reviewed_at': r.reviewed_at.isoformat() if r.reviewed_at else None,
+    } for r in SEPromotionRequest.objects.filter(story_id__in=by_id).order_by('-created_at')[:20]]
+
+    return Response({
+        'summary': {
+            'live':       sum(1 for p in promos if p['state'] == 'live'),
+            'scheduled':  sum(1 for p in promos if p['state'] in ('scheduled', 'queued')),
+            'ended':      sum(1 for p in promos if p['state'] == 'ended'),
+            'highlights': len(highlights),
+        },
+        'promotions': promos,
+        'highlights': highlights,
+        'requests':   requests_,
+    })

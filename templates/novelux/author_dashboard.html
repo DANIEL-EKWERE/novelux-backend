@@ -172,6 +172,31 @@ html.dark .icon-moon{opacity:1;transform:rotate(0)scale(1);}
 .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px;}
 @media(min-width:640px){.stat-grid{grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px;}}
 .stat-card{border:1px solid var(--border);padding:20px;background:var(--card);}
+.promo-h{font-size:14px;font-weight:600;margin:28px 0 12px;}
+.promo-empty{border:1px dashed var(--border);padding:28px;text-align:center;font-size:13px;color:var(--muted-fg);}
+.promo-card{border:1px solid var(--border);background:var(--card);padding:16px;display:grid;grid-template-columns:56px 1fr;gap:14px;margin-bottom:12px;}
+.promo-card img,.promo-card .ph{width:56px;height:80px;object-fit:cover;background:var(--muted);}
+.promo-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;}
+.promo-title{font-size:14px;font-weight:600;}
+.promo-sec{font-size:12px;color:var(--muted-fg);margin-top:2px;}
+.promo-state{font-size:11px;font-weight:600;padding:3px 8px;letter-spacing:.03em;white-space:nowrap;}
+.promo-state.live{background:color-mix(in srgb,hsl(142 60% 40%) 14%,transparent);color:hsl(142 60% 32%);}
+.promo-state.scheduled,.promo-state.queued{background:color-mix(in srgb,hsl(221 70% 50%) 12%,transparent);color:hsl(221 70% 45%);}
+.promo-state.ended{background:var(--muted);color:var(--muted-fg);}
+.promo-meta{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted-fg);margin-top:10px;}
+.promo-meta strong{color:var(--fg);font-weight:500;}
+.promo-bar{height:6px;background:var(--muted);margin-top:10px;overflow:hidden;}
+.promo-bar span{display:block;height:100%;background:var(--primary);}
+.promo-perf{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+.promo-perf div{border:1px solid var(--border);padding:8px 10px;}
+.promo-perf .k{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-fg);}
+.promo-perf .v{font-size:15px;font-weight:600;margin-top:2px;}
+.promo-perf .up{color:hsl(142 60% 38%);} .promo-perf .down{color:hsl(0 70% 50%);}
+@media(max-width:560px){.promo-perf{grid-template-columns:1fr 1fr;}}
+.promo-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.promo-chip{border:1px solid var(--border);background:var(--card);padding:8px 12px;font-size:13px;}
+.promo-chip small{display:block;font-size:11px;color:var(--muted-fg);}
+.promo-req{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:10px 0;font-size:13px;}
 .stat-card .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);}
 .stat-card .stat-val{margin-top:8px;font-size:26px;font-weight:600;letter-spacing:-.02em;}
 .stat-card .stat-change{margin-top:4px;font-size:11px;color:var(--muted-fg);}
@@ -491,6 +516,10 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
     <button class="nav-btn" onclick="showPage('earnings',this)">
       <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Earnings
+    </button>
+    <button class="nav-btn" onclick="showPage('promotions',this);loadPromotions()">
+      <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+      Promotions
     </button>
     <span class="nav-section-label">Resources</span>
     <a class="nav-btn" href="/content-guidelines/" target="_blank">
@@ -1205,6 +1234,32 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
   </div>
 
   <!-- ══════ PAGE: EARNINGS ══════ -->
+  <div class="page" id="page-promotions">
+    <div class="dash-hero">
+      <div class="dash-hero-row">
+        <div><h1>Promotions</h1><p>Where your books are being promoted in the HuxNovel app, for how long, and how they're performing.</p></div>
+        <button class="btn btn-outline btn-sm" onclick="loadPromotions()">Refresh</button>
+      </div>
+    </div>
+    <div class="inner-pad">
+      <div class="earnings-overview" id="promoSummary">
+        <div class="earn-card featured"><div class="earn-lbl">Live now</div><div class="earn-val" id="promo-live">—</div><div class="earn-sub">Showing in the app today</div></div>
+        <div class="earn-card"><div class="earn-lbl">Coming up</div><div class="earn-val" id="promo-next">—</div><div class="earn-sub">Scheduled or in the queue</div></div>
+        <div class="earn-card"><div class="earn-lbl">Highlights</div><div class="earn-val" id="promo-hl">—</div><div class="earn-sub">Featured, Editor's Pick…</div></div>
+      </div>
+      <h2 class="promo-h">Promotion slots</h2>
+      <div id="promoList"><div class="promo-empty">Loading…</div></div>
+      <div id="promoHighlightsWrap" style="display:none;">
+        <h2 class="promo-h">Editorial highlights</h2>
+        <div id="promoHighlights" class="promo-chips"></div>
+      </div>
+      <div id="promoRequestsWrap" style="display:none;">
+        <h2 class="promo-h">Requests from your editor</h2>
+        <div id="promoRequests"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="page" id="page-earnings">
     <div class="dash-hero">
       <div class="dash-hero-row">
@@ -1736,7 +1791,7 @@ function openSidebar(){document.getElementById('sidebar').classList.add('open');
 function closeSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show');}
 
 // Page nav
-const pageTitles={dashboard:'Dashboard','my-books':'My Books','create-story':'New Story','edit-story':'Edit Story',chapters:'Chapters',editor:'Write Chapter',calendar:'Update Calendar',analytics:'Analytics',earnings:'Earnings',profile:'Profile',settings:'Settings'};
+const pageTitles={dashboard:'Dashboard','my-books':'My Books','create-story':'New Story','edit-story':'Edit Story',chapters:'Chapters',editor:'Write Chapter',calendar:'Update Calendar',analytics:'Analytics',earnings:'Earnings',promotions:'Promotions',profile:'Profile',settings:'Settings'};
 function showPage(id, btn){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
@@ -2040,6 +2095,77 @@ function updateChapterBook(){
   const label = document.getElementById('chapterBookLabel');
   if(label) label.textContent = title + ' · loading…';
   if(window._loadChapters) window._loadChapters(slug);
+}
+
+// ── Promotions ────────────────────────────────────────────────────────────────
+function _pEsc(t){ return String(t ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function _pDate(iso){ return iso ? new Date(iso).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) : '—'; }
+function _pNum(n){ return Number(n || 0).toLocaleString(); }
+const _P_STATE = { live:'Live', scheduled:'Scheduled', queued:'In queue', ended:'Ended' };
+
+async function loadPromotions(){
+  const list = document.getElementById('promoList');
+  list.innerHTML = '<div class="promo-empty">Loading…</div>';
+  let d;
+  try {
+    const r = await fetch('/api/stories/my-promotions/', { headers: _editorHeaders() });
+    if(!r.ok) throw new Error();
+    d = await r.json();
+  } catch(e){
+    list.innerHTML = '<div class="promo-empty">Could not load your promotions. Please try again.</div>';
+    return;
+  }
+  document.getElementById('promo-live').textContent = d.summary.live;
+  document.getElementById('promo-next').textContent = d.summary.scheduled;
+  document.getElementById('promo-hl').textContent   = d.summary.highlights;
+
+  list.innerHTML = d.promotions.length ? d.promotions.map(p => {
+    const cover = p.story.cover_image ? `<img src="${_pEsc(p.story.cover_image)}" alt="">` : '<div class="ph"></div>';
+    let when = '';
+    if(p.state === 'live')      when = `<span><strong>${p.days_left}</strong> day${p.days_left===1?'':'s'} left</span>`;
+    if(p.state === 'scheduled') when = `<span>Starts <strong>${_pDate(p.starts_at)}</strong></span>`;
+    if(p.state === 'queued')    when = `<span>Position <strong>#${(p.queue_position ?? 0) + 1}</strong> in the queue — starts when a slot opens</span>`;
+    const bar = (p.state === 'live' || p.state === 'ended')
+      ? `<div class="promo-bar" title="${p.progress_pct}% of the promotion period"><span style="width:${p.progress_pct}%"></span></div>` : '';
+    let perf = '';
+    if(p.performance){
+      const c = p.performance.views_change_pct;
+      const cTxt = c === null ? '—' : (c > 0 ? '+' : '') + c + '%';
+      const cCls = c === null ? '' : (c >= 0 ? 'up' : 'down');
+      perf = `<div class="promo-perf">
+        <div><div class="k">Views during</div><div class="v">${_pNum(p.performance.during.views)}</div></div>
+        <div><div class="k">vs ${p.performance.days_measured} days before</div><div class="v ${cCls}">${cTxt}</div></div>
+        <div><div class="k">Chapter unlocks</div><div class="v">${_pNum(p.performance.during.unlocks)}</div></div>
+      </div>`;
+    }
+    return `<div class="promo-card">
+      ${cover}
+      <div>
+        <div class="promo-top">
+          <div><div class="promo-title">${_pEsc(p.story.title)}</div><div class="promo-sec">${_pEsc(p.section)}</div></div>
+          <span class="promo-state ${p.state}">${_P_STATE[p.state] || p.state}</span>
+        </div>
+        <div class="promo-meta">
+          <span>${_pDate(p.starts_at)} → ${_pDate(p.expires_at)} <strong>(${p.duration_days} day${p.duration_days===1?'':'s'})</strong></span>
+          ${when}
+          <span>Promoted by <strong>${_pEsc(p.promoted_by)}</strong></span>
+        </div>
+        ${bar}${perf}
+      </div>
+    </div>`;
+  }).join('') : '<div class="promo-empty">None of your books are promoted yet. Keep publishing — your editor promotes books that readers are enjoying.</div>';
+
+  const hw = document.getElementById('promoHighlightsWrap');
+  hw.style.display = d.highlights.length ? '' : 'none';
+  document.getElementById('promoHighlights').innerHTML = d.highlights.map(h =>
+    `<div class="promo-chip">${_pEsc(h.label)} · <strong>${_pEsc(h.story.title)}</strong><small>${h.expires_at ? 'Until ' + _pDate(h.expires_at) : 'No end date'}</small></div>`).join('');
+
+  const rw = document.getElementById('promoRequestsWrap');
+  rw.style.display = d.requests.length ? '' : 'none';
+  const rLabel = { pending:'Waiting for approval', approved:'Approved', rejected:'Not approved this time' };
+  document.getElementById('promoRequests').innerHTML = d.requests.map(r =>
+    `<div class="promo-req"><span><strong>${_pEsc(r.story.title)}</strong> — ${_pEsc(r.section)}</span>
+     <span style="color:var(--muted-fg);">${rLabel[r.status] || r.status} · ${_pDate(r.reviewed_at || r.created_at)}</span></div>`).join('');
 }
 
 // ── Bulk upload ───────────────────────────────────────────────────────────────

@@ -2538,9 +2538,38 @@ def _jwt_from_request(request):
     return request.COOKIES.get('nux_access', '')
 
 
+def _user_from_request(request):
+    """The logged-in user, taken only from a *verified* login token.
+
+    Never trust the plain nux_username / nux_role cookies for identity — anyone
+    can set those. The access token (1h) is checked first; once it expires the
+    signed refresh token (30 days, honours the blacklist on logout) still
+    identifies the user so pages don't bounce to login every hour — the page's
+    JS refreshes the access token as before. Cached on the request."""
+    if hasattr(request, '_nux_user'):
+        return request._nux_user
+    from django.contrib.auth import get_user_model
+    from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+    user_id = None
+    for cookie, token_cls in (('nux_access', AccessToken), ('nux_refresh', RefreshToken)):
+        raw = request.COOKIES.get(cookie, '')
+        if not raw:
+            continue
+        try:
+            user_id = token_cls(raw).payload.get('user_id')
+        except Exception:
+            user_id = None
+        if user_id:
+            break
+    user = (get_user_model().objects.select_related('author_profile')
+            .filter(pk=user_id, is_active=True).first()) if user_id else None
+    request._nux_user = user
+    return user
+
+
 def _is_authenticated(request):
-    """Check if the request has a valid JWT cookie."""
-    return bool(_jwt_from_request(request))
+    """True only when a login cookie holds a valid, verified token."""
+    return _user_from_request(request) is not None
 
 
 def _set_auth_cookies(response, access_token, refresh_token, username='', email='', role=''):
@@ -2572,7 +2601,7 @@ def _clear_auth_cookies(response):
 def index(request):
     context = {
         'is_auth': _is_authenticated(request),
-        'username': request.COOKIES.get('nux_username', ''),
+        'username': getattr(_user_from_request(request), 'username', ''),
     }
     return render(request, 'novelux/index.html', context)
 
@@ -3145,12 +3174,8 @@ def author_dashboard(request):
     from django.utils import timezone
     import datetime, json
 
-    username = request.COOKIES.get('nux_username', '')
-    try:
-        user = User.objects.select_related('author_profile').get(username=username)
-    except User.DoesNotExist:
-        # Fall back gracefully — render with empty data
-        user = None
+    user = _user_from_request(request)
+    username = user.username if user else ''
 
     # ── Story queryset for this author ────────────────────────────────────────
     stories_qs = (
@@ -3410,7 +3435,7 @@ def author_onboarding(request):
     from django.conf import settings as _s
     return render(request, 'novelux/author_onboarding.html', {
         'is_auth':      _is_authenticated(request),
-        'username':     request.COOKIES.get('nux_username', ''),
+        'username':     getattr(_user_from_request(request), 'username', ''),
         'email':        request.COOKIES.get('nux_email', ''),
         'access_token': _jwt_from_request(request),
         'api_base':     '/api',
@@ -3547,19 +3572,11 @@ def _editor_required(roles):
     def decorator(fn):
         @wraps(fn)
         def wrapper(request, *args, **kwargs):
-            if not _is_authenticated(request):
+            user = _user_from_request(request)
+            if user is None:
                 return redirect(f'/login/?next={request.path}')
-            role = request.COOKIES.get('nux_role', '')
-            if role not in roles:
-                # Try to get fresh role from access token payload
-                from rest_framework_simplejwt.tokens import AccessToken as AT
-                token_str = _jwt_from_request(request)
-                try:
-                    tok   = AT(token_str)
-                    role  = tok.payload.get('role', '')
-                except Exception:
-                    role  = ''
-            if role not in roles:
+            # Role comes from the database, not the editable nux_role cookie
+            if user.role not in roles:
                 return redirect('/login/?error=access_denied')
             return fn(request, *args, **kwargs)
         return wrapper
@@ -4122,10 +4139,8 @@ def contract_sign_page(request, slug):
     from apps.editorial.models import ContractApplication
     from apps.users.models import User
 
-    username = request.COOKIES.get('nux_username', '')
-    try:
-        user = User.objects.select_related('author_profile').get(username=username)
-    except User.DoesNotExist:
+    user = _user_from_request(request)
+    if user is None:
         return redirect(f'/login/?next=/my-books/{slug}/contract/')
 
     try:
@@ -4137,11 +4152,16 @@ def contract_sign_page(request, slug):
     try:
         app = story.contract_application
         contract_type       = app.contract_type or 'non_exclusive'
-        ce_note             = (app.se_note or '').split('\n\nCE note:')[-1].strip() if 'CE note:' in (app.se_note or '') else ''
+        # The latest note from whichever editor sent the contract (CE or SE)
+        import re as _re
+        _notes  = _re.findall(r'(?:CE|SE) note:\s*(.*)', app.se_note or '')
+        ce_note = _notes[-1].strip() if _notes else ''
         already_signed      = app.status == ContractApplication.STATUS_SIGNED
+        contract_body       = app.contract_body
     except ContractApplication.DoesNotExist:
         contract_type  = 'non_exclusive'
         ce_note        = ''
+        contract_body  = ''
         already_signed = getattr(user, 'author_profile', None) and user.author_profile.has_contract
 
     # Guard: only show the signing form once CE has actually sent the contract.
@@ -4159,6 +4179,9 @@ def contract_sign_page(request, slug):
         'contract_type':       contract_type,
         'contract_type_label': contract_type_label,
         'ce_note':             ce_note,
+        # Frozen, sanitised text from the template used; empty for contracts
+        # sent before templates existed (the built-in terms are shown then).
+        'contract_body':       contract_body,
         'already_signed':      already_signed,
         'contract_ready':      contract_ready,
         'access_token':        _jwt_from_request(request),
@@ -4475,7 +4498,7 @@ def author_kyc_page(request):
     ]
     return render(request, 'novelux/author_kyc.html', {
         'existing':  existing,
-        'username':  request.COOKIES.get('nux_username', ''),
+        'username':  getattr(_user_from_request(request), 'username', ''),
         'email':     request.COOKIES.get('nux_email', ''),
         'countries': countries,
     })

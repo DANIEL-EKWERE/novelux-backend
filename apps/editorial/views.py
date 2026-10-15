@@ -2512,87 +2512,18 @@ class CEStoryDetailView(APIView):
 @api_view(['POST'])
 @permission_classes([IsCE])
 def ce_send_contract_story(request, slug):
-    """POST /api/editorial/ce-story-queue/<slug>/send-contract/ — CE sends contract to author."""
+    """POST /api/editorial/ce-story-queue/<slug>/send-contract/ — CE sends contract to author.
+    Body: {contract_type, note, template_id (optional — default template if omitted)}"""
     from apps.stories.models import Story
-    from apps.editorial.models import ContractApplication
+    from .contracts import send_contract
 
     story = get_object_or_404(Story, slug=slug, contract_status='contract_sent')
-
-    contract_type = request.data.get('contract_type', 'non_exclusive')
-    ce_note = request.data.get('note', '')
-
-    now = timezone.now()
-    try:
-        app = story.contract_application
-        app.status = ContractApplication.STATUS_CONTRACT_SENT
-        app.contract_sent_at = now
-        app.ce_signed_by = request.user
-        app.ce_signed_at = now
-        app.se_note = (app.se_note + '\nCE note: ' + ce_note).strip() if ce_note else app.se_note
-        app.contract_type = contract_type
-        app.save(update_fields=['status', 'contract_sent_at', 'ce_signed_by', 'ce_signed_at', 'se_note', 'contract_type'])
-    except ContractApplication.DoesNotExist:
-        ContractApplication.objects.create(
-            story=story, author=story.author,
-            status=ContractApplication.STATUS_CONTRACT_SENT,
-            contract_sent_at=now,
-            ce_signed_by=request.user,
-            ce_signed_at=now,
-            contract_type=contract_type,
-        )
-
-    # ── Send contract email in background thread (avoids 502 on Render) ──
-    import threading as _threading
-    _slug_cap         = story.slug
-    _author_email     = story.author.email
-    _author_name      = story.author.first_name or story.author.username
-    _story_title      = story.title
-    _contract_type_cap = contract_type
-    _ce_note_cap      = ce_note
-
-    def _send_contract_email_async():
-        import logging
-        _log = logging.getLogger(__name__)
-        try:
-            from django.core.mail import send_mail
-            from django.conf import settings as _settings
-            platform       = 'HuxNovel'
-            contract_label = 'Exclusive' if _contract_type_cap == 'exclusive' else 'Non-Exclusive'
-            sign_url       = f'https://www.novelux.app/my-books/{_slug_cap}/contract/'
-            subject        = f'Your {platform} contract offer — "{_story_title}"'
-            text_body      = (
-                f'Hello {_author_name},\n\n'
-                f'congratulations!\n\n'
-                f'Your book "{_story_title}" has been reviewed, and we are offering you a {contract_label} contract.\n\n'
-                f'You can review carefully and sign your contract successfully using the attached link below:\n{sign_url}\n\n'
-                f'We\'re excited to have you as part of HuxNovel (formerly NoveluX) and looking forward to supporting your journey as an author!\n\n'
-                'Warm regards,\n'
-                + (f'CE note: {_ce_note_cap}\n\n' if _ce_note_cap else '')
-                + f'– The {platform} Editorial Team'
-            )
-            send_mail(
-                subject=subject, message=text_body,
-                from_email=_settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[_author_email],
-                fail_silently=False,
-            )
-            _log.info('Contract email sent to %s for story %s', _author_email, _slug_cap)
-        except Exception as _e:
-            _log.error('Contract email failed for %s: %s', _slug_cap, _e)
-
-    _threading.Thread(target=_send_contract_email_async, daemon=True).start()
-
-    # ── In-app notification + push ──────────────────────────────────────
-    try:
-        from apps.notifications.services import on_contract_sent
-        on_contract_sent(story.author, story, contract_type)
-    except Exception:
-        pass
-
-    # Advance story status so it no longer appears in the CE pending queue on reload
-    story.contract_status = 'awaiting_signature'
-    story.save(update_fields=['contract_status'])
-
+    template, err = _template_from_request(request)
+    if err:
+        return err
+    send_contract(sender=request.user, story=story,
+                  contract_type=request.data.get('contract_type', 'non_exclusive'),
+                  note=request.data.get('note', ''), template=template)
     return Response({'status': 'contract_sent', 'story': story.slug})
 
 
@@ -6348,3 +6279,178 @@ def se_review_earnings(request):
 
     logger.info('Editor %s %sd %s earnings (author=%s)', request.user.pk, action, done, author_id)
     return Response({'ok': True, 'action': action, 'processed': done})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  Contract templates + SE contract sending
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _template_from_request(request):
+    """(template, error_response) from an optional template_id in the body."""
+    from .models import ContractTemplate
+    tid = request.data.get('template_id')
+    if not tid:
+        return None, None
+    template = ContractTemplate.objects.filter(pk=tid, is_active=True).first()
+    if template is None:
+        return None, Response({'detail': 'That contract template no longer exists.'}, status=400)
+    return template, None
+
+
+def _template_payload(t, user):
+    return {
+        'id':            t.pk,
+        'name':          t.name,
+        'body':          t.body,
+        'default_contract_type': t.default_contract_type,
+        'is_default':    t.is_default,
+        'created_by':    (t.created_by.get_full_name() or t.created_by.username) if t.created_by else 'System',
+        'can_edit':      user.role == 'ce' or t.created_by_id == user.pk,
+        'updated_at':    t.updated_at.isoformat(),
+        'times_used':    getattr(t, 'times_used', None),
+    }
+
+
+def _validate_template_input(data, partial=False):
+    from .contracts import clean_template_html
+    out = {}
+    if 'name' in data or not partial:
+        name = str(data.get('name', '')).strip()
+        if not name:
+            return None, 'Give the template a name.'
+        out['name'] = name[:150]
+    if 'body' in data or not partial:
+        body = clean_template_html(str(data.get('body', '')))
+        if not body:
+            return None, 'The contract text is empty.'
+        out['body'] = body
+    if 'default_contract_type' in data:
+        if data['default_contract_type'] not in ('exclusive', 'non_exclusive'):
+            return None, 'Contract type must be exclusive or non_exclusive.'
+        out['default_contract_type'] = data['default_contract_type']
+    return out, None
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsSEOrAbove])
+def contract_templates(request):
+    """GET  /api/editorial/contract-templates/  — active templates
+    POST /api/editorial/contract-templates/  — {name, body, default_contract_type}
+    Any SE or CE may create templates; they are shared by all editors."""
+    from .models import ContractTemplate
+    if request.method == 'POST':
+        fields, err = _validate_template_input(request.data)
+        if err:
+            return Response({'detail': err}, status=400)
+        t = ContractTemplate.objects.create(created_by=request.user, **fields)
+        logger.info('Editor %s created contract template %s', request.user.pk, t.pk)
+        return Response(_template_payload(t, request.user), status=201)
+
+    qs = (ContractTemplate.objects.filter(is_active=True).select_related('created_by')
+          .annotate(times_used=models.Count('contracts')))
+    return Response({'templates': [_template_payload(t, request.user) for t in qs]})
+
+
+@api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsSEOrAbove])
+def contract_template_detail(request, pk):
+    """PATCH edits a template (its creator or a CE). DELETE archives it —
+    contracts already sent keep their frozen text."""
+    from .models import ContractTemplate
+    t = get_object_or_404(ContractTemplate, pk=pk, is_active=True)
+    if request.method == 'GET':
+        return Response(_template_payload(t, request.user))
+    if not (request.user.role == 'ce' or t.created_by_id == request.user.pk):
+        return Response({'detail': 'Only the template creator or the CE can change it.'}, status=403)
+    if request.method == 'DELETE':
+        if t.is_default:
+            return Response({'detail': 'The default template cannot be removed.'}, status=400)
+        t.is_active = False
+        t.save(update_fields=['is_active', 'updated_at'])
+        return Response(status=204)
+    fields, err = _validate_template_input(request.data, partial=True)
+    if err:
+        return Response({'detail': err}, status=400)
+    for k, v in fields.items():
+        setattr(t, k, v)
+    t.save()
+    return Response(_template_payload(t, request.user))
+
+
+def _contract_story_for(user, slug):
+    """A story the editor may send a contract for: approved by the SE and
+    waiting on a contract. SEs are limited to their own linked authors."""
+    from apps.stories.models import Story
+    qs = Story.objects.select_related('author', 'author__author_profile').filter(
+        slug=slug, contract_status='contract_sent')
+    if user.role != 'ce':
+        qs = qs.filter(author__editor_link__assigned_se=user)
+    return qs.first()
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def contract_preview(request):
+    """POST /api/editorial/contracts/preview/
+    Body: {story_slug, contract_type, template_id | body}
+    Returns the contract exactly as the author would see it."""
+    from apps.stories.models import Story
+    from .contracts import render_contract
+    story = Story.objects.select_related('author', 'author__author_profile').filter(
+        slug=request.data.get('story_slug')).first()
+    if story is None:
+        return Response({'detail': 'Story not found.'}, status=404)
+    if 'body' in request.data:
+        body = str(request.data.get('body', ''))
+    else:
+        template, err = _template_from_request(request)
+        if err:
+            return err
+        if template is None:
+            from .models import ContractTemplate
+            template = ContractTemplate.objects.filter(is_active=True, is_default=True).first()
+        body = template.body if template else ''
+    return Response({'html': render_contract(body, story, request.data.get('contract_type', 'non_exclusive'))})
+
+
+@api_view(['POST'])
+@permission_classes([IsSEOrAbove])
+def editor_send_contract(request, slug):
+    """POST /api/editorial/stories/<slug>/send-contract/
+    Body: {template_id, contract_type, note}
+    SEs send contracts for their own authors' approved stories (CEs for any).
+    The CE is notified of every contract an SE sends."""
+    from .contracts import send_contract
+    story = _contract_story_for(request.user, slug)
+    if story is None:
+        return Response({'detail': 'This story is not waiting for a contract, or is not one of your authors.'},
+                        status=404)
+    template, err = _template_from_request(request)
+    if err:
+        return err
+    contract_type = request.data.get('contract_type') or (
+        template.default_contract_type if template else 'non_exclusive')
+    send_contract(sender=request.user, story=story, contract_type=contract_type,
+                  note=str(request.data.get('note', '')).strip(), template=template)
+
+    if request.user.role != 'ce':
+        try:
+            from apps.notifications.services import create_notification
+            from apps.notifications.models import Notification
+            se_name = request.user.get_full_name() or request.user.username
+            for ce in get_user_model().objects.filter(role='ce', is_active=True):
+                create_notification(
+                    user=ce, notification_type=Notification.TYPE_SYSTEM,
+                    title='Contract sent by SE',
+                    message=f'{se_name} sent a '
+                            f'{"Exclusive" if contract_type == "exclusive" else "Non-Exclusive"} '
+                            f'contract for "{story.title}" by {story.author.username}'
+                            f'{" using " + repr(template.name) if template else ""}.',
+                    data={'slug': story.slug},
+                )
+        except Exception:
+            logger.exception('CE notification failed for contract on %s', story.slug)
+
+    logger.info('Editor %s sent contract for %s (template=%s, type=%s)',
+                request.user.pk, story.slug, template.pk if template else None, contract_type)
+    return Response({'status': 'contract_sent', 'story': story.slug})

@@ -203,6 +203,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     <span class="nlbl">Content</span>
     <button class="nbtn" id="nb-books" onclick="gp('books',this);loadBooks(1,'','');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Books Browser</button>
     <button class="nbtn" id="nb-contracts" onclick="gp('contracts',this);loadContracts('');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Contracts</button>
+    <button class="nbtn" id="nb-ctemplates" onclick="gp('ctemplates',this);loadTemplates();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="13" y1="17" y2="17"/></svg>Contract Templates</button>
     <button class="nbtn" id="nb-reports" onclick="gp('reports',this);loadReports('flags');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>Reports &amp; Flags</button>
     <button class="nbtn" id="nb-announcements" onclick="gp('announcements',this);loadAnnouncements();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>Announcements</button>
     <button class="nbtn" id="nb-blog" onclick="gp('blog',this);loadBlogList();loadCategories();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>Articles</button>
@@ -1077,6 +1078,19 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
   </div>
 
   <!-- CONTRACTS -->
+  <div class="page" id="page-ctemplates">
+    <div class="hero" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+      <div><h1>Contract Templates</h1><p>Shared by you and your SEs. You can edit or remove any template; contracts already sent keep the text they were sent with.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label class="btn bol bsm" style="cursor:pointer;">Import file
+          <input type="file" accept=".docx,.txt,.md" hidden onchange="importTemplate(this.files[0]);this.value=''">
+        </label>
+        <button class="btn brl bsm" onclick="openTemplateEditor(null)">New template</button>
+      </div>
+    </div>
+    <div id="tplList"><div class="empty"><p>Loading…</p></div></div>
+  </div>
+
   <div class="page" id="page-contracts">
     <div class="hero"><div><h1>Contracts</h1><p>Author contract applications — signed, pending, and rejected history.</p></div></div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
@@ -1661,21 +1675,15 @@ get(p){return this.call(p);},
 document.getElementById('thb').onclick=()=>{const d=document.documentElement.classList.toggle('dark');document.documentElement.classList.toggle('light',!d);localStorage.setItem('nux_theme',d?'dark':'light');};
 function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ovl').classList.add('show');}
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ovl').classList.remove('show');}
-const ptitles={dashboard:'Dashboard',escalations:'Story Queue',policies:'Policy Board',audit:'SE Audit Log',team:'Editorial Team',invites:'Invites',authors:'Authors',kyc:'KYC Review',guidelines:'Role Guidelines',profile:'Profile',moderation:'User Moderation','se-perf':'SE Performance',books:'Books Browser',contracts:'Contracts',reports:'Reports & Flags',announcements:'Announcements',revenue:'Revenue & Payouts',analytics:'Platform Analytics',blog:'Articles','blog-edit':'Article Editor','blog-read':'Article'};
+const ptitles={dashboard:'Dashboard',escalations:'Story Queue',policies:'Policy Board',audit:'SE Audit Log',team:'Editorial Team',invites:'Invites',authors:'Authors',kyc:'KYC Review',guidelines:'Role Guidelines',profile:'Profile',moderation:'User Moderation','se-perf':'SE Performance',books:'Books Browser',contracts:'Contracts',ctemplates:'Contract Templates',reports:'Reports & Flags',announcements:'Announcements',revenue:'Revenue & Payouts',analytics:'Platform Analytics',blog:'Articles','blog-edit':'Article Editor','blog-read':'Article'};
 var gp = function(id, btn) {document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('ptitle').textContent=ptitles[id]||id;closeSb();}
 let _tt;
 function toast(m){clearTimeout(_tt);document.getElementById('tmsg').textContent=m;document.getElementById('toast').classList.add('show');_tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);}
 // ── CE Story Queue actions ─────────────────────────────────────────────────
-async function ceSendContract(slug, title) {
-  const contractType = confirm('Send as Exclusive contract?\n\nOK = Exclusive or Non-Exclusive?')
-    ? 'exclusive' : 'non_exclusive';
-  const note = prompt(`Optional note for "${title}" contract:`, '') ?? '';
-  try {
-    await NUX.post('/editorial/ce-story-queue/' + slug + '/send-contract/', { contract_type: contractType, note });
-    toast('Contract sent to author ✓');
-    removeCEStoryCard(slug); updateCEQueueBadge(-1);
-  } catch(e) { toast('Error: ' + (e.detail||'Failed')); }
-}
+// Opens the shared send window (template, contract type, note, preview) —
+// see static/novelux/js/contract_templates.js.
+function ceSendContract(slug, title) { openSendContract(slug, title); }
+window.onContractSent = function(slug) { removeCEStoryCard(slug); updateCEQueueBadge(-1); };
 
 async function ceSendBack(slug, title) {
   const reason = prompt('Return "' + title + '" to SE for revision?\n\nReason:');
@@ -3865,4 +3873,5 @@ function editCurrentArticle() {
 })();
 </script>
 
+<script src="{% static 'novelux/js/contract_templates.js' %}"></script>
 </body></html>

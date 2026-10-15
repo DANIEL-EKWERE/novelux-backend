@@ -26,6 +26,10 @@ urlpatterns = [
     path('authors/<int:author_id>/',  views.se_author_detail,    name='se-author-detail'),
     path('earnings/pending/',         views.se_pending_earnings, name='se-pending-earnings'),
     path('earnings/review/',          views.se_review_earnings,  name='se-review-earnings'),
+    path('contract-templates/',          views.contract_templates,       name='contract-templates'),
+    path('contract-templates/<int:pk>/', views.contract_template_detail, name='contract-template-detail'),
+    path('contracts/preview/',           views.contract_preview,         name='contract-preview'),
+    path('stories/<slug:slug>/send-contract/', views.editor_send_contract, name='editor-send-contract'),
     path('author-balance/<int:author_id>/award-bonus/', views.se_award_completion_bonus, name='se-award-bonus'),
     # CE story review
     path('ce-story-queue/', views.CEStoryQueueView.as_view(), name='ce-story-queue'),

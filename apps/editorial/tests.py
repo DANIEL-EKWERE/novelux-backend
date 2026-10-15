@@ -100,3 +100,137 @@ class SEAuthorAndEarningsTests(TestCase):
     def test_readers_cannot_use_endpoints(self):
         self.client.force_authenticate(self.reader)
         self.assertEqual(self.client.get('/api/editorial/earnings/pending/').status_code, 403)
+
+
+class ContractTemplateAndSendTests(TestCase):
+    def setUp(self):
+        from apps.notifications.models import Notification  # noqa: F401  (app must be installed)
+        self.ce       = User.objects.create_user(email='ce@x.com', username='ce', password='x', role='ce')
+        self.se       = User.objects.create_user(email='se@x.com', username='se', password='x', role='se')
+        self.other_se = User.objects.create_user(email='se2@x.com', username='se2', password='x', role='se')
+        self.author   = User.objects.create_user(email='a@x.com', username='author', password='x',
+                                                 role='author', first_name='Ada', last_name='Obi')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=self.se)
+        AuthorProfile.objects.create(user=self.author, pen_name='Ada Rose')
+        self.story = Story.objects.create(author=self.author, title='Moon <Tale>', slug='moon-tale',
+                                          contract_status='contract_sent')
+        self.client = APIClient()
+        self.client.force_authenticate(self.se)
+
+    def test_default_template_is_seeded(self):
+        res = self.client.get('/api/editorial/contract-templates/')
+        names = [t['name'] for t in res.data['templates']]
+        self.assertIn('Standard contract', names)
+
+    def test_template_html_is_sanitised(self):
+        res = self.client.post('/api/editorial/contract-templates/', {
+            'name': 'Mine', 'body': '<p onclick="x()">Hi {book_title}</p><script>alert(1)</script>',
+        }, format='json')
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertNotIn('script', res.data['body'])
+        self.assertNotIn('onclick', res.data['body'])
+
+    def test_se_sends_contract_with_template(self):
+        from apps.editorial.models import ContractApplication, ContractTemplate
+        from apps.notifications.models import Notification
+        t = ContractTemplate.objects.create(name='Excl', created_by=self.se,
+                                            body='<p>{pen_name} / {book_title}</p><p>{licence_clause}</p>')
+        res = self.client.post('/api/editorial/stories/moon-tale/send-contract/', {
+            'template_id': t.pk, 'contract_type': 'exclusive', 'note': 'Welcome!'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.story.refresh_from_db()
+        app = ContractApplication.objects.get(story=self.story)
+        self.assertEqual((self.story.contract_status, app.template, app.contract_type),
+                         ('awaiting_signature', t, 'exclusive'))
+        self.assertIn('Ada Rose / Moon &lt;Tale&gt;', app.contract_body)   # escaped
+        self.assertIn('<strong>exclusive</strong>', app.contract_body)
+        self.assertTrue(Notification.objects.filter(recipient=self.ce, title='Contract sent by SE').exists())
+
+        # Editing the template later doesn't change the contract already sent
+        t.body = '<p>Changed</p>'; t.save()
+        app.refresh_from_db()
+        self.assertIn('Ada Rose', app.contract_body)
+
+    def test_ce_sends_for_any_author_without_self_notification(self):
+        from apps.notifications.models import Notification
+        self.client.force_authenticate(self.ce)
+        res = self.client.post('/api/editorial/stories/moon-tale/send-contract/', {}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.story.refresh_from_db()
+        self.assertEqual(self.story.contract_status, 'awaiting_signature')
+        self.assertFalse(Notification.objects.filter(recipient=self.ce, title='Contract sent by SE').exists())
+
+    def test_se_cannot_send_for_another_se_author(self):
+        self.client.force_authenticate(self.other_se)
+        res = self.client.post('/api/editorial/stories/moon-tale/send-contract/', {}, format='json')
+        self.assertEqual(res.status_code, 404)
+
+    def test_preview_matches_template(self):
+        res = self.client.post('/api/editorial/contracts/preview/', {
+            'story_slug': 'moon-tale', 'body': '<p>{author_name} — {contract_type}</p>',
+            'contract_type': 'non_exclusive'}, format='json')
+        self.assertEqual(res.data['html'], '<p>Ada Obi — Non-Exclusive</p>')
+
+    def test_only_creator_or_ce_can_edit(self):
+        from apps.editorial.models import ContractTemplate
+        t = ContractTemplate.objects.create(name='Mine', body='<p>x</p>', created_by=self.se)
+        self.client.force_authenticate(self.other_se)
+        res = self.client.patch(f'/api/editorial/contract-templates/{t.pk}/', {'name': 'Hijack'}, format='json')
+        self.assertEqual(res.status_code, 403)
+        self.client.force_authenticate(self.ce)
+        res = self.client.patch(f'/api/editorial/contract-templates/{t.pk}/', {'name': 'Fixed'}, format='json')
+        self.assertEqual(res.status_code, 200)
+
+    def test_author_sign_page_shows_frozen_text(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        self.client.post('/api/editorial/stories/moon-tale/send-contract/', {}, format='json')
+        web = self.client_class()
+        web.cookies['nux_access'] = str(RefreshToken.for_user(self.author).access_token)
+        web.cookies['nux_username'] = self.author.username
+        html = web.get('/my-books/moon-tale/contract/', secure=True).content.decode()
+        self.assertIn('writing as <strong>Ada Rose</strong>', html)
+
+
+class WebCookieAuthTests(TestCase):
+    """Web pages must identify users from verified tokens, never from the
+    plain nux_username / nux_role cookies (which anyone can set)."""
+
+    def setUp(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        self.ce     = User.objects.create_user(email='ce@x.com', username='ce', password='x', role='ce')
+        self.author = User.objects.create_user(email='a@x.com', username='victim', password='x', role='author')
+        self.reader = User.objects.create_user(email='r@x.com', username='mallory', password='x')
+        Story.objects.create(author=self.author, title='Secret', slug='secret', contract_status='awaiting_signature')
+        self.reader_access = str(RefreshToken.for_user(self.reader).access_token)
+        self.author_refresh = str(RefreshToken.for_user(self.author))
+
+    def _get(self, path, **cookies):
+        c = self.client_class()
+        for k, v in cookies.items():
+            c.cookies[k] = v
+        return c.get(path, secure=True)
+
+    def test_forged_role_cookie_cannot_open_ce_dashboard(self):
+        res = self._get('/editorial/ce/', nux_access='not-a-real-token', nux_role='ce')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/login/', res['Location'])
+
+    def test_real_user_with_forged_role_is_denied(self):
+        res = self._get('/editorial/ce/', nux_access=self.reader_access, nux_role='ce')
+        self.assertIn('access_denied', res['Location'])
+
+    def test_username_cookie_cannot_impersonate_author(self):
+        res = self._get('/my-books/secret/contract/', nux_access=self.reader_access, nux_username='victim')
+        self.assertEqual(res.status_code, 404)   # mallory has no story "secret"
+        res = self._get('/my-books/secret/contract/', nux_access='junk', nux_username='victim')
+        self.assertEqual(res.status_code, 302)
+
+    def test_author_dashboard_ignores_username_cookie(self):
+        res = self._get('/dashboard/', nux_access=self.reader_access, nux_username='victim')
+        self.assertNotContains(res, 'Secret', status_code=res.status_code)
+
+    def test_valid_refresh_token_still_identifies_user(self):
+        # Access token expired/missing, refresh token valid → page still loads
+        res = self._get('/my-books/secret/contract/', nux_refresh=self.author_refresh)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Secret')

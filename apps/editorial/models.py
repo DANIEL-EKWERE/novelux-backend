@@ -1134,10 +1134,45 @@ class ContractApplication(models.Model):
         limit_choices_to={'role': 'ce'},
     )
     ce_signed_at = models.DateTimeField(null=True, blank=True)
+    # The template used and the exact contract text the author was sent,
+    # frozen at send time so later template edits never change it.
+    template      = models.ForeignKey('ContractTemplate', on_delete=models.SET_NULL,
+                        null=True, blank=True, related_name='contracts')
+    contract_body = models.TextField(blank=True,
+                        help_text='Rendered contract text as sent. Empty for contracts '
+                                  'sent before templates existed (the built-in text is shown).')
 
     class Meta:
         db_table = 'contract_applications'
         ordering = ['-applied_at']
+
+
+class ContractTemplate(models.Model):
+    """Reusable contract text editors pick when sending a contract.
+
+    `body` is HTML with placeholders filled in at send time:
+    {author_name} {pen_name} {book_title} {contract_type} {date}
+    {platform} {licence_clause}
+    """
+    name          = models.CharField(max_length=150)
+    body          = models.TextField()
+    default_contract_type = models.CharField(
+        max_length=20, default='non_exclusive',
+        choices=[('exclusive', 'Exclusive'), ('non_exclusive', 'Non-Exclusive')])
+    is_default    = models.BooleanField(default=False,
+                        help_text='Pre-selected when sending a contract.')
+    is_active     = models.BooleanField(default=True)
+    created_by    = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                        related_name='contract_templates')
+    created_at    = models.DateTimeField(auto_now_add=True)
+    updated_at    = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'contract_templates'
+        ordering = ['-is_default', 'name']
+
+    def __str__(self):
+        return self.name
 
 
 # ─── CE Platform Announcements ────────────────────────────────────────────────

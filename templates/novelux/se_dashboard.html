@@ -271,6 +271,10 @@ html.dark .brd{color:hsl(0 70% 65%);}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       Contract Pipeline
     </button>
+    <button class="nbtn" id="nb-ctemplates" onclick="gp('ctemplates',this);loadTemplates()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="13" y1="17" y2="17"/></svg>
+      Contract Templates
+    </button>
     <span class="nlbl">Authors</span>
     <button class="nbtn" id="nb-authors" onclick="gp('authors',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
@@ -809,7 +813,8 @@ html.dark .brd{color:hsl(0 70% 65%);}
                 {% elif s.contract_status == 'awaiting_signature' %}
                   <span class="bdg bpu">Contract Sent to Author</span>
                 {% elif s.contract_status == 'contract_sent' %}
-                  <span class="bdg byw2">With CE</span>
+                  <span class="bdg byw2">Awaiting contract</span>
+                  <button class="btn bp bsm" data-slug="{{ s.slug }}" data-title="{{ s.title }}" onclick="openSendContract(this.dataset.slug, this.dataset.title)">Send contract</button>
                 {% else %}
                   <span class="bdg bgy">{{ s.contract_status|title|cut:"_" }}</span>
                 {% endif %}
@@ -926,6 +931,20 @@ html.dark .brd{color:hsl(0 70% 65%);}
     {% else %}
     <div class="empty"><h3>No authors yet</h3><p>Share your invite code to recruit authors.</p></div>
     {% endif %}
+  </div>
+
+  <!-- ── CONTRACT TEMPLATES ── -->
+  <div class="page" id="page-ctemplates">
+    <div class="ph ph-row">
+      <div><h1>Contract Templates</h1><p>Shared by all editors. Pick one when you send a contract — its text is frozen into that contract when sent.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <label class="btn bo bsm" style="cursor:pointer;">Import file
+          <input type="file" accept=".docx,.txt,.md" hidden onchange="importTemplate(this.files[0]);this.value=''">
+        </label>
+        <button class="btn bp bsm" onclick="openTemplateEditor(null)">New template</button>
+      </div>
+    </div>
+    <div id="tplList"><div class="empty"><p>Loading…</p></div></div>
   </div>
 
   <!-- ── EARNINGS APPROVAL ── -->
@@ -1890,7 +1909,7 @@ function openSb()  { document.getElementById('sb').classList.add('open');  docum
 function closeSb() { document.getElementById('sb').classList.remove('open'); document.getElementById('ovl').classList.remove('show'); }
 
 // Pages
-const ptitles = { dashboard:'Dashboard', queue:'Story Queue', rejected:'Rejected Stories', approved:'Approved Stories', authors:'My Authors', earnings:'Earnings Approval', kyc:'KYC Review', invite:'Invite Authors', profile:'Profile' };
+const ptitles = { dashboard:'Dashboard', queue:'Story Queue', rejected:'Rejected Stories', approved:'Approved Stories', authors:'My Authors', ctemplates:'Contract Templates', earnings:'Earnings Approval', kyc:'KYC Review', invite:'Invite Authors', profile:'Profile' };
 function gp(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + id)?.classList.add('active');
@@ -2275,6 +2294,7 @@ async function reviewEarnings(action, authorId, items) {
   }
 }
 document.addEventListener('DOMContentLoaded', () => loadEarnings(true));
+
 
 // Story actions
 async function approveStory(slug, title) {
@@ -4274,5 +4294,6 @@ async function submitPromoRequest() {
 })();
 
 </script>
+<script src="{% static 'novelux/js/contract_templates.js' %}"></script>
 </body>
 </html>

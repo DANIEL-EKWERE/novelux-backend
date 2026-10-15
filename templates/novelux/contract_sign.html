@@ -414,6 +414,7 @@ a { text-decoration: none; color: inherit; }
       Contract Terms
     </div>
     <div class="terms-box" id="termsBox">
+      {% if contract_body %}{{ contract_body|safe }}{% else %}
       <h3>1. Parties</h3>
       <p>This agreement is between <strong>HuxNovel</strong> ("Platform") and the author identified by the account associated with this invitation ("Author").</p>
 
@@ -437,6 +438,7 @@ a { text-decoration: none; color: inherit; }
 
       <h3>8. Governing Law</h3>
       <p>This agreement shall be governed by and construed in accordance with applicable law. Any disputes shall be resolved through good-faith negotiation before any formal proceedings.</p>
+      {% endif %}
     </div>
     <p style="font-size:11px;color:var(--muted-fg);">Scroll to read all terms before proceeding.</p>
   </div>

@@ -255,20 +255,49 @@ def on_new_chapter(story, chapter_title: str):
     )
 
 
+def _story_cover_url(story):
+    """Absolute cover URL for push images ('' when the book has no cover)."""
+    if not story.cover_image:
+        return ''
+    try:
+        url = story.cover_image.url
+    except Exception:
+        return ''
+    if url.startswith('/'):
+        from django.conf import settings
+        url = settings.SITE_URL.rstrip('/') + url
+    return url
+
+
+def _story_blurb(story, limit=150):
+    """Short synopsis for a notification body."""
+    import re
+    text = re.sub(r'\s+', ' ', story.synopsis or story.description or '').strip()
+    if len(text) > limit:
+        text = text[:limit].rsplit(' ', 1)[0].rstrip(' ,.;:') + '…'
+    return text or 'A new story is now live on HuxNovel.'
+
+
 def on_book_signed_live(story):
-    """Bookmarkers get an in-app notification + push. Every other reader
-    gets a push-only broadcast announcing the new book."""
+    """A newly signed book went live: bookmarkers get an in-app notification
+    + push, every other reader a push. Shows the book itself — title,
+    synopsis and cover — rather than the author's name."""
     bookmarker_ids = list(story.bookmarked_by.values_list('user_id', flat=True))
-    author_name = story.author.get_full_name() or story.author.username
+    title = f'📖 {story.title}'
+    blurb = _story_blurb(story)
+    cover = _story_cover_url(story)
+    data  = {'screen': 'story', 'slug': story.slug}
+    if cover:
+        data['image'] = cover
 
     if bookmarker_ids:
         notifications = [
             Notification(
                 recipient_id=uid,
                 notification_type=Notification.TYPE_SYSTEM,
-                title=f'🎉 "{story.title}" is now live!',
-                message=f'{author_name}\'s story has joined the HuxNovel programme. New chapters are coming — stay tuned!',
-                data={'screen': 'story', 'slug': story.slug},
+                title=title,
+                message=blurb,
+                data=data,
             )
             for uid in bookmarker_ids
         ]
@@ -279,16 +308,13 @@ def on_book_signed_live(story):
                 .values_list('token', flat=True)
         )
         if tokens:
-            send_to_tokens(tokens,
-                title=f'🎉 "{story.title}" is now signed & live!',
-                body=f'{author_name}\'s story has just joined the HuxNovel programme!',
-                data={'screen': 'story', 'slug': story.slug},
-            )
+            send_to_tokens(tokens, title=title, body=blurb, data=data, image_url=cover)
 
     notify_all(
-        title=f'🎉 New book on HuxNovel: "{story.title}"',
-        body=f'{author_name} just joined the HuxNovel author programme — check it out!',
-        data={'screen': 'story', 'slug': story.slug},
+        title=title,
+        body=blurb,
+        data=data,
+        image_url=cover,
         exclude_user_ids=bookmarker_ids,
     )
 

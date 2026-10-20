@@ -52,11 +52,15 @@ def send_to_tokens(tokens: list, title: str, body: str,
                     alert=messaging.ApsAlert(title=title, body=body),  # required for banner
                     sound='default',
                     badge=1,
+                    # Lets an iOS notification service extension attach the
+                    # image; without one, iOS simply shows the text.
+                    mutable_content=bool(image_url),
                 ),
             ),
+            fcm_options=messaging.APNSFCMOptions(image=image_url) if image_url else None,
         ),
     )
- 
+
     try:
         response = messaging.send_each_for_multicast(message)
         return {

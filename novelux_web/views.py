@@ -2534,8 +2534,10 @@ def _canonical_url(request):
 
 
 def _jwt_from_request(request):
-    """Read JWT from the nux_access cookie (set after login)."""
-    return request.COOKIES.get('nux_access', '')
+    """The access token for this request: the nux_access cookie, or a fresh
+    one minted by _user_from_request when that cookie had expired (so pages
+    never render with an empty token)."""
+    return getattr(request, '_nux_fresh_access', None) or request.COOKIES.get('nux_access', '')
 
 
 def _user_from_request(request):
@@ -2550,13 +2552,19 @@ def _user_from_request(request):
         return request._nux_user
     from django.contrib.auth import get_user_model
     from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-    user_id = None
+    user_id, fresh_access = None, None
     for cookie, token_cls in (('nux_access', AccessToken), ('nux_refresh', RefreshToken)):
         raw = request.COOKIES.get(cookie, '')
         if not raw:
             continue
         try:
-            user_id = token_cls(raw).payload.get('user_id')
+            token   = token_cls(raw)
+            user_id = token.payload.get('user_id')
+            if user_id and token_cls is RefreshToken:
+                # The 1-hour access cookie is gone but the session is valid:
+                # mint a new access token now instead of making the page
+                # load without one (which made it reload to refresh).
+                fresh_access = str(token.access_token)
         except Exception:
             user_id = None
         if user_id:
@@ -2564,6 +2572,9 @@ def _user_from_request(request):
     user = (get_user_model().objects.select_related('author_profile')
             .filter(pk=user_id, is_active=True).first()) if user_id else None
     request._nux_user = user
+    if user is not None and fresh_access:
+        # Used by _jwt_from_request; FreshAccessCookieMiddleware saves it as the cookie.
+        request._nux_fresh_access = fresh_access
     return user
 
 

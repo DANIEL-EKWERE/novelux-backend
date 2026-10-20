@@ -229,6 +229,22 @@ class WebCookieAuthTests(TestCase):
         res = self._get('/dashboard/', nux_access=self.reader_access, nux_username='victim')
         self.assertNotContains(res, 'Secret', status_code=res.status_code)
 
+    def test_expired_access_cookie_is_renewed(self):
+        # Access cookie gone (1h max_age) but session valid: the page gets a
+        # fresh token and the cookie is set again — no reload/refresh needed.
+        res = self._get('/my-books/secret/contract/', nux_refresh=self.author_refresh)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn('nux_access', res.cookies)
+        fresh = res.cookies['nux_access'].value
+        self.assertTrue(fresh)
+        self.assertContains(res, f'content="{fresh}"')
+
+    def test_valid_access_cookie_is_not_reissued(self):
+        from rest_framework_simplejwt.tokens import RefreshToken
+        access = str(RefreshToken.for_user(self.author).access_token)
+        res = self._get('/my-books/secret/contract/', nux_access=access)
+        self.assertNotIn('nux_access', res.cookies)
+
     def test_valid_refresh_token_still_identifies_user(self):
         # Access token expired/missing, refresh token valid → page still loads
         res = self._get('/my-books/secret/contract/', nux_refresh=self.author_refresh)

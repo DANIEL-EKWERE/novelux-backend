@@ -36,3 +36,21 @@ class CanonicalHostRedirectMiddleware:
                 self.canonical_base + request.get_full_path()
             )
         return self.get_response(request)
+
+
+class FreshAccessCookieMiddleware:
+    """Saves an access token minted mid-request (see views._user_from_request)
+    as the nux_access cookie, so the browser has a valid one again and the
+    page's API calls stop failing with 401."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        fresh = getattr(request, '_nux_fresh_access', None)
+        if fresh and 'nux_access' not in response.cookies:
+            import os
+            response.set_cookie('nux_access', fresh, max_age=3600, httponly=True,
+                                samesite='Lax', secure=os.environ.get('RENDER') == 'true')
+        return response

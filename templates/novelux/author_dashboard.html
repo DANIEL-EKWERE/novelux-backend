@@ -3979,23 +3979,40 @@ function toggleAnnounce(i) {
       return apiFetch(endpoint, opts);
     }
 
+    if (res.ok) _resetRefreshGuard();   // session works — clear the loop guard
     if (res.status === 204) return {};
     return res.ok ? res.json() : null;
   }
 
+  // Loop guard: a refresh reloads the page, so if the session is broken in a
+  // way a refresh can't fix, cap it at 2 reloads instead of looping forever.
+  const _GUARD_KEY = 'nux_refresh_reloads';
+  function _refreshReloads() { try { return +(sessionStorage.getItem(_GUARD_KEY) || 0); } catch { return 0; } }
+  function _resetRefreshGuard() { try { sessionStorage.removeItem(_GUARD_KEY); } catch {} }
+
+  let _refreshing = null;
   async function silentRefresh() {
-    try {
-      const res = await fetch('/auth/refresh-web/', { method: 'POST' });
-      if (!res.ok) return false;
-      // New token is in cookie — we can't read httpOnly cookie from JS.
-      // Reload the page to get a fresh token injected by Django.
-      window.location.reload();
-      return true;
-    } catch { return false; }
+    // Many requests can fail at once — refresh (and reload) only once.
+    if (_refreshing) return _refreshing;
+    _refreshing = (async () => {
+      if (_refreshReloads() >= 2) { _resetRefreshGuard(); return false; }
+      try {
+        const res = await fetch('/auth/refresh-web/', { method: 'POST' });
+        if (!res.ok) return false;
+        // New token is in cookie — we can't read httpOnly cookie from JS.
+        // Reload the page to get a fresh token injected by Django.
+        try { sessionStorage.setItem(_GUARD_KEY, _refreshReloads() + 1); } catch {}
+        window.location.reload();
+        return new Promise(() => {});   // the page is reloading; don't retry the request
+      } catch { return false; }
+    })();
+    return _refreshing;
   }
 
   function redirectToLogin() {
-    window.location.href = '/login/?next=/dashboard/';
+    // Log out first: if the session cookies are stale, /login/ alone could
+    // send the browser straight back here.
+    window.location.href = '/logout/';
   }
 
   // ── Auto-save for the chapter editor ──────────────────────────────────

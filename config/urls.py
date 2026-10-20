@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
 from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from novelux_web import views as web_views
 from novelux_web.sitemaps import StaticViewSitemap, ArticleSitemap, StorySitemap
 
 _sitemaps = {
@@ -20,6 +21,10 @@ urlpatterns = [
 
     # AdMob authorised sellers — must sit at the domain root to be found.
     path('app-ads.txt', TemplateView.as_view(template_name='app-ads.txt', content_type='text/plain')),
+
+    # Deep link verification (Android App Links / iOS Universal Links)
+    path('.well-known/assetlinks.json', web_views.well_known_assetlinks),
+    path('.well-known/apple-app-site-association', web_views.well_known_apple_app_site_association),
 
     #home page
     path('', include('novelux_web.urls')),

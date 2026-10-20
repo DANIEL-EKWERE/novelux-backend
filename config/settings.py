@@ -422,6 +422,18 @@ SUBSCRIPTION_PLANS = [
 AUTHOR_REVENUE_SHARE = 0.20   # 20% of a chapter unlock goes to the author
 TIP_AUTHOR_SHARE     = 0.25   # 25% of tip goes to author
 
+# Deep links (App Links / Universal Links). Served at /.well-known/ so
+# Android and iOS open www.novelux.app/explore/… and /story/… links in the app.
+ANDROID_APP_PACKAGE = config('ANDROID_APP_PACKAGE', default='com.daniel.huxnovel')
+# SHA-256 of the Play App Signing key (Play Console → App integrity). Add the
+# upload key's fingerprint too (comma-separated) to test sideloaded builds.
+ANDROID_CERT_FINGERPRINTS = config(
+    'ANDROID_CERT_FINGERPRINTS',
+    default='0C:8C:7E:87:18:54:FC:D4:A5:69:87:63:54:F5:78:51:3F:50:34:E9:E7:BB:C4:5A:7A:A6:F3:E3:13:D9:C9:9F',
+    cast=lambda v: [f.strip().upper() for f in v.split(',') if f.strip()],
+)
+IOS_APP_ID = config('IOS_APP_ID', default='Q7MJNN6B4W.com.daniel.novelux.novelux')   # <Team ID>.<bundle id>
+
 # Store listings, linked from the public book pages ("continue in the app").
 PLAY_STORE_URL = config('PLAY_STORE_URL', default='https://play.google.com/store/apps/details?id=com.daniel.huxnovel')
 APP_STORE_URL  = config('APP_STORE_URL',  default='https://apps.apple.com/app/novelux/id6787187018')

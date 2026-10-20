@@ -30,6 +30,9 @@ class CanonicalHostRedirectMiddleware:
             self.canonical_host
             and request.method in ('GET', 'HEAD')
             and host in self.REDIRECT_HOSTS
+            # Deep link verification files must be served on every domain
+            # without a redirect — Android and iOS refuse redirected ones.
+            and not request.path.startswith('/.well-known/')
             and host != self.canonical_host      # never loop
         ):
             return HttpResponsePermanentRedirect(

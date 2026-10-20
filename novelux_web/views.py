@@ -4921,3 +4921,44 @@ def article_detail(request, slug):
         'access_token': _jwt_from_request(request),
         'og':           og,
     })
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  DEEP LINK VERIFICATION FILES  (/.well-known/…)
+# ══════════════════════════════════════════════════════════════════════════════
+# Android App Links and iOS Universal Links: the phone downloads these to check
+# the app may open links to this site. They must be served as JSON, directly
+# (no redirect) — see CanonicalHostRedirectMiddleware.
+
+# Links the app opens: book pages, chapter pages and share links.
+_APP_LINK_PATHS = ['/explore/?*', '/story/?*']
+
+
+def well_known_assetlinks(request):
+    """GET /.well-known/assetlinks.json — Android App Links."""
+    from django.conf import settings
+    return JsonResponse([{
+        'relation': ['delegate_permission/common.handle_all_urls'],
+        'target': {
+            'namespace':                'android_app',
+            'package_name':             settings.ANDROID_APP_PACKAGE,
+            'sha256_cert_fingerprints': settings.ANDROID_CERT_FINGERPRINTS,
+        },
+    }], safe=False)
+
+
+def well_known_apple_app_site_association(request):
+    """GET /.well-known/apple-app-site-association — iOS Universal Links.
+    Both the iOS 13+ format (appIDs/components) and the older one
+    (appID/paths) are included."""
+    from django.conf import settings
+    return JsonResponse({
+        'applinks': {
+            'apps': [],
+            'details': [{
+                'appIDs':     [settings.IOS_APP_ID],
+                'components': [{'/': p} for p in _APP_LINK_PATHS],
+                'appID':      settings.IOS_APP_ID,
+                'paths':      _APP_LINK_PATHS,
+            }],
+        },
+    })

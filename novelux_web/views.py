@@ -2613,6 +2613,7 @@ def index(request):
     context = {
         'is_auth': _is_authenticated(request),
         'username': getattr(_user_from_request(request), 'username', ''),
+        **_store_links(),
     }
     return render(request, 'novelux/index.html', context)
 

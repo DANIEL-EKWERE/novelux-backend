@@ -1,0 +1,14 @@
+{% load static %}<div class="hb-badges{% if stacked %} stacked{% endif %}{% if centered %} centered{% endif %}">
+  <div class="hb-row">
+    <a class="hb-apple" href="{{ app_store_url|default:'/download/apk/' }}" target="_blank" rel="noopener" aria-label="Download on the App Store">
+      <img src="{% static 'novelux/images/badges/app-store-badge.svg' %}" alt="Download on the App Store"/>
+    </a>
+    <a class="hb-google" href="{{ play_store_url|default:'/download/apk/' }}" target="_blank" rel="noopener" aria-label="Get it on Google Play">
+      <img src="{% static 'novelux/images/badges/google-play-badge.png' %}" alt="Get it on Google Play"/>
+    </a>
+  </div>
+  <a class="hb-direct" href="{% url 'novelux:download_apk' %}">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+    Or download the Android app directly from our site
+  </a>
+</div>

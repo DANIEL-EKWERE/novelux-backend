@@ -34,6 +34,7 @@ urlpatterns = [
 
     # ── Author dashboard ──────────────────────────────────────────────────────
     path('dashboard/',               views.author_dashboard,    name='dashboard'),
+    path('welcome/',                 views.welcome,             name='welcome'),
     path('author/onboarding/',       views.author_onboarding,   name='author_onboarding'),
 
     # ── Editor dashboards (role-gated: ae / se / ce) ──────────────────────────

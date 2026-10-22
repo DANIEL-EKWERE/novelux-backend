@@ -3189,6 +3189,12 @@ def author_dashboard(request):
     user = _user_from_request(request)
     username = user.username if user else ''
 
+    # The author dashboard is for authors only. Editors go to their own
+    # dashboards; readers (and anyone else) get the welcome page.
+    if user is not None and user.role != 'author':
+        editor_routes = {'se': '/editorial/se/', 'ce': '/editorial/ce/'}
+        return redirect(editor_routes.get(user.role, '/welcome/'))
+
     # ── Story queryset for this author ────────────────────────────────────────
     stories_qs = (
         Story.objects
@@ -4920,6 +4926,25 @@ def article_detail(request, slug):
         'open_slug':    slug,
         'access_token': _jwt_from_request(request),
         'og':           og,
+    })
+
+
+def welcome(request):
+    """GET /welcome/ — where readers land after logging in on the website:
+    every option in one place (read, get the app, write, home)."""
+    user = _user_from_request(request)
+    if user is None:
+        return redirect('/login/?next=/welcome/')
+    return render(request, 'novelux/welcome.html', {
+        'user_obj': user,
+        'og': {
+            'title':       'Welcome to HuxNovel',
+            'description': 'Start reading, get the HuxNovel app, or become an author.',
+            'url':         _canonical_url(request),
+            'type':        'website',
+            'image':       '',
+        },
+        **_store_links(),
     })
 
 # ══════════════════════════════════════════════════════════════════════════════

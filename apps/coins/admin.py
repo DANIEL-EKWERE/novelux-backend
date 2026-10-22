@@ -21,7 +21,7 @@ class CheckinStreakAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display  = ('title', 'task_type', 'reward_coins', 'icon', 'is_active', 'is_repeatable', 'expires_at', 'order')
+    list_display  = ('title', 'task_type', 'reward_coins', 'icon', 'is_active', 'is_repeatable', 'repeat_cooldown_hours', 'expires_at', 'order')
     list_editable = ('is_active', 'order', 'reward_coins')
     list_filter   = ('task_type', 'is_active', 'is_repeatable')
     search_fields = ('title', 'description')

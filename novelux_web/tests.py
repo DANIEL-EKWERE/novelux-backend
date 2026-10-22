@@ -42,3 +42,44 @@ class DeepLinkVerificationTests(TestCase):
         self.assertEqual(res.status_code, 200)
         page = self.client.get('/explore/', secure=True, HTTP_HOST='novelux.app')
         self.assertEqual(page.status_code, 301)
+
+
+class ReaderWelcomeTests(TestCase):
+    """Readers who log in on the website land on /welcome/, not the author dashboard."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from rest_framework_simplejwt.tokens import RefreshToken
+        U = get_user_model()
+        self.tokens = {
+            role: str(RefreshToken.for_user(
+                U.objects.create_user(email=f'{role}@x.com', username=role, password='x', role=role,
+                                      first_name=role.title())).access_token)
+            for role in ('reader', 'author', 'se')
+        }
+
+    def _get(self, path, role=None):
+        if role:
+            self.client.cookies['nux_access'] = self.tokens[role]
+        return self.client.get(path, secure=True)
+
+    def test_reader_dashboard_goes_to_welcome(self):
+        res = self._get('/dashboard/', 'reader')
+        self.assertEqual((res.status_code, res['Location']), (302, '/welcome/'))
+
+    def test_author_keeps_dashboard(self):
+        self.assertEqual(self._get('/dashboard/', 'author').status_code, 200)
+
+    def test_editor_goes_to_editorial_dashboard(self):
+        self.assertEqual(self._get('/dashboard/', 'se')['Location'], '/editorial/se/')
+
+    def test_welcome_shows_all_options(self):
+        res = self._get('/welcome/', 'reader')
+        self.assertEqual(res.status_code, 200)
+        for text in ('Welcome, Reader', 'href="/explore/"', 'href="/become-author/"', 'href="/"',
+                     'app-store-badge.svg', 'google-play-badge.png', '/download/apk/', 'Sign out'):
+            self.assertContains(res, text)
+
+    def test_welcome_requires_login(self):
+        res = self._get('/welcome/')
+        self.assertEqual(res['Location'], '/login/?next=/welcome/')

@@ -1,0 +1,81 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+{% include 'novelux/partials/book_head.html' %}
+<title>Welcome — HuxNovel</title>
+<meta name="robots" content="noindex"/>
+<style>
+.welcome{padding:48px 0 8px;}
+.welcome h1{font-size:30px;letter-spacing:-.02em;line-height:1.2;}
+.welcome .sub{font-size:15px;color:var(--muted-fg);margin-top:8px;max-width:560px;}
+.options{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:32px;}
+@media(max-width:900px){.options{grid-template-columns:1fr;}}
+@media(max-width:760px){.welcome h1{font-size:24px;}}
+.opt{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:22px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,transform .15s;}
+a.opt:hover{border-color:var(--primary);transform:translateY(-2px);}
+.opt .ico{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);}
+.opt h2{font-size:17px;}
+.opt p{font-size:14px;color:var(--muted-fg);line-height:1.6;flex:1;}
+.opt .go{font-size:14px;font-weight:600;color:var(--primary);}
+.opt.featured{grid-column:1/-1;background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 10%,transparent),transparent);}
+.opt .direct{font-size:13px;color:var(--muted-fg);text-decoration:underline;text-underline-offset:3px;}
+.opt .direct:hover{color:var(--fg);}
+.opt .store-badges{display:flex;flex-wrap:wrap;}
+.signout{margin-top:28px;font-size:13px;color:var(--muted-fg);}
+.signout a{text-decoration:underline;text-underline-offset:3px;}
+</style>
+</head>
+<body>
+{% include 'novelux/partials/book_nav.html' %}
+
+<main class="wrap">
+  <section class="welcome">
+    <h1>Welcome{% if user_obj.first_name %}, {{ user_obj.first_name }}{% elif user_obj.username %}, {{ user_obj.username }}{% endif %} 👋</h1>
+    <p class="sub">You're signed in. Pick up where you want to go — read on the web, get the app, or start writing your own story.</p>
+
+    <div class="options">
+      <a class="opt featured" href="/explore/">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+        <h2>Explore stories</h2>
+        <p>Browse romance, werewolf, billionaire, fantasy and more. Read the free chapters right here in your browser.</p>
+        <span class="go">Start reading →</span>
+      </a>
+
+      <div class="opt">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg></div>
+        <h2>Get the HuxNovel app</h2>
+        <p>Unlock every chapter, follow your favourite authors and get notified when new chapters drop.</p>
+        <div class="store-badges">
+          {% if app_store_url %}<a class="badge-apple" href="{{ app_store_url }}" target="_blank" rel="noopener"><img src="{% static 'novelux/images/badges/app-store-badge.svg' %}" alt="Download on the App Store" height="44"/></a>{% endif %}
+          {% if play_store_url %}<a class="badge-google" href="{{ play_store_url }}" target="_blank" rel="noopener"><img src="{% static 'novelux/images/badges/google-play-badge.png' %}" alt="Get it on Google Play" height="66"/></a>{% endif %}
+        </div>
+        <a class="direct" href="{% url 'novelux:download_apk' %}">Or download the Android app directly</a>
+      </div>
+
+      <a class="opt" href="/become-author/">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+        <h2>Become an author</h2>
+        <p>Publish your story, grow your readers, and earn from your chapters with an editor by your side.</p>
+        <span class="go">Start writing →</span>
+      </a>
+
+      <a class="opt" href="/">
+        <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+        <h2>Go to the home page</h2>
+        <p>See what's new on HuxNovel — featured books, contests, articles and more.</p>
+        <span class="go">Go home →</span>
+      </a>
+    </div>
+
+    <p class="signout">Not you? <a href="/logout/">Sign out</a></p>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>© HuxNovel (formerly NoveluX)</span>
+    <a href="/explore/">Explore</a><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="/faq/">Help</a>
+  </div>
+</footer>
+</body>
+</html>

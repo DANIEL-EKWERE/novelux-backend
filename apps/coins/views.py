@@ -668,6 +668,11 @@ class TaskListView(APIView):
         data = []
         for t in tasks:
             ut = user_task_map.get(t.id)
+            status, available_at = (ut.status if ut else 'pending'), None
+            if ut and t.is_repeatable and ut.claimed_at:
+                available_at = ut.claimed_at + timedelta(hours=t.repeat_cooldown_hours)
+                if available_at <= now:
+                    status, available_at = 'pending', None   # can be done again
             data.append({
                 'id':           t.id,
                 'title':        t.title,
@@ -677,7 +682,9 @@ class TaskListView(APIView):
                 'icon':         t.icon,
                 'is_repeatable':t.is_repeatable,
                 'expires_at':   t.expires_at.isoformat() if t.expires_at else None,
-                'status':       ut.status if ut else 'pending',
+                'status':       status,
+                'next_available_at': available_at.isoformat() if available_at else None,
+                'repeat_cooldown_hours': t.repeat_cooldown_hours if t.is_repeatable else None,
                 'response':     ut.response if ut else '',
                 'completed_at': ut.completed_at.isoformat() if ut and ut.completed_at else None,
                 'claimed_at':   ut.claimed_at.isoformat() if ut and ut.claimed_at else None,
@@ -699,7 +706,8 @@ class TaskCompleteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
-        from apps.coins.models import Task, UserTask, DailyRewardClaim
+        from apps.coins.models import Task, UserTask
+        from django.db import IntegrityError, transaction
         from django.utils import timezone
 
         try:
@@ -711,44 +719,52 @@ class TaskCompleteView(APIView):
         if task.expires_at and task.expires_at < now:
             return Response({'detail': 'This task has expired.'}, status=400)
 
-        user = request.user
-
-        # Check existing completion
-        ut = UserTask.objects.filter(user=user, task=task).first()
-        if ut and ut.status in ('completed', 'claimed') and not task.is_repeatable:
-            return Response({'detail': 'Task already completed.'}, status=400)
-
         if task.task_type == Task.TYPE_RESPONSE:
-            response_text = request.data.get('response', '').strip()
+            response_text = str(request.data.get('response', '')).strip()
             if not response_text:
                 return Response({'detail': 'A response is required for this task.'}, status=400)
         else:
             response_text = ''
 
-        if ut and task.is_repeatable:
-            ut.status       = 'claimed'
+        user = request.user
+        with transaction.atomic():
+            # Lock this user's row for the task so two simultaneous requests
+            # (a double tap) can't both pass the checks and pay twice.
+            try:
+                UserTask.objects.get_or_create(user=user, task=task)
+            except IntegrityError:
+                pass   # created by a concurrent request — lock it below
+            ut = UserTask.objects.select_for_update().get(user=user, task=task)
+
+            if ut.status in (UserTask.STATUS_COMPLETED, UserTask.STATUS_CLAIMED):
+                if not task.is_repeatable:
+                    return Response({'detail': 'Task already completed.'}, status=400)
+                next_at = (ut.claimed_at or now) + timedelta(hours=task.repeat_cooldown_hours)
+                if next_at > now:
+                    return Response({
+                        'detail': 'You can do this task again later.',
+                        'next_available_at': next_at.isoformat(),
+                    }, status=400)
+
+            ut.status       = UserTask.STATUS_CLAIMED
             ut.response     = response_text
             ut.completed_at = now
             ut.claimed_at   = now
             ut.save()
-        else:
-            ut, _ = UserTask.objects.update_or_create(
-                user=user, task=task,
-                defaults={
-                    'status':       'claimed',
-                    'response':     response_text,
-                    'completed_at': now,
-                    'claimed_at':   now,
-                },
-            )
 
-        user.add_coins(task.reward_coins, reason=f'Task: {task.title}')
+            # Rewards go to the bonus balance (like daily check-ins and ads),
+            # not the purchased-coin balance.
+            user.add_bonus(task.reward_coins, reason=f'Task: {task.title}')
 
+        next_at = now + timedelta(hours=task.repeat_cooldown_hours) if task.is_repeatable else None
         return Response({
-            'success':      True,
-            'task_id':      task.id,
-            'coins_earned': task.reward_coins,
-            'coin_balance': user.coin_balance,
+            'success':       True,
+            'task_id':       task.id,
+            'coins_earned':  task.reward_coins,
+            'coin_balance':  user.coin_balance,
+            'bonus_balance': user.bonus_balance,
+            'total_balance': user.total_balance,
+            'next_available_at': next_at.isoformat() if next_at else None,
         })
 
 

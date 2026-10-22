@@ -268,6 +268,9 @@ class Task(models.Model):
     icon         = models.CharField(max_length=10, blank=True, help_text='Emoji icon, e.g. 📖')
     is_active    = models.BooleanField(default=True, db_index=True)
     is_repeatable= models.BooleanField(default=False, help_text='Can a user complete this more than once?')
+    repeat_cooldown_hours = models.PositiveIntegerField(
+        default=24,
+        help_text='Repeatable tasks only: hours a user must wait before completing it again.')
     expires_at   = models.DateTimeField(null=True, blank=True, help_text='Leave blank for no expiry')
     order        = models.PositiveSmallIntegerField(default=0)
     created_by   = models.ForeignKey(

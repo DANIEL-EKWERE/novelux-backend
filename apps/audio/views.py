@@ -80,3 +80,40 @@ urlpatterns = [
     path('progress/<int:audio_chapter_id>/',
          views.UpdateAudioProgressView.as_view()),
 ]
+
+
+# ── Ambient sounds ────────────────────────────────────────────────────────────
+
+class AmbientSoundLibraryView(APIView):
+    """GET /api/audio/ambient/ — active categories with their active sounds.
+    The app calls this only when the sound library is opened."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from django.db.models import Prefetch
+        from .models import AmbientSound, AmbientSoundCategory
+        cats = (AmbientSoundCategory.objects.filter(is_active=True)
+                .prefetch_related(Prefetch('sounds', queryset=AmbientSound.objects.filter(is_active=True))))
+        data = []
+        for c in cats:
+            sounds = [{
+                'id':            s.pk,
+                'title':         s.title,
+                'icon':          s.icon,
+                'url':           request.build_absolute_uri(s.audio.url) if s.audio else None,
+                'duration_secs': s.duration_secs,
+            } for s in c.sounds.all() if s.audio]
+            if sounds:
+                data.append({'id': c.pk, 'name': c.name, 'icon': c.icon, 'sounds': sounds})
+        return Response({'categories': data})
+
+
+class AmbientSoundPlayView(APIView):
+    """POST /api/audio/ambient/<id>/play/ — counts a play (for the admin list)."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, pk):
+        from django.db.models import F
+        from .models import AmbientSound
+        AmbientSound.objects.filter(pk=pk, is_active=True).update(plays=F('plays') + 1)
+        return Response({'ok': True})

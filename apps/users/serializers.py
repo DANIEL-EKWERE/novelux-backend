@@ -174,14 +174,14 @@ class UserSerializer(serializers.ModelSerializer):
         model  = User
         fields = [
             'id', 'author_code', 'username', 'display_name', 'first_name', 'last_name', 'email', 'role',
-            'avatar', 'bio', 'coin_balance', 'is_vip', 'vip_expires',
+            'avatar', 'bio', 'coin_balance', 'bonus_balance', 'is_vip', 'vip_expires',
             'ad_free_expires', 'audiobook_expires',
             'reading_xp', 'reading_level', 'total_chapters_read',
             'preferred_genres', 'preferred_language', 'night_mode', 'font_size',
             'author_profile', 'followers_count', 'following_count', 'created_at',
             'has_password', 'date_of_birth', 'is_minor', 'restricted_mode_enabled',
         ]
-        read_only_fields = ['coin_balance', 'is_vip', 'vip_expires',
+        read_only_fields = ['coin_balance', 'bonus_balance', 'is_vip', 'vip_expires',
                             'ad_free_expires', 'audiobook_expires',
                             'reading_xp', 'reading_level', 'total_chapters_read', 'created_at',
                             'restricted_mode_enabled']

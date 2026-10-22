@@ -96,5 +96,7 @@ if __name__ == '__main__':
     main()
 
 '''
-
+when an author uses bulk upload
+the content comes in exactly how it was arranged which is very good
+now when a user decided to read that book or other books from the author center itself the content  looks disfigured, the content from the author center is not properly formated
 '''    

@@ -6158,20 +6158,131 @@ def se_author_detail(request, author_id):
     return Response(_author_detail_payload(request, author))
 
 
+# ── Earnings approval: who paid, and is it suspicious? ────────────────────────
+# An earning is only as real as the reader's money behind it. Each item carries
+# the paying reader with warning flags, and the SE can open a full reader
+# profile (wallet, purchases, devices, IP siblings, reward history).
+
+NEW_ACCOUNT_DAYS      = 7    # account younger than this
+CROWDED_IP_ACCOUNTS   = 3    # this many accounts registered from one IP
+CONCENTRATION_SHARE   = 0.8  # share of a reader's spend going to one author
+CONCENTRATION_MIN     = 200  # ...once they've spent at least this many coins
+
+_FLAG_TEXT = {
+    'new_account':      'Account is less than a week old',
+    'banned':           'Reader is banned',
+    'same_ip_author':   'Registered from the same IP as the author',
+    'same_device_author': 'Used the same phone as the author',
+    'crowded_ip':       'Several accounts registered from this IP',
+    'shared_device':    'Phone is shared with other accounts',
+    'refunds':          'Has refunded purchases or gifts',
+    'no_purchases':     'Spent coins but never bought any',
+    'one_author':       'Almost all of their spending goes to this author',
+}
+
+
+def _reader_flags(readers, authors):
+    """flags_for(reader, author_id) → [flag, ...], for many readers at once
+    (a handful of queries, not one per reader). `authors` maps id → User."""
+    from collections import defaultdict
+    from apps.coins.models import Purchase
+    from apps.tips.models import Tip
+    from apps.users.models import UserDevice
+
+    User = get_user_model()
+    readers = {r.pk: r for r in readers}
+    ids = list(readers)
+
+    ips = {r.registration_ip for r in readers.values() if r.registration_ip}
+    ip_counts = dict(User.objects.filter(registration_ip__in=ips)
+                     .values_list('registration_ip').annotate(n=models.Count('id')))
+
+    devices = defaultdict(set)
+    for uid, dev in (UserDevice.objects.filter(user_id__in=ids + list(authors))
+                     .values_list('user_id', 'device_id')):
+        devices[uid].add(dev)
+    reader_devs = set().union(*(devices[i] for i in ids)) if ids else set()
+    dev_users = defaultdict(set)
+    for uid, dev in (UserDevice.objects.filter(device_id__in=reader_devs)
+                     .values_list('user_id', 'device_id')):
+        dev_users[dev].add(uid)
+
+    refunded = (set(Purchase.objects.filter(user_id__in=ids, status=Purchase.STATUS_REFUNDED)
+                    .values_list('user_id', flat=True))
+                | set(Tip.objects.filter(sender_id__in=ids, status=Tip.STATUS_REFUNDED)
+                      .values_list('sender_id', flat=True)))
+    buyers = set(Purchase.objects.filter(user_id__in=ids, status=Purchase.STATUS_COMPLETED)
+                 .values_list('user_id', flat=True))
+    now = timezone.now()
+
+    def flags_for(reader, author_id=None):
+        rid, f = reader.pk, []
+        author = authors.get(author_id)
+        if author and reader.registration_ip and reader.registration_ip == author.registration_ip:
+            f.append('same_ip_author')
+        if author and devices[rid] & devices[author.pk]:
+            f.append('same_device_author')
+        if reader.date_joined and (now - reader.date_joined).days < NEW_ACCOUNT_DAYS:
+            f.append('new_account')
+        if reader.is_banned:
+            f.append('banned')
+        if reader.registration_ip and ip_counts.get(reader.registration_ip, 0) >= CROWDED_IP_ACCOUNTS:
+            f.append('crowded_ip')
+        if any(dev_users[d] - {rid} for d in devices[rid]):
+            f.append('shared_device')
+        if rid in refunded:
+            f.append('refunds')
+        if rid not in buyers:
+            f.append('no_purchases')
+        return f
+    return flags_for
+
+
+def _reader_ref(reader, flags):
+    if reader is None:
+        return None
+    return {'id': reader.pk, 'username': reader.username,
+            'flags': flags, 'flag_text': [_FLAG_TEXT[f] for f in flags]}
+
+
 def _held_earning_items(authors):
     """Every held earning for these authors, grouped per author id.
 
-    Coin amounts are what the author is credited in coins (chapter unlocks and
-    coin tips); USD is what real-money gifts add to their payout balance."""
+    Coin amounts are what the author is credited in coins (chapter unlocks,
+    coin tips and VIP reads); USD is what real-money gifts add to their payout
+    balance. Each item names the reader whose money it is, with fraud flags."""
     from collections import defaultdict
-    from apps.chapters.models import ChapterUnlockEarning
+    from apps.chapters.models import ChapterUnlockEarning, VipEarning, VipChapterRead
     from apps.tips.models import Tip
 
+    authors_by_id = {a.pk: a for a in authors}
+    unlocks = list(ChapterUnlockEarning.objects
+                   .filter(author__in=authors, status=ChapterUnlockEarning.STATUS_HELD)
+                   .select_related('chapter__story', 'unlock__user'))
+    tips = list(Tip.objects
+                .filter(recipient__in=authors, earning_status=Tip.EARNING_HELD,
+                        status=Tip.STATUS_COMPLETED)
+                .select_related('story', 'sender'))
+    vips = list(VipEarning.objects
+                .filter(author__in=authors, status=VipEarning.STATUS_HELD)
+                .select_related('run'))
+
+    # Top VIP readers per held VIP earning (who generated the reads)
+    vip_readers = defaultdict(list)
+    for v in vips:
+        rows = (VipChapterRead.objects.filter(author_id=v.author_id, month=v.run.month)
+                .values('user_id').annotate(n=models.Count('id')).order_by('-n')[:5])
+        vip_readers[v.pk] = [(r['user_id'], r['n']) for r in rows]
+
+    reader_ids = ({e.unlock.user_id for e in unlocks if e.unlock_id}
+                  | {t.sender_id for t in tips}
+                  | {uid for rows in vip_readers.values() for uid, _ in rows})
+    readers = {u.pk: u for u in get_user_model().objects.filter(pk__in=reader_ids)}
+    flags_for = _reader_flags(readers.values(), authors_by_id)
+
     grouped = defaultdict(list)
-    unlocks = (ChapterUnlockEarning.objects
-               .filter(author__in=authors, status=ChapterUnlockEarning.STATUS_HELD)
-               .select_related('chapter__story'))
     for e in unlocks:
+        reader = e.unlock.user if e.unlock_id else None
         grouped[e.author_id].append({
             'type': 'unlock', 'id': e.pk,
             'created_at': e.created_at.isoformat(),
@@ -6179,11 +6290,8 @@ def _held_earning_items(authors):
             'story': e.chapter.story.title,
             'coins': e.coins, 'usd': None,
             'reader_paid': f'{e.coins_spent} coins',
+            'reader': _reader_ref(reader, flags_for(reader, e.author_id)) if reader else None,
         })
-    tips = (Tip.objects
-            .filter(recipient__in=authors, earning_status=Tip.EARNING_HELD,
-                    status=Tip.STATUS_COMPLETED)
-            .select_related('story', 'sender'))
     for t in tips:
         is_gift = not t.author_coins_earned
         if is_gift and t.author_earned_usd is None:
@@ -6197,6 +6305,20 @@ def _held_earning_items(authors):
             'coins': None if is_gift else t.author_coins_earned,
             'usd': str(t.author_earned_usd) if is_gift else None,
             'reader_paid': f'${t.amount_usd}' if is_gift else f'{t.coins_amount} coins',
+            'reader': _reader_ref(t.sender, flags_for(t.sender, t.recipient_id)),
+        })
+    for v in vips:
+        top = [dict(_reader_ref(readers[uid], flags_for(readers[uid], v.author_id)), reads=n)
+               for uid, n in vip_readers[v.pk] if uid in readers]
+        grouped[v.author_id].append({
+            'type': 'vip', 'id': v.pk,
+            'created_at': v.run.created_at.isoformat(),
+            'description': f'VIP reads — {v.run.month:%B %Y} ({v.reads} chapter read{"s" if v.reads != 1 else ""})',
+            'story': '',
+            'coins': v.coins, 'usd': None,
+            'reader_paid': 'VIP subscription',
+            'reader': None,
+            'vip_readers': top,
         })
     for items in grouped.values():
         items.sort(key=lambda i: i['created_at'], reverse=True)
@@ -6225,6 +6347,9 @@ def se_pending_earnings(request):
             'name':      (profile.pen_name if profile and profile.pen_name else '')
                          or a.get_full_name() or a.username,
             'count':     len(items),
+            'flagged':   sum(1 for i in items
+                             if (i['reader'] and i['reader']['flags'])
+                             or any(r['flags'] for r in i.get('vip_readers', []))),
             'coins':     sum(i['coins'] or 0 for i in items),
             'usd':       str(sum((Decimal(i['usd']) for i in items if i['usd']), Decimal('0'))),
             'items':     items,
@@ -6239,10 +6364,10 @@ def se_review_earnings(request):
     """POST /api/editorial/earnings/review/
     Body: {"action": "approve"|"reject",
            "author_id": <id>            (optional — omit for all your authors),
-           "items": [{"type": "unlock"|"tip", "id": <id>}, ...]  (optional)}
+           "items": [{"type": "unlock"|"tip"|"vip", "id": <id>}, ...]  (optional)}
     Approving credits the earnings to the author's balance, after which they
     show on the author's dashboard. Rejecting closes them without paying."""
-    from apps.chapters.models import ChapterUnlockEarning
+    from apps.chapters.models import ChapterUnlockEarning, VipEarning
     from apps.tips.models import Tip
     from apps.tips import services as tip_services
 
@@ -6259,13 +6384,13 @@ def se_review_earnings(request):
         author__in=authors, status=ChapterUnlockEarning.STATUS_HELD)
     tips = Tip.objects.filter(
         recipient__in=authors, earning_status=Tip.EARNING_HELD, status=Tip.STATUS_COMPLETED)
+    vips = VipEarning.objects.filter(author__in=authors, status=VipEarning.STATUS_HELD)
 
     items = request.data.get('items')
     if items:
-        unlock_ids = [i.get('id') for i in items if i.get('type') == 'unlock']
-        tip_ids    = [i.get('id') for i in items if i.get('type') == 'tip']
-        unlocks = unlocks.filter(pk__in=unlock_ids)
-        tips    = tips.filter(pk__in=tip_ids)
+        unlocks = unlocks.filter(pk__in=[i.get('id') for i in items if i.get('type') == 'unlock'])
+        tips    = tips.filter(pk__in=[i.get('id') for i in items if i.get('type') == 'tip'])
+        vips    = vips.filter(pk__in=[i.get('id') for i in items if i.get('type') == 'vip'])
 
     done = 0
     for earning in unlocks.select_related('author', 'chapter__story'):
@@ -6276,9 +6401,172 @@ def se_review_earnings(request):
             done += bool(tip_services.release_tip_earning(tip_id, by=request.user))
         else:
             done += bool(tip_services.reject_tip_earning(tip_id, by=request.user))
+    for earning in vips.select_related('author', 'run'):
+        ok = earning.release(by=request.user) if action == 'approve' else earning.reject(by=request.user)
+        done += bool(ok)
 
     logger.info('Editor %s %sd %s earnings (author=%s)', request.user.pk, action, done, author_id)
     return Response({'ok': True, 'action': action, 'processed': done})
+
+
+@api_view(['GET'])
+@permission_classes([IsSEOrAbove])
+def se_earning_reader(request, reader_id):
+    """GET /api/editorial/earnings/reader/<id>/?author_id=<id>
+    Everything about a reader whose money is behind an earning: account,
+    wallet, purchases, devices, accounts sharing their IP or phone, what they
+    have given the author (and every author), rewards they've collected and
+    recent coin activity. An SE only sees readers who paid one of their authors."""
+    from decimal import Decimal
+    from apps.chapters.models import ChapterUnlockEarning, ChapterUnlock, VipChapterRead
+    from apps.coins.models import Purchase
+    from apps.tips.models import Tip
+    from apps.users.models import UserDevice, FCMDevice, CoinTransaction, BonusGrant
+
+    User = get_user_model()
+    authors = _scoped_authors(request.user)
+    paid_scope = (models.Q(unlocked_chapters__earning__author__in=authors)
+                  | models.Q(tips_sent__recipient__in=authors)
+                  | models.Q(vip_reads__author__in=authors))
+    reader = get_object_or_404(User.objects.filter(paid_scope).distinct(), pk=reader_id)
+
+    author = None
+    if request.query_params.get('author_id'):
+        author = authors.filter(pk=request.query_params['author_id']).first()
+    flags = _reader_flags([reader], {author.pk: author} if author else {})(reader, author.pk if author else None)
+
+    # Spend per author, from unlocks and tips (coins), gifts (USD), VIP reads
+    spend = {}
+    def _row(aid):
+        return spend.setdefault(aid, {'author_id': aid, 'unlock_coins': 0, 'unlocks': 0,
+                                      'tip_coins': 0, 'gift_usd': Decimal('0'), 'tips': 0, 'vip_reads': 0})
+    for aid, n, coins in (ChapterUnlock.objects.filter(user=reader)
+                          .values_list('chapter__story__author_id')
+                          .annotate(models.Count('id'), models.Sum('coins_spent'))):
+        r = _row(aid); r['unlocks'] += n; r['unlock_coins'] += coins or 0
+    for aid, n, coins, usd in (Tip.objects.filter(sender=reader, status=Tip.STATUS_COMPLETED)
+                               .values_list('recipient_id')
+                               .annotate(models.Count('id'), models.Sum('coins_amount'),
+                                         models.Sum('amount_usd'))):
+        r = _row(aid); r['tips'] += n; r['tip_coins'] += coins or 0; r['gift_usd'] += usd or 0
+    for aid, n in (VipChapterRead.objects.filter(user=reader)
+                   .values_list('author_id').annotate(models.Count('id'))):
+        _row(aid)['vip_reads'] += n
+    names = dict(User.objects.filter(pk__in=list(spend)).values_list('pk', 'username'))
+    total_coins = sum(r['unlock_coins'] + r['tip_coins'] for r in spend.values())
+    by_author = []
+    for r in sorted(spend.values(), key=lambda r: -(r['unlock_coins'] + r['tip_coins'])):
+        coins = r['unlock_coins'] + r['tip_coins']
+        by_author.append({**r, 'username': names.get(r['author_id'], '?'),
+                          'gift_usd': str(r['gift_usd']),
+                          'share': round(coins / total_coins, 3) if total_coins else 0,
+                          'is_this_author': bool(author and r['author_id'] == author.pk)})
+    if author and total_coins >= CONCENTRATION_MIN:
+        mine = next((r for r in by_author if r['is_this_author']), None)
+        if mine and mine['share'] >= CONCENTRATION_SHARE:
+            flags.append('one_author')
+
+    # Earnings this reader produced for the author, every status
+    history = []
+    if author:
+        for e in (ChapterUnlockEarning.objects.filter(author=author, unlock__user=reader)
+                  .select_related('chapter__story', 'released_by')[:100]):
+            history.append({'type': 'unlock', 'id': e.pk, 'created_at': e.created_at.isoformat(),
+                            'description': f'{e.chapter.story.title} — chapter {e.chapter.chapter_number}',
+                            'reader_paid': f'{e.coins_spent} coins', 'author_gets': f'{e.coins} coins',
+                            'status': e.status,
+                            'reviewed_by': e.released_by.username if e.released_by else None})
+        for t in (Tip.objects.filter(recipient=author, sender=reader)
+                  .select_related('story', 'earning_reviewed_by')[:100]):
+            is_gift = not t.author_coins_earned
+            history.append({'type': 'tip', 'id': t.pk, 'created_at': t.created_at.isoformat(),
+                            'description': f'{t.label or "Tip"} {"gift" if is_gift else "tip"} — {t.story.title}',
+                            'reader_paid': f'${t.amount_usd}' if is_gift else f'{t.coins_amount} coins',
+                            'author_gets': (f'${t.author_earned_usd}' if t.author_earned_usd is not None else '—')
+                                           if is_gift else f'{t.author_coins_earned} coins',
+                            'status': t.earning_status if t.status == Tip.STATUS_COMPLETED else t.status,
+                            'reviewed_by': t.earning_reviewed_by.username if t.earning_reviewed_by else None})
+        history.sort(key=lambda h: h['created_at'], reverse=True)
+
+    purchases = Purchase.objects.filter(user=reader).select_related('coin_package', 'subscription_plan')
+    p_done = purchases.filter(status=Purchase.STATUS_COMPLETED).aggregate(
+        n=models.Count('id'), usd=models.Sum('amount_paid_usd'), coins=models.Sum('coins_granted'))
+
+    devices = list(UserDevice.objects.filter(user=reader))
+    dev_others = {}
+    for d in devices:
+        dev_others[d.device_id] = list(UserDevice.objects.filter(device_id=d.device_id)
+                                       .exclude(user=reader).select_related('user')[:10])
+
+    def _acct(u):
+        return {'id': u.pk, 'username': u.username, 'email': u.email, 'role': u.role,
+                'date_joined': u.date_joined.isoformat(), 'is_banned': u.is_banned}
+
+    ip_siblings = (list(User.objects.filter(registration_ip=reader.registration_ip)
+                        .exclude(pk=reader.pk).order_by('-date_joined')[:25])
+                   if reader.registration_ip else [])
+    expiring = reader.bonus_expiring
+
+    return Response({
+        'profile': {
+            **_acct(reader),
+            'name':            reader.get_full_name(),
+            'last_login':      reader.last_login.isoformat() if reader.last_login else None,
+            'registration_ip': reader.registration_ip,
+            'ban_reason':      reader.ban_reason,
+            'is_vip':          reader.is_vip,
+            'vip_expires':     reader.vip_expires.isoformat() if reader.vip_expires else None,
+            'account_age_days': (timezone.now() - reader.date_joined).days,
+        },
+        'flags':     flags,
+        'flag_text': [_FLAG_TEXT[f] for f in flags],
+        'wallet': {
+            'coin_balance':  reader.coin_balance,
+            'bonus_balance': reader.bonus_balance,
+            'bonus_expiring': {'amount': expiring['amount'],
+                               'expires_at': expiring['expires_at'].isoformat()} if expiring else None,
+            'coins_bought':  p_done['coins'] or 0,
+            'usd_spent':     str(p_done['usd'] or Decimal('0')),
+            'coins_spent_on_authors': total_coins,
+        },
+        'purchases': {
+            'completed': p_done['n'],
+            'refunded':  purchases.filter(status=Purchase.STATUS_REFUNDED).count(),
+            'failed':    purchases.filter(status=Purchase.STATUS_FAILED).count(),
+            'recent': [{
+                'created_at': p.created_at.isoformat(),
+                'type':       p.get_purchase_type_display(),
+                'item':       str(p.coin_package or p.subscription_plan or ''),
+                'coins':      p.coins_granted,
+                'usd':        str(p.amount_paid_usd),
+                'status':     p.status,
+                'store':      'App store' if p.iap_transaction_id else ('Card' if p.stripe_payment_id or p.stripe_session_id else '—'),
+            } for p in purchases[:25]],
+        },
+        'devices': [{
+            'device_id':  d.device_id[:12] + ('…' if len(d.device_id) > 12 else ''),
+            'platform':   d.platform,
+            'first_seen': d.first_seen.isoformat(),
+            'last_seen':  d.last_seen.isoformat(),
+            'other_accounts': [_acct(o.user) for o in dev_others[d.device_id]],
+        } for d in devices],
+        'phones': [{
+            'platform': f.platform, 'model': f.device_model, 'app_version': f.app_version,
+            'active': f.is_active, 'updated_at': f.updated_at.isoformat(),
+        } for f in FCMDevice.objects.filter(user=reader)[:10]],
+        'same_ip_accounts': [_acct(u) for u in ip_siblings],
+        'spending_by_author': by_author,
+        'history_with_author': history,
+        'rewards_collected': [{
+            'created_at': g.created_at.isoformat(), 'reason': g.reason,
+            'amount': g.amount, 'remaining': g.remaining,
+            'expires_at': g.expires_at.isoformat(),
+        } for g in BonusGrant.objects.filter(user=reader).order_by('-created_at')[:30]],
+        'transactions': [{
+            'created_at': t.created_at.isoformat(), 'type': t.transaction_type,
+            'amount': t.amount, 'reason': t.reason, 'balance_after': t.balance_after,
+        } for t in CoinTransaction.objects.filter(user=reader)[:40]],
+    })
 
 
 # ══════════════════════════════════════════════════════════════════════════════

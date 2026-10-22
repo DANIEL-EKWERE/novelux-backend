@@ -743,7 +743,28 @@ class Chapter(models.Model):
 
     def save(self, *args, **kwargs):
         _is_new = self.pk is None
+        # Editor-typed (<div> lines) and pasted (Google Docs/Word inline
+        # styles) content is normalised to the plain paragraphs bulk upload
+        # produces, so every reader shows it the same way.
+        update_fields = kwargs.get('update_fields')
+        if update_fields is None or 'content' in update_fields:
+            from .html_clean import clean_chapter_html
+            self.content = clean_chapter_html(self.content)
         self.word_count = count_words(self.content)
+
+        # When the story has "lock from chapter N", every chapter follows it —
+        # including chapters added or published later, and whatever lock
+        # switch value the author's app sends. (Without this, chapters added
+        # after the lock was set stayed free.)
+        from apps.stories.models import Story
+        lock_from = (Story.objects.filter(pk=self.story_id)
+                     .values_list('lock_from_chapter', flat=True).first())
+        if lock_from:
+            self.is_locked = self.chapter_number >= lock_from
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'is_locked' not in update_fields:
+                kwargs['update_fields'] = list(update_fields) + ['is_locked']
+
         super().save(*args, **kwargs)
 
         # Auto-trigger review threshold or auto-publish contracted authors
@@ -1065,3 +1086,106 @@ class FreeChapterSchedule(models.Model):
     class Meta:
         db_table      = 'free_chapter_schedules'
         unique_together = ('user', 'story', 'date')
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  VIP reads → author pay (monthly pool, per VIP reader)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class VipChapterRead(models.Model):
+    """A VIP reader opened (or downloaded) a locked chapter they didn't buy.
+    One row per reader, chapter and month — what the monthly VIP payout splits."""
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vip_reads')
+    chapter    = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='vip_reads')
+    author     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vip_reads_received')
+    coin_cost  = models.PositiveSmallIntegerField(help_text='Chapter price when read (what it would have cost).')
+    month      = models.DateField(help_text='First day of the month.')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'vip_chapter_reads'
+        unique_together = ('user', 'chapter', 'month')
+        indexes = [models.Index(fields=['month', 'user'])]
+
+
+class VipPayoutRun(models.Model):
+    """The monthly VIP statement. When a reader's VIP payment covers more than
+    the chapters they read, the excess is not paid out — it is recorded here
+    (excess_ignored_usd) so it's visible."""
+    month               = models.DateField(unique=True, help_text='First day of the month.')
+    vip_readers         = models.PositiveIntegerField(default=0)
+    vip_revenue_usd     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    author_pool_usd     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    reads_value_usd     = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_to_authors_usd = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    excess_ignored_usd  = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    readers_with_excess = models.PositiveIntegerField(default=0)
+    readers_scaled_down = models.PositiveIntegerField(default=0,
+        help_text='Readers who read more than their payment covered (authors split their pool).')
+    created_at          = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'vip_payout_runs'
+        ordering = ['-month']
+
+    def __str__(self):
+        return f'VIP payout {self.month:%B %Y}'
+
+
+class VipEarning(models.Model):
+    """An author's VIP-read pay for one month, held until their SE approves it
+    (same queue as chapter-unlock earnings)."""
+    STATUS_HELD, STATUS_RELEASED, STATUS_REJECTED = 'held', 'released', 'rejected'
+    STATUS_CHOICES = [(STATUS_HELD, 'Held — awaiting editorial release'),
+                      (STATUS_RELEASED, 'Released to author'),
+                      (STATUS_REJECTED, 'Rejected — never paid')]
+
+    run         = models.ForeignKey(VipPayoutRun, on_delete=models.CASCADE, related_name='earnings')
+    author      = models.ForeignKey(User, on_delete=models.CASCADE, related_name='vip_earnings')
+    reads       = models.PositiveIntegerField(default=0)
+    usd         = models.DecimalField(max_digits=10, decimal_places=4)
+    coins       = models.PositiveIntegerField(help_text='Credited on release (100 coins = $1).')
+    status      = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_HELD, db_index=True)
+    released_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='released_vip_earnings')
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'vip_earnings'
+        unique_together = ('run', 'author')
+
+    def _resolve(self, status, by):
+        from django.db import transaction
+        from django.utils import timezone as _tz
+        with transaction.atomic():
+            fresh = VipEarning.objects.select_for_update().get(pk=self.pk)
+            if fresh.status != self.STATUS_HELD:
+                return False
+            if status == self.STATUS_RELEASED and fresh.coins:
+                fresh.author.add_coins(fresh.coins, reason=f'VIP reads — {fresh.run.month:%B %Y}')
+            fresh.status, fresh.released_by, fresh.released_at = status, by, _tz.now()
+            fresh.save(update_fields=['status', 'released_by', 'released_at'])
+        self.refresh_from_db()
+        return True
+
+    def release(self, by=None):
+        return self._resolve(self.STATUS_RELEASED, by)
+
+    def reject(self, by=None):
+        return self._resolve(self.STATUS_REJECTED, by)
+
+
+def record_vip_read(user, chapter):
+    """Count a VIP reader opening a locked chapter they haven't bought.
+    Authors reading their own work and already-unlocked chapters don't count."""
+    if not chapter.is_locked or not getattr(user, 'is_authenticated', False):
+        return
+    story = chapter.story
+    if story.author_id == user.pk:
+        return
+    if ChapterUnlock.objects.filter(user=user, chapter=chapter).exists():
+        return
+    from django.utils import timezone as _tz
+    VipChapterRead.objects.get_or_create(
+        user=user, chapter=chapter, month=_tz.localdate().replace(day=1),
+        defaults={'author_id': story.author_id, 'coin_cost': chapter.coin_cost},
+    )

@@ -906,28 +906,96 @@ class User(AbstractUser):
         )
 
     def add_bonus(self, amount: int, reason: str = ''):
-        """Add reward coins (daily login, ads, reading milestones, etc.)."""
+        """Add reward coins (daily login, ads, reading milestones, etc.).
+        Each grant expires BONUS_VALID_DAYS after it is earned."""
+        from django.utils import timezone as tz
+        from datetime import timedelta
+        if amount <= 0:
+            return
+        BonusGrant.objects.create(
+            user=self, amount=amount, remaining=amount, reason=reason[:255],
+            expires_at=tz.now() + timedelta(days=BONUS_VALID_DAYS),
+        )
         self.bonus_balance += amount
         self.save(update_fields=['bonus_balance'])
         CoinTransaction.objects.create(
             user=self, amount=amount, transaction_type='bonus', reason=reason
         )
 
+    def expire_bonus(self) -> int:
+        """Remove bonus coins whose 7 days have passed. Returns how many."""
+        from django.db import transaction
+        from django.db.models import Sum
+        from django.utils import timezone as tz
+        with transaction.atomic():
+            expired = list(BonusGrant.objects.select_for_update()
+                           .filter(user=self, remaining__gt=0, expires_at__lte=tz.now()))
+            total = sum(g.remaining for g in expired)
+            if not total:
+                return 0
+            BonusGrant.objects.filter(pk__in=[g.pk for g in expired]).update(remaining=0)
+            # Keep the balance equal to what's left in unexpired grants.
+            left = (BonusGrant.objects.filter(user=self, remaining__gt=0)
+                    .aggregate(t=Sum('remaining'))['t'] or 0)
+            self.bonus_balance = left
+            self.save(update_fields=['bonus_balance'])
+            CoinTransaction.objects.create(
+                user=self, amount=total, transaction_type='expire',
+                reason=f'Bonus coins expired ({BONUS_VALID_DAYS} days)',
+            )
+        return total
+
+    @property
+    def bonus_expiring(self):
+        """The soonest-expiring bonus coins: {'amount', 'expires_at'} or None."""
+        from django.utils import timezone as tz
+        g = (BonusGrant.objects.filter(user=self, remaining__gt=0, expires_at__gt=tz.now())
+             .order_by('expires_at').first())
+        return {'amount': g.remaining, 'expires_at': g.expires_at} if g else None
+
     def deduct_coins(self, amount: int, reason: str = '') -> bool:
-        """Deduct coins for a purchase. Drains bonus balance first, then paid coins."""
-        if self.total_balance < amount:
-            return False
-        remaining = amount
-        if self.bonus_balance > 0:
-            from_bonus = min(self.bonus_balance, remaining)
-            self.bonus_balance -= from_bonus
-            remaining -= from_bonus
-        if remaining > 0:
-            self.coin_balance -= remaining
-        self.save(update_fields=['coin_balance', 'bonus_balance'])
-        CoinTransaction.objects.create(
-            user=self, amount=amount, transaction_type='debit', reason=reason
-        )
+        """Deduct coins for a purchase. Drains bonus balance first (soonest
+        to expire first), then paid coins. Expired bonus can't be spent."""
+        from django.db import transaction
+        self.expire_bonus()
+        with transaction.atomic():   # row locks below need a transaction
+            if self.total_balance < amount:
+                return False
+            remaining = amount
+            if self.bonus_balance > 0:
+                from_bonus = min(self.bonus_balance, remaining)
+                self.bonus_balance -= from_bonus
+                remaining -= from_bonus
+                to_take = from_bonus
+                for g in (BonusGrant.objects.select_for_update()
+                          .filter(user=self, remaining__gt=0).order_by('expires_at')):
+                    take = min(g.remaining, to_take)
+                    BonusGrant.objects.filter(pk=g.pk).update(remaining=g.remaining - take)
+                    to_take -= take
+                    if not to_take:
+                        break
+            if remaining > 0:
+                self.coin_balance -= remaining
+            self.save(update_fields=['coin_balance', 'bonus_balance'])
+            CoinTransaction.objects.create(
+                user=self, amount=amount, transaction_type='debit', reason=reason
+            )
+        return True
+
+    def deduct_paid_coins(self, amount: int, reason: str = '') -> bool:
+        """Deduct purchased coins only (bonus coins can't be used), e.g. for
+        buying a whole book to download."""
+        from django.db import transaction
+        with transaction.atomic():
+            fresh = type(self).objects.select_for_update().get(pk=self.pk)
+            if fresh.coin_balance < amount:
+                return False
+            fresh.coin_balance -= amount
+            fresh.save(update_fields=['coin_balance'])
+            self.coin_balance = fresh.coin_balance
+            CoinTransaction.objects.create(
+                user=self, amount=amount, transaction_type='debit', reason=reason
+            )
         return True
 
     def add_vip_time(self, minutes: int):
@@ -1006,10 +1074,12 @@ class CoinTransaction(models.Model):
     TYPE_CREDIT = 'credit'
     TYPE_DEBIT  = 'debit'
     TYPE_BONUS  = 'bonus'
+    TYPE_EXPIRE = 'expire'
     TYPE_CHOICES = [
         (TYPE_CREDIT, 'Credit'),
         (TYPE_DEBIT,  'Debit'),
         (TYPE_BONUS,  'Bonus Reward'),
+        (TYPE_EXPIRE, 'Bonus Expired'),
     ]
 
     user             = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coin_transactions')
@@ -1022,6 +1092,29 @@ class CoinTransaction(models.Model):
     class Meta:
         db_table = 'coin_transactions'
         ordering = ['-created_at']
+
+
+BONUS_VALID_DAYS = 7
+
+
+class BonusGrant(models.Model):
+    """One bonus reward and how much of it is left. bonus_balance is the sum
+    of `remaining` over unexpired grants; spending takes the soonest-expiring
+    first and User.expire_bonus() clears the rest after BONUS_VALID_DAYS."""
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bonus_grants')
+    amount     = models.PositiveIntegerField()
+    remaining  = models.PositiveIntegerField()
+    reason     = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        db_table = 'bonus_grants'
+        ordering = ['expires_at']
+        indexes  = [models.Index(fields=['user', 'expires_at'])]
+
+    def __str__(self):
+        return f'{self.user} · {self.remaining}/{self.amount} · expires {self.expires_at:%Y-%m-%d}'
 
 # class UserPreferences(models.Model):
 #     GENDER_CHOICES = [

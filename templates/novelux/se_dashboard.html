@@ -1636,6 +1636,17 @@ html.dark .brd{color:hsl(0 70% 65%);}
   </div>
 </div>
 
+<!-- Earning Reader Modal (fraud check) -->
+<div class="modal-bg" id="readerModal" onclick="if(event.target===this)closeReader()">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-top">
+      <h3 id="rmTitle">Reader</h3>
+      <button onclick="closeReader()" style="background:none;border:none;color:var(--muted-fg);font-size:20px;line-height:1;">×</button>
+    </div>
+    <div class="modal-body" id="rmBody" style="line-height:1.5;">Loading…</div>
+  </div>
+</div>
+
 <!-- Chapter Read Modal -->
 <div class="modal-bg" id="readModal">
   <div class="modal">
@@ -2241,7 +2252,7 @@ function renderEarnings() {
         <svg class="earn-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
         <div style="flex:1;min-width:160px;">
           <div style="font-weight:600;font-size:14px;">${_e(a.name)}</div>
-          <div style="font-size:12px;color:var(--muted-fg);">${a.count} earning${a.count === 1 ? '' : 's'} awaiting approval</div>
+          <div style="font-size:12px;color:var(--muted-fg);">${a.count} earning${a.count === 1 ? '' : 's'} awaiting approval${a.flagged ? ` · <span class="bdg brd">${a.flagged} flagged</span>` : ''}</div>
         </div>
         <div style="font-weight:600;font-size:14px;">${_money(a.coins, a.usd)}</div>
         <button class="btn bo bsm" onclick="event.stopPropagation();reviewEarnings('reject', ${a.author_id})">Reject all</button>
@@ -2249,11 +2260,12 @@ function renderEarnings() {
       </div>
       <div class="earn-items">
         <div style="overflow-x:auto;"><table class="tbl">
-          <thead><tr><th>Date</th><th>Earning</th><th>Book</th><th>Reader paid</th><th>Author gets</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Earning</th><th>Book</th><th>From reader</th><th>Reader paid</th><th>Author gets</th><th></th></tr></thead>
           <tbody>${a.items.map(i => `<tr>
             <td style="white-space:nowrap;color:var(--muted-fg);font-size:12px;">${_d(i.created_at)}</td>
             <td>${_e(i.description)}</td>
             <td>${_e(i.story)}</td>
+            <td>${_earnReaders(i, a.author_id)}</td>
             <td style="color:var(--muted-fg);">${_e(i.reader_paid)}</td>
             <td style="font-weight:600;">${_money(i.coins, i.usd)}</td>
             <td style="white-space:nowrap;text-align:right;">
@@ -2263,6 +2275,124 @@ function renderEarnings() {
         </table></div>
       </div>
     </div>`).join('');
+}
+
+function _readerChip(r, authorId, extra) {
+  const warn = r.flags.length
+    ? ` <span class="bdg brd" title="${_e(r.flag_text.join('\n'))}">⚠ ${r.flags.length}</span>` : '';
+  return `<a href="#" onclick="event.preventDefault();openReader(${r.id}, ${authorId})" style="color:inherit;font-weight:500;text-decoration:underline;">${_e(r.username)}</a>${extra || ''}${warn}`;
+}
+function _earnReaders(i, authorId) {
+  if (i.reader) return _readerChip(i.reader, authorId);
+  if (i.vip_readers && i.vip_readers.length) {
+    return '<div style="display:flex;flex-direction:column;gap:2px;font-size:12px;">'
+      + i.vip_readers.map(r => '<div>' + _readerChip(r, authorId, ` <span style="color:var(--muted-fg);">· ${_n(r.reads)} read${r.reads === 1 ? '' : 's'}</span>`) + '</div>').join('')
+      + '</div>';
+  }
+  return '<span style="color:var(--muted-fg);">—</span>';
+}
+
+// ── Reader detail (fraud check) ──────────────────────────────────────────────
+async function openReader(id, authorId) {
+  document.getElementById('readerModal').classList.add('open');
+  document.getElementById('rmTitle').textContent = 'Reader';
+  document.getElementById('rmBody').innerHTML = 'Loading…';
+  try {
+    const d = await NUX.get('/editorial/earnings/reader/' + id + '/' + (authorId ? '?author_id=' + authorId : ''));
+    renderReader(d);
+  } catch (e) {
+    document.getElementById('rmBody').innerHTML = '<p>' + _e(e.detail || 'Could not load this reader.') + '</p>';
+  }
+}
+function closeReader() { document.getElementById('readerModal').classList.remove('open'); }
+
+function _statusBdg(s) {
+  const cls = (s === 'released' || s === 'completed') ? 'bgr' : (s === 'rejected' || s === 'refunded' || s === 'failed') ? 'brd' : 'bgy';
+  return `<span class="bdg ${cls}">${_e(s)}</span>`;
+}
+function _rmTable(head, rows, empty) {
+  if (!rows.length) return `<p style="color:var(--muted-fg);font-size:13px;margin:0 0 18px;">${empty}</p>`;
+  return `<div style="overflow-x:auto;margin-bottom:18px;"><table class="tbl">
+    <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function _acctRows(list) {
+  return list.map(u => [_e(u.username), _e(u.email), _e(u.role), _d(u.date_joined), u.is_banned ? '<span class="bdg brd">banned</span>' : '']);
+}
+
+function renderReader(d) {
+  const p = d.profile, w = d.wallet;
+  document.getElementById('rmTitle').textContent = p.username;
+  const h = t => `<h4 style="font-size:13px;font-weight:600;margin:4px 0 10px;">${t}</h4>`;
+  const sm = t => `<span style="color:var(--muted-fg);font-size:12px;">${t}</span>`;
+  const flags = d.flag_text.length
+    ? `<div style="border:1px solid hsl(0 70% 50% / .35);background:color-mix(in srgb,hsl(0 70% 50%) 8%,transparent);border-radius:8px;padding:10px 12px;margin-bottom:16px;">
+         <div style="font-weight:600;font-size:13px;margin-bottom:4px;">⚠ Warning signs</div>
+         <ul style="margin:0;padding-left:18px;font-size:13px;">${d.flag_text.map(t => `<li>${_e(t)}</li>`).join('')}</ul></div>`
+    : `<div style="margin-bottom:16px;"><span class="bdg bgr">No warning signs</span></div>`;
+
+  const devices = d.devices.map(x => [
+    `<span style="font-family:monospace;">${_e(x.device_id)}</span>`, _e(x.platform || '—'),
+    _d(x.first_seen), _d(x.last_seen),
+    x.other_accounts.length
+      ? '<span class="bdg brd">' + x.other_accounts.length + ' other</span> ' + x.other_accounts.map(o => _e(o.username)).join(', ')
+      : sm('none')]);
+  const phones = d.phones.map(x => [_e(x.platform), _e(x.model), _e(x.app_version), x.active ? 'yes' : 'no', _d(x.updated_at)]);
+
+  document.getElementById('rmBody').innerHTML = `
+    ${flags}
+    <div class="am-grid">
+      <div><div class="k">Username</div><div class="v">${_e(p.username)}</div></div>
+      <div><div class="k">Name</div><div class="v">${_e(p.name || '—')}</div></div>
+      <div><div class="k">Email</div><div class="v">${_e(p.email)}</div></div>
+      <div><div class="k">Joined</div><div class="v">${_d(p.date_joined)} ${sm('(' + p.account_age_days + ' days)')}</div></div>
+      <div><div class="k">Last login</div><div class="v">${p.last_login ? _d(p.last_login) : '—'}</div></div>
+      <div><div class="k">Sign-up IP</div><div class="v" style="font-family:monospace;">${_e(p.registration_ip || '—')}</div></div>
+      <div><div class="k">Status</div><div class="v">${p.is_banned ? '<span class="bdg brd">banned</span> ' + _e(p.ban_reason || '') : '<span class="bdg bgr">active</span>'}</div></div>
+      <div><div class="k">VIP</div><div class="v">${p.is_vip ? 'Yes' + (p.vip_expires ? ' ' + sm('until ' + _d(p.vip_expires)) : '') : 'No'}</div></div>
+      <div><div class="k">Coins (purchased)</div><div class="v">${_n(w.coin_balance)}</div></div>
+      <div><div class="k">Bonus coins</div><div class="v">${_n(w.bonus_balance)}${w.bonus_expiring ? ' ' + sm(_n(w.bonus_expiring.amount) + ' expire ' + _d(w.bonus_expiring.expires_at)) : ''}</div></div>
+      <div><div class="k">Coins ever bought</div><div class="v">${_n(w.coins_bought)} ${sm('($' + Number(w.usd_spent).toFixed(2) + ')')}</div></div>
+      <div><div class="k">Coins spent on authors</div><div class="v">${_n(w.coins_spent_on_authors)}</div></div>
+      <div><div class="k">Purchases</div><div class="v">${_n(d.purchases.completed)} completed${d.purchases.refunded ? ' · <span class="bdg brd">' + d.purchases.refunded + ' refunded</span>' : ''}${d.purchases.failed ? ' · ' + d.purchases.failed + ' failed' : ''}</div></div>
+    </div>
+
+    ${h('Earnings this reader gave the author')}
+    ${_rmTable(['Date', 'Earning', 'Reader paid', 'Author gets', 'Status', 'Reviewed by'],
+      d.history_with_author.map(x => [_d(x.created_at), _e(x.description), _e(x.reader_paid), _e(x.author_gets), _statusBdg(x.status), _e(x.reviewed_by || '—')]),
+      'Nothing yet.')}
+
+    ${h('Where their coins go')}
+    ${_rmTable(['Author', 'Unlocks', 'Tips / gifts', 'VIP reads', 'Share of spend'],
+      d.spending_by_author.map(x => [
+        (x.is_this_author ? '<b>' : '') + _e(x.username) + (x.is_this_author ? '</b> ' + sm('(this author)') : ''),
+        _n(x.unlocks) + ' ' + sm('(' + _n(x.unlock_coins) + ' coins)'),
+        _n(x.tips) + ' ' + sm('(' + _n(x.tip_coins) + ' coins' + (Number(x.gift_usd) ? ' + $' + Number(x.gift_usd).toFixed(2) : '') + ')'),
+        _n(x.vip_reads), Math.round(x.share * 100) + '%']),
+      'No spending yet.')}
+
+    ${h('Purchases')}
+    ${_rmTable(['Date', 'Type', 'Item', 'Coins', 'Paid', 'Via', 'Status'],
+      d.purchases.recent.map(x => [_d(x.created_at), _e(x.type), _e(x.item), _n(x.coins), '$' + Number(x.usd).toFixed(2), _e(x.store), _statusBdg(x.status)]),
+      'Has never bought anything.')}
+
+    ${h('Devices')}
+    ${_rmTable(['Device ID', 'Platform', 'First seen', 'Last seen', 'Other accounts on this phone'], devices, 'No devices recorded.')}
+    ${phones.length ? _rmTable(['Platform', 'Model', 'App version', 'Active', 'Updated'], phones, '') : ''}
+
+    ${h('Other accounts from the same sign-up IP')}
+    ${_rmTable(['Username', 'Email', 'Role', 'Joined', ''], _acctRows(d.same_ip_accounts), 'None.')}
+
+    ${h('Rewards collected (bonus coins)')}
+    ${_rmTable(['Date', 'Reward', 'Amount', 'Left', 'Expires'],
+      d.rewards_collected.map(x => [_d(x.created_at), _e(x.reason || '—'), _n(x.amount), _n(x.remaining), _d(x.expires_at)]),
+      'No rewards collected.')}
+
+    ${h('Recent coin activity')}
+    ${_rmTable(['Date', 'Type', 'Amount', 'Reason'],
+      d.transactions.map(x => [_d(x.created_at), _e(x.type), (x.type === 'debit' || x.type === 'expire' ? '−' : '+') + _n(x.amount), _e(x.reason || '—')]),
+      'No coin activity.')}
+  `;
 }
 
 function toggleEarn(id) {

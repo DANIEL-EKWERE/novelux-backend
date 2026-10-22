@@ -9,7 +9,19 @@ class CommentAdmin(admin.ModelAdmin):
                      'is_pinned', 'is_flagged', 'created_at']
     list_filter   = ['is_flagged', 'is_pinned', 'is_author_reply']
     search_fields = ['user__username', 'content', 'story__title']
-    actions       = ['unflag_comments', 'delete_flagged']
+    actions       = ['pin_comments', 'unpin_comments', 'flag_comments', 'unflag_comments', 'delete_flagged']
+
+    @admin.action(description='Pin selected comments')
+    def pin_comments(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_pinned=True)} comment(s) updated.')
+
+    @admin.action(description='Unpin selected comments')
+    def unpin_comments(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_pinned=False)} comment(s) updated.')
+
+    @admin.action(description='Flag selected comments')
+    def flag_comments(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_flagged=True)} comment(s) updated.')
 
     def content_preview(self, obj):
         return obj.content[:60]

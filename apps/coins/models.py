@@ -170,6 +170,8 @@ class DailyRewardClaim(models.Model):
         ('reading_120',  'Reading 120 min'),
         ('reading_180',  'Reading 180 min'),
         ('ad',           'Watch Ad'),
+        ('checkin_ad',   'Check-in Ad Bonus'),
+        ('reading',      'Reading Milestones'),
         ('signin',       'Sign In Reward'),
         ('notification', 'Notification Reward'),
     ]
@@ -223,7 +225,7 @@ class ReadingSchedule(models.Model):
  
 
 # Coins awarded per consecutive check-in day (cycles every 7 days)
-STREAK_REWARDS = [10, 15, 20, 25, 30, 35, 40]
+STREAK_REWARDS = [5, 8, 10, 12, 15, 18, 20]   # 7-day check-in cycle: 5 up to 20
 
 
 class CheckinStreak(models.Model):
@@ -271,6 +273,17 @@ class Task(models.Model):
     repeat_cooldown_hours = models.PositiveIntegerField(
         default=24,
         help_text='Repeatable tasks only: hours a user must wait before completing it again.')
+    launch_url   = models.URLField(
+        blank=True,
+        help_text='Optional link opened by the Launch / Go button (e.g. an Instagram post).')
+    correct_answer = models.CharField(
+        max_length=255, blank=True,
+        help_text='Response tasks: the answer that earns the reward. Not case-sensitive. '
+                  'Separate several accepted answers with |  (e.g. "huxnovel|hux novel"). '
+                  'Leave blank to accept any answer.')
+    wait_seconds = models.PositiveIntegerField(
+        default=30,
+        help_text='Action tasks (General benefits): seconds after tapping Go before Claim appears.')
     expires_at   = models.DateTimeField(null=True, blank=True, help_text='Leave blank for no expiry')
     order        = models.PositiveSmallIntegerField(default=0)
     created_by   = models.ForeignKey(
@@ -301,6 +314,8 @@ class UserTask(models.Model):
     task         = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='completions')
     status       = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
     response     = models.TextField(blank=True, help_text='User-submitted text for response-type tasks')
+    attempts     = models.PositiveSmallIntegerField(default=0, help_text='Wrong answers submitted (response tasks).')
+    started_at   = models.DateTimeField(null=True, blank=True, help_text='When the user tapped Go (action tasks).')
     completed_at = models.DateTimeField(null=True, blank=True)
     claimed_at   = models.DateTimeField(null=True, blank=True)
 
@@ -311,6 +326,36 @@ class UserTask(models.Model):
     def __str__(self):
         return f'{self.user.username} — {self.task.title} [{self.status}]'
 
+
+class AdRewardTask(models.Model):
+    """"Ad rewards" on the rewards screen: watch N ads, earn a bonus.
+    Progress resets every day (see AdTaskProgress)."""
+    title        = models.CharField(max_length=100, default='Watch ads, earn rewards')
+    ads_required = models.PositiveSmallIntegerField(default=1)
+    reward_coins = models.PositiveSmallIntegerField(default=1, help_text='Bonus coins (valid 7 days).')
+    order        = models.PositiveSmallIntegerField(default=0)
+    is_active    = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'ad_reward_tasks'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.ads_required} ad(s) → +{self.reward_coins}'
+
+
+class AdTaskProgress(models.Model):
+    """One reader's progress on one ad task for one day."""
+    user        = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                    related_name='ad_task_progress')
+    task        = models.ForeignKey(AdRewardTask, on_delete=models.CASCADE, related_name='progress')
+    date        = models.DateField()
+    ads_watched = models.PositiveSmallIntegerField(default=0)
+    claimed_at  = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ad_task_progress'
+        unique_together = ('user', 'task', 'date')
 
 class ReadingHistory(models.Model):
     # \"\"\"Tracks every story a user has opened, with last chapter read.\"\"\"

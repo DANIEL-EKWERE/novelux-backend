@@ -2946,6 +2946,9 @@ async function _doPublishChapter(){
   }
 }
 function formatText(cmd){document.execCommand(cmd,false,null);document.getElementById('editorArea').focus();}
+// Enter makes a <p> paragraph (Chrome's default is a <div> line), matching
+// what bulk upload and the readers expect. The server tidies the rest on save.
+try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e) {}
 function insertScene(){
   document.execCommand('insertHTML',false,
     '<p><br></p><p style="text-align:center;color:var(--muted-fg);letter-spacing:.3em;font-size:12px;margin:24px 0;">· · ·</p><p><br></p>'

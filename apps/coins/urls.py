@@ -58,6 +58,9 @@ from .views import (
     CheckinView,
     TaskListView,
     TaskCompleteView,
+    TaskStartView,
+    AdTaskListView,
+    AdTaskWatchedView,
     ReadingSessionView,
     ReadingStatsView,
     ReadingScheduleView,
@@ -89,6 +92,9 @@ urlpatterns = [
     # Tasks
     path('tasks/',                TaskListView.as_view(),                     name='task-list'),
     path('tasks/<int:pk>/complete/', TaskCompleteView.as_view(),              name='task-complete'),
+    path('tasks/<int:pk>/start/',    TaskStartView.as_view(),                 name='task-start'),
+    path('ad-tasks/',                AdTaskListView.as_view(),                name='ad-task-list'),
+    path('ad-tasks/<int:pk>/watched/', AdTaskWatchedView.as_view(),           name='ad-task-watched'),
 
     # Coin redemption
     path('redeem/',               views.RedeemView.as_view(),                 name='redeem'),

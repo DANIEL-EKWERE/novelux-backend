@@ -250,3 +250,65 @@ class WebCookieAuthTests(TestCase):
         res = self._get('/my-books/secret/contract/', nux_refresh=self.author_refresh)
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'Secret')
+
+
+class EarningReaderFraudTests(TestCase):
+    """Each held earning names the reader whose money it is, with warning
+    flags, and the SE can open that reader's full profile."""
+
+    def setUp(self):
+        from apps.chapters.models import ChapterUnlock
+        from apps.users.models import UserDevice
+        self.se     = User.objects.create_user(email='se@x.com', username='se', password='x', role='se')
+        self.author = User.objects.create_user(email='a@x.com', username='author', password='x',
+                                               role='author', registration_ip='10.0.0.1')
+        self.other  = User.objects.create_user(email='o@x.com', username='other', password='x', role='author')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=self.se)
+        # A sock puppet: same IP and phone as the author, never bought coins
+        self.reader = User.objects.create_user(email='r@x.com', username='puppet', password='x',
+                                               registration_ip='10.0.0.1', coin_balance=80, bonus_balance=12)
+        UserDevice.objects.create(user=self.author, device_id='PHONE-1', platform='android')
+        UserDevice.objects.create(user=self.reader, device_id='PHONE-1', platform='android')
+
+        self.story = Story.objects.create(author=self.author, title='Tale', slug='tale')
+        chapter = Chapter.objects.create(story=self.story, title='One', chapter_number=1)
+        unlock = ChapterUnlock.objects.create(user=self.reader, chapter=chapter, coins_spent=300)
+        self.earning = ChapterUnlockEarning.objects.create(
+            author=self.author, chapter=chapter, unlock=unlock, coins=60, coins_spent=300)
+
+        self.client = APIClient()
+        self.client.force_authenticate(self.se)
+
+    def test_items_name_the_reader_with_flags(self):
+        [entry] = self.client.get('/api/editorial/earnings/pending/').data['authors']
+        [item] = entry['items']
+        self.assertEqual(item['reader']['username'], 'puppet')
+        self.assertTrue({'same_ip_author', 'same_device_author', 'new_account', 'no_purchases'}
+                        <= set(item['reader']['flags']))
+        self.assertEqual(entry['flagged'], 1)
+
+    def test_reader_detail(self):
+        res = self.client.get(f'/api/editorial/earnings/reader/{self.reader.pk}/?author_id={self.author.pk}')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual((res.data['wallet']['coin_balance'], res.data['wallet']['bonus_balance']), (80, 12))
+        self.assertIn('one_author', res.data['flags'])
+        self.assertEqual([a['username'] for a in res.data['same_ip_accounts']], ['author'])
+        self.assertEqual(res.data['devices'][0]['other_accounts'][0]['username'], 'author')
+        self.assertEqual(res.data['history_with_author'][0]['status'], 'held')
+
+    def test_se_only_sees_readers_who_paid_their_authors(self):
+        stranger = User.objects.create_user(email='s@x.com', username='s', password='x')
+        self.assertEqual(self.client.get(f'/api/editorial/earnings/reader/{stranger.pk}/').status_code, 404)
+
+    def test_vip_earnings_are_in_the_queue(self):
+        from datetime import date
+        from apps.chapters.models import VipPayoutRun, VipEarning
+        run = VipPayoutRun.objects.create(month=date(2026, 9, 1))
+        vip = VipEarning.objects.create(run=run, author=self.author, reads=3, usd='0.30', coins=30)
+        [entry] = self.client.get('/api/editorial/earnings/pending/').data['authors']
+        self.assertIn('vip', {i['type'] for i in entry['items']})
+        res = self.client.post('/api/editorial/earnings/review/', {
+            'action': 'approve', 'items': [{'type': 'vip', 'id': vip.pk}]}, format='json')
+        self.assertEqual(res.data['processed'], 1)
+        self.author.refresh_from_db()
+        self.assertEqual(self.author.coin_balance, 30)

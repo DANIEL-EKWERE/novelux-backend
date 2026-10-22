@@ -26,6 +26,7 @@ urlpatterns = [
     path('authors/<int:author_id>/',  views.se_author_detail,    name='se-author-detail'),
     path('earnings/pending/',         views.se_pending_earnings, name='se-pending-earnings'),
     path('earnings/review/',          views.se_review_earnings,  name='se-review-earnings'),
+    path('earnings/reader/<int:reader_id>/', views.se_earning_reader, name='se-earning-reader'),
     path('contract-templates/',          views.contract_templates,       name='contract-templates'),
     path('contract-templates/<int:pk>/', views.contract_template_detail, name='contract-template-detail'),
     path('contracts/preview/',           views.contract_preview,         name='contract-preview'),

@@ -453,6 +453,14 @@ CELERY_BEAT_SCHEDULE = {
         'task':     'apps.editorial.tasks.send_promotion_reminders',
         'schedule': 86400,  # every 24 hours
     },
+    'expire-bonus-coins-hourly': {
+        'task':     'apps.coins.tasks.expire_bonus_coins',
+        'schedule': 3600,   # bonus coins are valid for 7 days
+    },
+    'vip-payout-daily-check': {
+        'task':     'apps.chapters.tasks.run_monthly_vip_payout',
+        'schedule': 86400,  # pays last month once; later runs do nothing
+    },
 }
 
 # ── API Docs ─────────────────────────────────────────────────────────────────

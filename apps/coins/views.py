@@ -355,8 +355,17 @@ class MyCoinBalanceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        request.user.expire_bonus()
+        expiring = request.user.bonus_expiring
         return Response({
             'coin_balance':  request.user.coin_balance,
+            'bonus_balance': request.user.bonus_balance,
+            'total_balance': request.user.total_balance,
+            # Soonest-expiring bonus, e.g. {"amount": 12, "expires_at": "…"}
+            'bonus_expiring': ({'amount': expiring['amount'],
+                                'expires_at': expiring['expires_at'].isoformat()}
+                               if expiring else None),
+            'bonus_valid_days': 7,
             'is_vip':        request.user.is_vip,
             'vip_expires':   request.user.vip_expires,
         })
@@ -479,77 +488,79 @@ class CancelSubscriptionView(APIView):
 class ClaimDailyRewardView(APIView):
     """
     POST /api/coins/claim-reward/
-    Body: { "coins": 5, "claim_type": "checkin" }
+    Body: { "claim_type": "signin" | "notification" | "ad" | "checkin_ad" | "reading",
+            "coins": <only used for "reading"> }
+
+    Amounts are set here, not by the app (except reading milestones, which are
+    capped per day). All rewards go to the bonus balance. Daily check-ins use
+    POST /api/coins/checkin/ instead.
     """
     permission_classes = [permissions.IsAuthenticated]
- 
-    ALLOWED_TYPES = {
-        'checkin':      {'max_coins': 40,  'once_daily': True},
-        'reading':      {'max_coins': 50,  'once_daily': True},
-        'ad':           {'max_coins': 20,  'once_daily': False, 'max_per_day': 5},
-        'signin':       {'max_coins': 30,  'once_daily': False, 'once_ever': True},
-        'notification': {'max_coins': 200, 'once_daily': False, 'once_ever': True},
+
+    #   fixed      — coins paid (None = amount from the request, capped)
+    #   once_ever  — one claim per account
+    #   per_day    — claims allowed per day
+    #   daily_cap  — most coins per day (for request-supplied amounts)
+    REWARDS = {
+        'signin':       {'fixed': 5,    'once_ever': True},
+        'notification': {'fixed': 10,   'once_ever': True},
+        'ad':           {'fixed': 1,    'per_day': 10},
+        'checkin_ad':   {'fixed': 5,    'per_day': 1, 'needs_checkin': True},
+        'reading':      {'fixed': None, 'daily_cap': 125},
     }
- 
+
     def post(self, request):
-        coins      = int(request.data.get('coins', 0))
-        claim_type = request.data.get('claim_type', 'checkin')
-        user       = request.user
-        today      = date.today()
- 
-        if claim_type not in self.ALLOWED_TYPES:
-            return Response({'detail': 'Invalid claim type'},
-                            status=status.HTTP_400_BAD_REQUEST)
- 
-        rules = self.ALLOWED_TYPES[claim_type]
- 
-        # Validate coin amount
-        if coins > rules['max_coins'] or coins <= 0:
-            return Response({'detail': f'Invalid coin amount for {claim_type}'},
-                            status=status.HTTP_400_BAD_REQUEST)
- 
-        # Check once-ever claims
-        if rules.get('once_ever'):
-            from apps.coins.models import DailyRewardClaim
-            if DailyRewardClaim.objects.filter(
-                    user=user, claim_type=claim_type).exists():
-                return Response({'detail': 'Already claimed'},
-                                status=status.HTTP_400_BAD_REQUEST)
- 
-        # Check once-daily
-        if rules.get('once_daily'):
-            from apps.coins.models import DailyRewardClaim
-            if DailyRewardClaim.objects.filter(
-                    user=user, claim_type=claim_type,
-                    claimed_at=today).exists():
-                return Response({'detail': 'Already claimed today'},
-                                status=status.HTTP_400_BAD_REQUEST)
- 
-        # Check max per day for ads
-        if rules.get('max_per_day'):
-            from apps.coins.models import DailyRewardClaim
-            count = DailyRewardClaim.objects.filter(
-                user=user, claim_type=claim_type, claimed_at=today).count()
-            if count >= rules['max_per_day']:
-                return Response({'detail': 'Daily limit reached'},
-                                status=status.HTTP_400_BAD_REQUEST)
- 
-        user.add_coins(coins, reason=f'Reward: {claim_type}')
+        from django.db import transaction
+        from django.db.models import Sum
+        from apps.coins.models import DailyRewardClaim, CheckinStreak
 
-        # Record claim
-        from apps.coins.models import DailyRewardClaim
-        DailyRewardClaim.objects.create(
-            user=user, claim_type=claim_type, coins=coins)
+        claim_type = request.data.get('claim_type', '')
+        rules = self.REWARDS.get(claim_type)
+        if rules is None:
+            return Response({'detail': 'Invalid claim type'}, status=status.HTTP_400_BAD_REQUEST)
 
+        today = date.today()
+        with transaction.atomic():
+            # Lock the user row so parallel taps can't each pass the limits.
+            user = type(request.user).objects.select_for_update().get(pk=request.user.pk)
+            claims = DailyRewardClaim.objects.filter(user=user, claim_type=claim_type)
+
+            if rules.get('once_ever') and claims.exists():
+                return Response({'detail': 'Already claimed'}, status=status.HTTP_400_BAD_REQUEST)
+            if rules.get('per_day') and claims.filter(claimed_at=today).count() >= rules['per_day']:
+                return Response({'detail': 'Daily limit reached — come back tomorrow'},
+                                status=status.HTTP_400_BAD_REQUEST)
+            if rules.get('needs_checkin') and not CheckinStreak.objects.filter(
+                    user=user, last_checkin=today).exists():
+                return Response({'detail': 'Check in first'}, status=status.HTTP_400_BAD_REQUEST)
+
+            coins = rules['fixed']
+            if coins is None:
+                try:
+                    coins = int(request.data.get('coins', 0))
+                except (TypeError, ValueError):
+                    coins = 0
+                used = claims.filter(claimed_at=today).aggregate(t=Sum('coins'))['t'] or 0
+                coins = min(coins, rules['daily_cap'] - used)
+                if coins <= 0:
+                    return Response({'detail': 'Daily limit reached — come back tomorrow'},
+                                    status=status.HTTP_400_BAD_REQUEST)
+
+            user.add_bonus(coins, reason=f'Reward: {claim_type}')
+            DailyRewardClaim.objects.create(user=user, claim_type=claim_type, coins=coins)
+
+        claimed_today = DailyRewardClaim.objects.filter(
+            user=user, claim_type=claim_type, claimed_at=today).count()
         return Response({
             'success':       True,
+            'claim_type':    claim_type,
+            'coins_earned':  coins,
             'bonus_added':   coins,
+            'claimed_today': claimed_today,
             'bonus_balance': user.bonus_balance,
             'coin_balance':  user.coin_balance,
         })
- 
- 
-# ── Daily Check-in (streak-aware) ─────────────────────────────────────────────
+
 
 def _get_or_create_streak(user):
     from apps.coins.models import CheckinStreak
@@ -623,7 +634,7 @@ class CheckinView(APIView):
         streak.total_checkins += 1
         streak.save()
 
-        user.add_coins(reward, reason=f'Daily check-in (day {new_streak})')
+        user.add_bonus(reward, reason=f'Daily check-in (day {new_streak})')
 
         # Record in claim history
         DailyRewardClaim.objects.create(user=user, claim_type='checkin', coins=reward)
@@ -641,6 +652,111 @@ class CheckinView(APIView):
 
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
+
+MAX_TASK_ATTEMPTS = 5   # wrong answers allowed on a response task
+
+
+def _answer_matches(given, expected):
+    """Case- and spacing-insensitive match against the admin's answer(s),
+    separated by |. A blank expected answer accepts any answer."""
+    norm = lambda v: ' '.join(str(v).lower().split())
+    accepted = [norm(a) for a in (expected or '').split('|') if norm(a)]
+    return not accepted or norm(given) in accepted
+
+
+BONUS_VALID_DAYS = 7   # shown with ad rewards ("valid for 7 days")
+
+
+def _ad_task_payload(task, progress):
+    watched = progress.ads_watched if progress else 0
+    return {
+        'id':           task.id,
+        'title':        task.title,
+        'ads_required': task.ads_required,
+        'ads_watched':  min(watched, task.ads_required),
+        'reward_coins': task.reward_coins,
+        'completed':    bool(progress and progress.claimed_at),
+        'valid_days':   BONUS_VALID_DAYS,
+    }
+
+
+class AdTaskListView(APIView):
+    """GET /api/coins/ad-tasks/ — the ad tasks with today's progress."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.coins.models import AdRewardTask, AdTaskProgress
+        tasks = list(AdRewardTask.objects.filter(is_active=True))
+        progress = {p.task_id: p for p in AdTaskProgress.objects.filter(
+            user=request.user, task__in=tasks, date=date.today())}
+        return Response({'results': [_ad_task_payload(t, progress.get(t.id)) for t in tasks]})
+
+
+class AdTaskWatchedView(APIView):
+    """
+    POST /api/coins/ad-tasks/<id>/watched/
+    Call after each rewarded ad finishes. Counts one ad toward the task; when
+    the last required ad is watched the bonus is paid (once a day per task).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from django.db import transaction
+        from apps.coins.models import AdRewardTask, AdTaskProgress
+        task = AdRewardTask.objects.filter(pk=pk, is_active=True).first()
+        if task is None:
+            return Response({'detail': 'Task not found.'}, status=404)
+
+        with transaction.atomic():
+            progress, _ = AdTaskProgress.objects.select_for_update().get_or_create(
+                user=request.user, task=task, date=date.today())
+            if progress.claimed_at:
+                return Response({'detail': 'Already completed today — come back tomorrow.',
+                                 **_ad_task_payload(task, progress)}, status=400)
+            progress.ads_watched += 1
+            coins_earned = 0
+            if progress.ads_watched >= task.ads_required:
+                progress.claimed_at = timezone.now()
+                coins_earned = task.reward_coins
+                request.user.add_bonus(coins_earned, reason=f'Ad reward: {task.ads_required} ad(s)')
+            progress.save()
+
+        return Response({**_ad_task_payload(task, progress), 'coins_earned': coins_earned,
+                         'bonus_balance': request.user.bonus_balance})
+
+
+class TaskStartView(APIView):
+    """
+    POST /api/coins/tasks/<id>/start/
+    Action tasks (General benefits): records that the reader tapped Go.
+    Claim unlocks `wait_seconds` later (see TaskCompleteView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        from apps.coins.models import Task, UserTask
+        task = Task.objects.filter(pk=pk, is_active=True, task_type=Task.TYPE_ACTION).first()
+        if task is None:
+            return Response({'detail': 'Task not found.'}, status=404)
+        now = timezone.now()
+        ut, _ = UserTask.objects.get_or_create(user=request.user, task=task)
+        if ut.status == UserTask.STATUS_CLAIMED:
+            reopen = (task.is_repeatable and ut.claimed_at and
+                      ut.claimed_at + timedelta(hours=task.repeat_cooldown_hours) <= now)
+            if not reopen:
+                return Response({'detail': 'Task already completed.'}, status=400)
+            ut.status = UserTask.STATUS_PENDING
+        # Start the wait on the first Go of this round. Re-tapping Go keeps the
+        # original time, so it can't restart or extend the wait.
+        if ut.started_at is None or (ut.claimed_at and ut.started_at <= ut.claimed_at):
+            ut.started_at = now
+        ut.save(update_fields=['status', 'started_at'])
+        return Response({
+            'started_at': ut.started_at.isoformat(),
+            'claim_available_at': (ut.started_at + timedelta(seconds=task.wait_seconds)).isoformat(),
+            'wait_seconds': task.wait_seconds,
+        })
+
 
 class TaskListView(APIView):
     """
@@ -684,6 +800,14 @@ class TaskListView(APIView):
                 'expires_at':   t.expires_at.isoformat() if t.expires_at else None,
                 'status':       status,
                 'next_available_at': available_at.isoformat() if available_at else None,
+                'launch_url':   t.launch_url,
+                'wait_seconds': t.wait_seconds if t.task_type == Task.TYPE_ACTION else 0,
+                'attempts_left': (max(MAX_TASK_ATTEMPTS - (ut.attempts if ut else 0), 0)
+                                  if t.task_type == Task.TYPE_RESPONSE else None),
+                'claim_available_at': (
+                    (ut.started_at + timedelta(seconds=t.wait_seconds)).isoformat()
+                    if ut and ut.started_at and status == 'pending' and t.task_type == Task.TYPE_ACTION
+                    else None),
                 'repeat_cooldown_hours': t.repeat_cooldown_hours if t.is_repeatable else None,
                 'response':     ut.response if ut else '',
                 'completed_at': ut.completed_at.isoformat() if ut and ut.completed_at else None,
@@ -745,6 +869,29 @@ class TaskCompleteView(APIView):
                         'detail': 'You can do this task again later.',
                         'next_available_at': next_at.isoformat(),
                     }, status=400)
+                # A new round of a repeatable task
+                ut.attempts, ut.started_at = 0, None
+
+            if task.task_type == Task.TYPE_RESPONSE:
+                if ut.attempts >= MAX_TASK_ATTEMPTS:
+                    return Response({'detail': 'No tries left for this task.', 'attempts_left': 0}, status=400)
+                if not _answer_matches(response_text, task.correct_answer):
+                    ut.attempts += 1
+                    ut.save(update_fields=['attempts'])
+                    left = MAX_TASK_ATTEMPTS - ut.attempts
+                    return Response({
+                        'detail': ("That's not the right answer. " +
+                                   (f'{left} tr{"y" if left == 1 else "ies"} left.' if left else 'No tries left.')),
+                        'attempts_left': left,
+                    }, status=400)
+            elif task.wait_seconds:
+                # Action tasks: the reader must tap Go, then wait before claiming
+                if not ut.started_at:
+                    return Response({'detail': 'Tap Go first.'}, status=400)
+                ready_at = ut.started_at + timedelta(seconds=task.wait_seconds)
+                if ready_at > now:
+                    return Response({'detail': 'Almost there — you can claim in a moment.',
+                                     'claim_available_at': ready_at.isoformat()}, status=400)
 
             ut.status       = UserTask.STATUS_CLAIMED
             ut.response     = response_text

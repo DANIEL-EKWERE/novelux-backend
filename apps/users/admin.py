@@ -31,8 +31,25 @@ class DuplicateIPFilter(admin.SimpleListFilter):
 class UserAdmin(BaseUserAdmin):
     list_display  = ['username', 'email', 'role', 'coin_balance', 'is_vip',
                      'reading_level', 'registration_ip', 'ip_flag', 'date_joined']
-    list_filter   = ['role', 'is_vip', 'is_active', DuplicateIPFilter]
+    list_filter   = ['role', 'is_vip', 'is_active', 'is_banned', DuplicateIPFilter]
     search_fields = ['username', 'email', 'registration_ip']
+    actions       = ['ban_users', 'unban_users', 'deactivate_users', 'reactivate_users']
+
+    @admin.action(description='Ban selected users')
+    def ban_users(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_banned=True)} user(s) banned.')
+
+    @admin.action(description='Unban selected users')
+    def unban_users(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_banned=False)} user(s) updated.')
+
+    @admin.action(description='Deactivate selected accounts (cannot log in)')
+    def deactivate_users(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=False)} account(s) updated.')
+
+    @admin.action(description='Reactivate selected accounts')
+    def reactivate_users(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=True)} account(s) updated.')
     fieldsets     = BaseUserAdmin.fieldsets + (
         ('Platform Info', {'fields': ('role', 'avatar', 'bio', 'coin_balance', 'is_vip',
                                       'vip_expires','editor_code', 'reading_xp', 'reading_level',

@@ -1,3 +1,4 @@
+from decimal import Decimal, ROUND_HALF_UP
 # from rest_framework import generics, permissions, status
 # from rest_framework.views import APIView
 # from rest_framework.response import Response
@@ -288,7 +289,8 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         from .models import ChapterEditRequest
         from rest_framework.response import Response
 
-        new_content = request.data.get('content', '').strip()
+        from .html_clean import clean_chapter_html
+        new_content = clean_chapter_html(request.data.get('content', '').strip())
         new_title   = request.data.get('title', '').strip()
 
         if not new_content:
@@ -358,62 +360,115 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
             request.user.add_reading_xp(10)
             request.user.total_chapters_read = F('total_chapters_read') + 1
             request.user.save(update_fields=['total_chapters_read'])
+            # VIP reads of locked chapters are what the monthly VIP payout splits
+            if getattr(request.user, 'is_vip', False) and chapter.is_locked:
+                from .models import record_vip_read
+                record_vip_read(request.user, chapter)
         serializer = self.get_serializer(chapter)
         return Response(serializer.data)
 
 
 class DownloadStoryView(APIView):
-    """POST /api/chapters/<story_slug>/chapters/download/
+    """GET  /api/chapters/<story_slug>/chapters/download/  — price quote
+    POST /api/chapters/<story_slug>/chapters/download/  — download
 
-    Returns every published chapter with FULL content for offline reading.
-    The app gates this behind a rewarded ad (method='ad') or a coin charge
-    (method='coins'); VIP subscribers pay nothing.
-
-    Open to guests via the ad path only: downloading a story you can already
-    read is not an account-based feature (App Store guideline 5.1.1(v)), but
-    spending coins and VIP perks are, so those still require signing in.
+    Offline download is a VIP benefit. Other readers can buy the whole book
+    with purchased coins (bonus coins can't be used): the price is the locked
+    chapters they haven't unlocked yet, 10% off. Buying also unlocks those
+    chapters for online reading and pays the author their usual share
+    (held for SE approval). Books with nothing left to pay for are free.
     """
     permission_classes = [permissions.AllowAny]
-    COIN_COST = 120
+    BOOK_DISCOUNT = Decimal('0.10')
 
-    def post(self, request, story_slug):
+    def _story(self, request, story_slug):
         story = get_object_or_404(Story, slug=story_slug)
-        method = (request.data.get('method') or '').lower()
-        authed = bool(getattr(request.user, 'is_authenticated', False))
-
-        # Never hand out a story the caller isn't allowed to read in the first
-        # place — this is the same gate the reading endpoints use.
         from apps.stories.models import explicit_blocked
         if explicit_blocked(story, request.user, request):
             raise Http404
+        return story
 
-        # Exclusive stories: offline download is a VIP perk — no ad/coin path
-        if story.is_exclusive and not getattr(request.user, 'is_vip', False):
-            return Response(
-                {'detail': 'This story is exclusive — offline download '
-                           'requires a VIP subscription.'},
-                status=403,
-            )
+    def _quote(self, story, user):
+        """(chapters to buy with their discounted prices, total) for this reader."""
+        locked = list(Chapter.objects.filter(story=story, is_published=True, is_locked=True,
+                                             coin_cost__gt=0).order_by('chapter_number'))
+        if getattr(user, 'is_authenticated', False):
+            owned = set(ChapterUnlock.objects.filter(user=user, chapter__in=locked)
+                        .values_list('chapter_id', flat=True))
+            locked = [c for c in locked if c.pk not in owned]
+        priced = [(c, int((c.coin_cost * (1 - self.BOOK_DISCOUNT)).to_integral_value(rounding=ROUND_HALF_UP)))
+                  for c in locked]
+        return priced, sum(p for _, p in priced)
 
+    def get(self, request, story_slug):
+        story = self._story(request, story_slug)
+        user  = request.user
+        is_vip = bool(getattr(user, 'is_vip', False))
+        priced, total = self._quote(story, user)
+        full_price = sum(c.coin_cost for c, _ in priced)
+        return Response({
+            'is_vip':          is_vip,
+            'price':           0 if is_vip else total,
+            'full_price':      0 if is_vip else full_price,
+            'discount_pct':    int(self.BOOK_DISCOUNT * 100),
+            'chapters_to_buy': 0 if is_vip else len(priced),
+            'coin_balance':    getattr(user, 'coin_balance', 0) if getattr(user, 'is_authenticated', False) else 0,
+            'exclusive':       story.is_exclusive,
+            'can_buy':         not story.is_exclusive,   # exclusive books: VIP only
+        })
+
+    def post(self, request, story_slug):
+        story  = self._story(request, story_slug)
+        user   = request.user
+        authed = bool(getattr(user, 'is_authenticated', False))
+        is_vip = bool(getattr(user, 'is_vip', False))
         coins_spent = 0
-        if getattr(request.user, 'is_vip', False):
-            pass  # included with the VIP subscription
-        elif method == 'coins':
-            if not authed:
-                return Response(
-                    {'detail': 'Sign in to spend coins on downloads.'},
-                    status=401,
-                )
-            if not request.user.deduct_coins(
-                    self.COIN_COST, reason=f'Offline download: {story.title}'):
-                return Response({'detail': 'Insufficient coins.'}, status=402)
-            coins_spent = self.COIN_COST
-        elif method != 'ad':
-            return Response(
-                {'detail': "method must be 'ad' or 'coins'"}, status=400)
 
-        chapters = Chapter.objects.filter(
-            story=story, is_published=True).order_by('chapter_number')
+        if is_vip:
+            # Included with VIP — record the locked chapters as VIP reads so
+            # the author is paid from the VIP pool.
+            from .models import record_vip_read
+            for c in Chapter.objects.filter(story=story, is_published=True, is_locked=True).select_related('story'):
+                record_vip_read(user, c)
+        else:
+            priced, total = self._quote(story, user)
+            if total > 0:
+                if story.is_exclusive:
+                    return Response({'detail': 'This story is exclusive — offline download '
+                                               'requires a VIP subscription.'}, status=403)
+                if not authed:
+                    return Response({'detail': 'Sign in to buy this book for download.'}, status=401)
+                # Only charge when the app showed this price and the reader
+                # confirmed it. Older app versions send method 'ad'/'coins'
+                # (the old 120-coin gate) and must not be charged silently.
+                if request.data.get('method') != 'buy':
+                    return Response({'detail': 'Please update the app to buy this book for download.',
+                                     'update_required': True, 'price': total}, status=409)
+                shown = request.data.get('price')
+                if shown is not None and str(shown) != str(total):
+                    return Response({'detail': 'The price has changed — please check it and try again.',
+                                     'price': total}, status=409)
+                from django.db import transaction
+                with transaction.atomic():   # coins and unlocks succeed or fail together
+                    if not user.deduct_paid_coins(total, reason=f'Book download: {story.title}'):
+                        return Response({
+                            'detail': 'Not enough coins. Downloads use purchased coins only (not bonus coins).',
+                            'price': total, 'coin_balance': user.coin_balance,
+                        }, status=402)
+                    coins_spent = total
+                    share = Decimal(str(settings.AUTHOR_REVENUE_SHARE))
+                    for chapter, paid in priced:
+                        unlock, created = ChapterUnlock.objects.get_or_create(
+                            user=user, chapter=chapter, defaults={'coins_spent': paid})
+                        cut = int(Decimal(paid) * share)
+                        if created and cut > 0:
+                            ChapterUnlockEarning.objects.create(
+                                author=story.author, chapter=chapter, unlock=unlock,
+                                coins=cut, coins_spent=paid)
+                        Chapter.objects.filter(pk=chapter.pk).update(unlocks=F('unlocks') + 1)
+                    Story.objects.filter(pk=story.pk).update(total_unlocks=F('total_unlocks') + len(priced))
+
+        chapters = Chapter.objects.filter(story=story, is_published=True).order_by('chapter_number')
         return Response({
             'story': story.title,
             'coins_spent': coins_spent,
@@ -438,8 +493,11 @@ class UnlockChapterView(APIView):
         if story.author == request.user:
             return Response({'detail': 'You own this story.'}, status=200)
 
-        # VIP subscription includes every locked chapter — nothing to pay
+        # VIP subscription includes every locked chapter — nothing to pay.
+        # The read is recorded so the author is paid from the VIP pool.
         if getattr(request.user, 'is_vip', False):
+            from .models import record_vip_read
+            record_vip_read(request.user, chapter)
             return Response({'detail': 'Included with your VIP subscription.',
                              'coins_spent': 0}, status=200)
 

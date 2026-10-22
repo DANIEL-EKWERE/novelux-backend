@@ -11,6 +11,15 @@ class ContentReportAdmin(admin.ModelAdmin):
     list_filter   = ['reason', 'status']
     list_editable = ['status']
     search_fields = ['story__title', 'details']
+    actions       = ['mark_reviewed', 'mark_pending']
+
+    @admin.action(description='Mark selected reports as reviewed')
+    def mark_reviewed(self, request, queryset):
+        self.message_user(request, f'{queryset.update(status=ContentReport.STATUS_REVIEWED)} report(s) updated.')
+
+    @admin.action(description='Mark selected reports as pending')
+    def mark_pending(self, request, queryset):
+        self.message_user(request, f'{queryset.update(status=ContentReport.STATUS_PENDING)} report(s) updated.')
     readonly_fields = ['story', 'chapter_number', 'reporter', 'reason', 'details', 'created_at']
 
 
@@ -24,8 +33,13 @@ class StoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('title',)}
     readonly_fields= ['total_views', 'total_unlocks', 'total_chapters', 'target_word_count',
                       'average_rating', 'total_ratings', 'total_likes', 'word_count']
-    actions        = ['feature_stories', 'mark_editors_pick', 'add_to_library_banner',
-                      'remove_from_library_banner', 'unfeature_stories']
+    actions        = ['feature_stories', 'mark_editors_pick', 'remove_editors_pick',
+                      'add_to_library_banner', 'remove_from_library_banner', 'unfeature_stories',
+                      'mark_ongoing', 'mark_completed', 'mark_paused',
+                      'mark_explicit', 'mark_not_explicit',
+                      'enable_free_download', 'disable_free_download',
+                      'lock_all_chapters', 'unlock_all_chapters', 'reapply_lock_rule',
+                      'recount_chapters']
 
     def feature_stories(self, request, queryset):
         queryset.update(is_featured=True)
@@ -47,6 +61,75 @@ class StoryAdmin(admin.ModelAdmin):
         queryset.update(is_featured=False, is_editors_pick=False)
     unfeature_stories.short_description = 'Remove from featured/picks'
 
+    @admin.action(description="Remove editor's pick")
+    def remove_editors_pick(self, request, queryset):
+        self.message_user(request, f"Removed {queryset.update(is_editors_pick=False)} story(ies) from editor's pick.")
+
+    @admin.action(description='Mark as ongoing')
+    def mark_ongoing(self, request, queryset):
+        self.message_user(request, f'{queryset.update(status=Story.STATUS_ONGOING)} story(ies) marked ongoing.')
+
+    @admin.action(description='Mark as completed')
+    def mark_completed(self, request, queryset):
+        n = queryset.update(status=Story.STATUS_COMPLETED, is_completed=True)
+        self.message_user(request, f'{n} story(ies) marked completed.')
+
+    @admin.action(description='Mark as paused')
+    def mark_paused(self, request, queryset):
+        self.message_user(request, f'{queryset.update(status=Story.STATUS_PAUSED)} story(ies) paused.')
+
+    @admin.action(description='Mark as explicit (18+)')
+    def mark_explicit(self, request, queryset):
+        n = queryset.update(is_explicit=True, age_rating='18+')
+        self.message_user(request, f'{n} story(ies) marked explicit. They are hidden while '
+                                   f'"show explicit content" is off.')
+
+    @admin.action(description='Mark as not explicit')
+    def mark_not_explicit(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_explicit=False)} story(ies) marked not explicit.')
+
+    @admin.action(description='Turn on free download')
+    def enable_free_download(self, request, queryset):
+        self.message_user(request, f'Free download on for {queryset.update(is_free_download=True)} story(ies).')
+
+    @admin.action(description='Turn off free download')
+    def disable_free_download(self, request, queryset):
+        self.message_user(request, f'Free download off for {queryset.update(is_free_download=False)} story(ies).')
+
+    @admin.action(description='Lock all chapters (lock from chapter 1)')
+    def lock_all_chapters(self, request, queryset):
+        from apps.chapters.models import apply_lock_from_chapter
+        for story in queryset:
+            story.lock_from_chapter = 1
+            story.save(update_fields=['lock_from_chapter'])
+            apply_lock_from_chapter(story)
+        self.message_user(request, f'All chapters locked in {queryset.count()} story(ies).')
+
+    @admin.action(description='Unlock all chapters (remove lock setting)')
+    def unlock_all_chapters(self, request, queryset):
+        from apps.chapters.models import apply_lock_from_chapter
+        for story in queryset:
+            story.lock_from_chapter = None
+            story.save(update_fields=['lock_from_chapter'])
+            apply_lock_from_chapter(story)
+        self.message_user(request, f'All chapters unlocked in {queryset.count()} story(ies).')
+
+    @admin.action(description='Re-apply "lock from chapter N" to all chapters')
+    def reapply_lock_rule(self, request, queryset):
+        from apps.chapters.models import apply_lock_from_chapter
+        stories = queryset.filter(lock_from_chapter__isnull=False)
+        for story in stories:
+            apply_lock_from_chapter(story)
+        self.message_user(request, f'Re-applied the lock rule for {stories.count()} story(ies) '
+                                   f'(stories without a lock setting were skipped).')
+
+    @admin.action(description='Recount chapters and words')
+    def recount_chapters(self, request, queryset):
+        from django.db.models import Count, Sum
+        for story in queryset.annotate(n=Count('chapters'), w=Sum('chapters__word_count')):
+            Story.objects.filter(pk=story.pk).update(total_chapters=story.n, word_count=story.w or 0)
+        self.message_user(request, f'Recounted {queryset.count()} story(ies).')
+
 #admin.site.register(PromoBanner)
 admin.site.register(Bookmark)
 admin.site.register(PlatformSettings)
@@ -59,6 +142,15 @@ class GenreAdmin(admin.ModelAdmin):
     list_editable       = ['is_active']
     list_filter         = ['is_active']
     prepopulated_fields = {'slug': ('name',)}
+    actions             = ['activate_genres', 'deactivate_genres']
+
+    @admin.action(description='Activate selected genres')
+    def activate_genres(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=True)} genre(s) updated.')
+
+    @admin.action(description='Deactivate selected genres (hides their stories)')
+    def deactivate_genres(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=False)} genre(s) updated.')
 
 
 @admin.register(Tag)

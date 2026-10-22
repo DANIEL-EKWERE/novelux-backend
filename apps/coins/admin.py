@@ -3,7 +3,7 @@ from django.utils import timezone
 from .models import (
     CoinPackage, SubscriptionPlan, Purchase, Subscription, AuthorPayout,
     DailyRewardClaim, ReadingSession, ReadingSchedule, ReadingHistory,
-    CheckinStreak, Task, UserTask,
+    CheckinStreak, Task, UserTask, AdRewardTask,
 )
 
 
@@ -22,6 +22,15 @@ class CheckinStreakAdmin(admin.ModelAdmin):
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
     list_display  = ('title', 'task_type', 'reward_coins', 'icon', 'is_active', 'is_repeatable', 'repeat_cooldown_hours', 'expires_at', 'order')
+    actions       = ['activate_tasks', 'deactivate_tasks']
+
+    @admin.action(description='Activate selected tasks')
+    def activate_tasks(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=True)} task(s) updated.')
+
+    @admin.action(description='Deactivate selected tasks')
+    def deactivate_tasks(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=False)} task(s) updated.')
     list_editable = ('is_active', 'order', 'reward_coins')
     list_filter   = ('task_type', 'is_active', 'is_repeatable')
     search_fields = ('title', 'description')
@@ -70,7 +79,12 @@ class AuthorPayoutAdmin(admin.ModelAdmin):
     list_display  = ['author', 'amount_usd', 'status', 'payout_method', 'requested_at']
     list_filter   = ['status', 'payout_method']
     search_fields = ['author__username']
-    actions       = ['mark_processed']
+    actions       = ['mark_processed', 'mark_failed']
+
+    @admin.action(description='Mark selected payouts as failed')
+    def mark_failed(self, request, queryset):
+        n = queryset.update(status=AuthorPayout.STATUS_FAILED)
+        self.message_user(request, f'{n} payout(s) marked failed.')
 
     def mark_processed(self, request, queryset):
         queryset.update(status='processed', processed_at=timezone.now())
@@ -80,3 +94,18 @@ class AuthorPayoutAdmin(admin.ModelAdmin):
 @admin.register(ReadingHistory)    
 class ReadingHistoryAddmin(admin.ModelAdmin):
     list_display = ['user', 'story', 'chapter_number', 'chapter_title', 'read_at']
+
+
+@admin.register(AdRewardTask)
+class AdRewardTaskAdmin(admin.ModelAdmin):
+    list_display  = ('title', 'ads_required', 'reward_coins', 'order', 'is_active')
+    actions       = ['activate_ad_tasks', 'deactivate_ad_tasks']
+
+    @admin.action(description='Activate selected ad tasks')
+    def activate_ad_tasks(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=True)} ad task(s) updated.')
+
+    @admin.action(description='Deactivate selected ad tasks')
+    def deactivate_ad_tasks(self, request, queryset):
+        self.message_user(request, f'{queryset.update(is_active=False)} ad task(s) updated.')
+    list_editable = ('ads_required', 'reward_coins', 'order', 'is_active')

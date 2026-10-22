@@ -260,6 +260,8 @@ class MeView(generics.RetrieveUpdateAPIView):
         return UserSerializer
 
     def get_object(self):
+        # Bonus coins are valid for 7 days — drop expired ones before showing the balance.
+        self.request.user.expire_bonus()
         return self.request.user
 
 

@@ -293,3 +293,19 @@ class ChapterHtmlCleanTests(TestCase):
                                     content='<div style="color:#000">Hi</div><div><br></div><div>there</div>')
         ch.refresh_from_db()
         self.assertEqual(ch.content, '<p>Hi</p><p>there</p>')
+
+
+class ChapterListPageSizeTests(TestCase):
+    """The app loads the whole chapter list with ?page_size= — the story
+    details page showed only 10 chapters when this was ignored."""
+
+    def test_page_size_param(self):
+        from rest_framework.test import APIClient
+        author = User.objects.create_user(email='a@x.com', username='author', password='x', role='author')
+        story = Story.objects.create(author=author, title='Tale', slug='tale')
+        for n in range(1, 26):
+            Chapter.objects.create(story=story, title=f'Ch {n}', chapter_number=n, is_published=True)
+        client = APIClient()
+        full = client.get('/api/chapters/tale/chapters/?page=1&page_size=500').data
+        self.assertEqual((full['count'], len(full['results'])), (25, 25))
+        self.assertEqual(len(client.get('/api/chapters/tale/chapters/').data['results']), 10)

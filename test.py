@@ -104,4 +104,5 @@ you create a section in the admin panel where i(admin) can upload the sound in i
 then again another one
 1. there'll be a listed text/button at the top of the home, close to the lannguage and check in icons, that same position, clicking on it opens a screen, now what this screen does is this, the idea is for readers to upload any book in what ever formate they have it and listen, they will have all the controlls for it, that screen should be rich in feature related to that, research and add features to it, don't forget to add ads.
 don't add unneccessary permission that will hinder the app from being published.there's a particular permission for read and write of a user directory that google requires a video explanation.
+
 '''

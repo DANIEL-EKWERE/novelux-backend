@@ -1,3 +1,4 @@
+from rest_framework.pagination import PageNumberPagination
 from decimal import Decimal, ROUND_HALF_UP
 # from rest_framework import generics, permissions, status
 # from rest_framework.views import APIView
@@ -170,7 +171,18 @@ class ChapterLockedError(APIException):
     default_code = 'chapters_locked'
 
 
+class ChapterListPagination(PageNumberPagination):
+    """10 per page by default (web dashboards page through them), but the
+    app asks for the whole list at once with ?page_size= (story details page,
+    reader contents) — without this it only ever got the first 10."""
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+
 class ChapterListCreateView(generics.ListCreateAPIView):
+    pagination_class = ChapterListPagination
+
     def get_serializer_class(self):
         return ChapterCreateUpdateSerializer if self.request.method == 'POST' else ChapterListSerializer
 

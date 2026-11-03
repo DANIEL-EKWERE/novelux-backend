@@ -1635,11 +1635,11 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
       </div>
       <h2 style="font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px;">You've hit the milestone!</h2>
-      <p style="font-size:13px;color:var(--muted-fg);line-height:1.6;">You've completed enough chapters to apply for a <strong>HuxNovel Publishing Contract</strong>. Before writing your next chapter, go to <strong>My Books</strong> and tap <strong>Apply for Contract</strong> on your story.</p>
+      <p style="font-size:13px;color:var(--muted-fg);line-height:1.6;"><strong id="contractMilestoneBook">Your story</strong> has enough chapters to apply for a <strong>HuxNovel Publishing Contract</strong>. You can apply now from <strong>My Books</strong>, or keep writing and apply whenever you're ready — there's no limit on how many chapters you add.</p>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeContractModal();showPage('my-books',document.querySelector('[onclick*=my-books]'))">Go to My Books →</button>
-      <button style="width:100%;padding:10px;font-size:13px;color:var(--muted-fg);background:none;border:1px solid var(--border);cursor:pointer;font-family:inherit;" onclick="closeContractModal(true)">Write chapter anyway</button>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeContractModal();showPage('my-books',document.querySelector('[onclick*=my-books]'))">Apply for Contract →</button>
+      <button style="width:100%;padding:10px;font-size:13px;color:var(--muted-fg);background:none;border:1px solid var(--border);cursor:pointer;font-family:inherit;" onclick="closeContractModal()">Continue for now</button>
     </div>
   </div>
 </div>
@@ -1793,6 +1793,8 @@ function closeSidebar(){document.getElementById('sidebar').classList.remove('ope
 // Page nav
 const pageTitles={dashboard:'Dashboard','my-books':'My Books','create-story':'New Story','edit-story':'Edit Story',chapters:'Chapters',editor:'Write Chapter',calendar:'Update Calendar',analytics:'Analytics',earnings:'Earnings',promotions:'Promotions',profile:'Profile',settings:'Settings'};
 function showPage(id, btn){
+  // Leaving the editor: show a contract notice held during autosave
+  if(id !== 'editor' && _milestonePendingSlug) setTimeout(showQueuedContractMilestone, 300);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -2346,7 +2348,7 @@ async function buUpload(){
   prog.style.display = '';
 
   let num = await _buNextNumber(slug).catch(() => _buStart);
-  let done = 0, stopMsg = '';
+  let done = 0, stopMsg = '', reachedMilestone = false;
   const total = _buChapters.length;
   for(const c of _buChapters){
     prog.textContent = `Uploading ${done + 1} of ${total}: ${c.title}…`;
@@ -2360,6 +2362,9 @@ async function buUpload(){
         stopMsg = err.detail || (err.chapter_number && err.chapter_number[0]) || `Upload stopped (error ${res.status}).`;
         break;
       }
+      // The chapter that reaches the contract threshold — note it, keep going
+      const saved = await res.json().catch(() => ({}));
+      if(saved.contract_eligible) reachedMilestone = true;
       done++; num++;
     } catch(e){
       stopMsg = 'Network error — check your connection and upload the remaining chapters again.';
@@ -2373,8 +2378,11 @@ async function buUpload(){
   if(!stopMsg){
     showToast(`${done} chapter${done === 1 ? '' : 's'} uploaded as drafts`);
     closeBulkUpload();
+    // Upload finished — now tell them they can apply for a contract
+    if(reachedMilestone) setTimeout(() => openContractMilestoneModal(slug), 600);
     return;
   }
+  if(reachedMilestone) _milestonePendingSlug = slug; // shown once they're done
   prog.innerHTML = `<div>${done} of ${total} chapters uploaded as drafts.</div>
                     <div class="bu-err" style="margin-top:6px;">${_buEsc(stopMsg)}</div>`;
   buRender();
@@ -2427,6 +2435,7 @@ function buildChapterPerf(){
 
 // Editor auto-save
 let saveTimer=null;
+let _autoSaving = false; // true while a save was started by the autosave timer
 function onEditorInput(){
   updateWordCount();
   startSaveTimer();
@@ -2444,7 +2453,8 @@ function startSaveTimer(){
     const slug  = _editorSlug();
     const title = document.getElementById('chapterTitleInput')?.value?.trim();
     if(slug && title){          // ← only fires if BOTH are valid
-      manualSave();
+      _autoSaving = true;
+      manualSave().finally(() => { _autoSaving = false; });
     } else {
       dot.className = 'save-dot saved';
       if(status) status.textContent = 'Ready';
@@ -2611,20 +2621,37 @@ function loadChapterIntoEditor(storySlug, chapterNumber, chapterTitle){
 } {% endcomment %}
 
 
-let _contractModalPendingSlug = null;
+// The "you can apply for a contract" notice. It never blocks writing: it's
+// shown once, when a story reaches the chapter threshold — after a bulk upload
+// finishes, or when the author leaves the editor / saves by hand.
+let _milestonePendingSlug = null;
 
 function openContractMilestoneModal(slug) {
-  _contractModalPendingSlug = slug;
-  const m = document.getElementById('contractMilestoneModal');
-  m.style.display = 'flex';
+  const bk = books.find(b => b.slug === slug);
+  if(bk) bk.can_apply_contract = true;
+  const name = document.getElementById('contractMilestoneBook');
+  if(name) name.textContent = bk ? `"${bk.title}"` : 'Your story';
+  document.getElementById('contractMilestoneModal').style.display = 'flex';
+  if(window.noveluxAPI) window.noveluxAPI.fetch('/stories/mine/').then(d => {
+    if(window.refreshBooks) window.refreshBooks(d);
+  });
 }
 
-function closeContractModal(proceedAnyway) {
+function closeContractModal() {
   document.getElementById('contractMilestoneModal').style.display = 'none';
-  if (proceedAnyway && _contractModalPendingSlug) {
-    _openEditorForNewChapter(_contractModalPendingSlug);
-  }
-  _contractModalPendingSlug = null;
+}
+
+/** Hold the notice until the author is done (no interrupting typing). */
+function queueContractMilestone(slug) {
+  _milestonePendingSlug = slug;
+  showToast('🎉 This story can now apply for a contract — keep writing, we\'ll show you how when you\'re done.');
+}
+
+function showQueuedContractMilestone() {
+  if(!_milestonePendingSlug) return;
+  const slug = _milestonePendingSlug;
+  _milestonePendingSlug = null;
+  openContractMilestoneModal(slug);
 }
 
 function newChapter(storySlug) {
@@ -2641,13 +2668,7 @@ function newChapter(storySlug) {
         return;
     }
 
-    // Check if this story has hit the contract milestone
-    const story = books.find(b => b.slug === resolvedSlug);
-    if (story && story.can_apply_contract) {
-      openContractMilestoneModal(resolvedSlug);
-      return;
-    }
-
+    // Reaching the contract milestone never stops new chapters
     _openEditorForNewChapter(resolvedSlug);
 }
 
@@ -2772,7 +2793,11 @@ async function manualSave(){
         const bk = books.find(b => b.slug === slug);
         if(bk) bk.can_apply_contract = true;
         renderFullBooks();
-        openContractMilestoneModal(slug);
+        // Autosave while typing → hold the notice; a deliberate save → show it
+        if(_autoSaving) queueContractMilestone(slug);
+        else openContractMilestoneModal(slug);
+      } else if(!_autoSaving && _milestonePendingSlug === slug) {
+        showQueuedContractMilestone();
       }
       // Refresh books list in background to keep everything in sync.
       if(window.noveluxAPI) window.noveluxAPI.fetch('/stories/mine/').then(d => {

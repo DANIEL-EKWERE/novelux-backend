@@ -214,7 +214,7 @@ class ChapterListCreateView(generics.ListCreateAPIView):
         story = get_object_or_404(Story, slug=self.kwargs['story_slug'])
         if story.author != self.request.user:
             raise PermissionDenied
-        # Block new chapters once the story hits threshold or author has applied
+        # Chapter count at which the author is told they can apply for a contract
         from apps.stories.models import PlatformSettings
         threshold = (
             story.review_threshold_override
@@ -231,30 +231,10 @@ class ChapterListCreateView(generics.ListCreateAPIView):
                     pass
             return
 
-        chapter_count = Chapter.objects.filter(story=story).count()
-        at_threshold = chapter_count >= threshold
-
-        # Ensure contract_eligible flag is in sync (catches pre-flag stories)
-        if at_threshold and not story.contract_eligible and story.contract_status == 'none':
-            Story.objects.filter(pk=story.pk).update(contract_eligible=True)
-            story.contract_eligible = True
-
-        if story.contract_eligible or at_threshold or story.contract_status in ('under_review', 'contract_sent', 'awaiting_signature', 'rejected'):
-            if story.contract_status == 'awaiting_signature':
-                msg = 'Your contract is ready to sign — new chapters are locked until you sign.'
-            elif story.contract_status == 'contract_sent':
-                msg = 'Your story is under CE review — new chapters are locked until your contract is signed.'
-            elif story.contract_status == 'under_review':
-                msg = 'Your contract application is under review. New chapters are locked until it is resolved.'
-            elif story.contract_status == 'rejected':
-                msg = 'Your contract application has been rejected. New chapters are locked until you address the feedback.'
-            else:
-                msg = (
-                    f'This story has reached {threshold} chapters. '
-                    'Go to My Books and tap "Apply for Contract" to proceed. '
-                    'New chapters are locked until your contract is signed.'
-                )
-            raise ChapterLockedError(msg)
+        # No limit on chapters before a contract: authors keep writing (one
+        # at a time or by bulk upload). Reaching the threshold only tells them
+        # they can now apply — the chapter that gets there carries
+        # contract_eligible=True so the dashboard shows the notice once.
         chapter = serializer.save(story=story)
         if chapter.is_published:
             try:
@@ -263,7 +243,13 @@ class ChapterListCreateView(generics.ListCreateAPIView):
                 pass  # Don't crash if Redis/Celery is unavailable
         # Refresh story from DB so contract_eligible reflects _check_editorial_trigger's update.
         story.refresh_from_db(fields=['contract_eligible', 'contract_status'])
-        self._story_contract_eligible = story.contract_eligible and story.contract_status == 'none'
+        reached_now = Chapter.objects.filter(story=story).count() == threshold
+        if reached_now and story.contract_status == 'none' and not story.contract_eligible:
+            Story.objects.filter(pk=story.pk).update(contract_eligible=True)
+            story.contract_eligible = True
+        self._story_contract_eligible = (
+            reached_now and story.contract_eligible and story.contract_status == 'none'
+        )
 
 
 class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -277,10 +263,10 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
         if data.get('status') == Chapter.STATUS_PUBLISHED or data.get('is_published') is True:
             data.pop('status', None)
             data.pop('is_published', None)
-        chapter = serializer.save(**data)
-        story = chapter.story
-        story.refresh_from_db(fields=['contract_eligible', 'contract_status'])
-        self._story_contract_eligible = story.contract_eligible and story.contract_status == 'none' and story.contract_status == 'none'
+        serializer.save(**data)
+        # The "you can apply for a contract" notice comes from creating the
+        # chapter that reaches the threshold — not from every (auto)save.
+        self._story_contract_eligible = False
 
     def update(self, request, *args, **kwargs):
         self._story_contract_eligible = False

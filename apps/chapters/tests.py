@@ -309,3 +309,69 @@ class ChapterListPageSizeTests(TestCase):
         full = client.get('/api/chapters/tale/chapters/?page=1&page_size=500').data
         self.assertEqual((full['count'], len(full['results'])), (25, 25))
         self.assertEqual(len(client.get('/api/chapters/tale/chapters/').data['results']), 10)
+
+
+class ContractThresholdTests(TestCase):
+    """Reaching the contract threshold no longer stops new chapters — the
+    chapter that reaches it just carries the "you can apply" flag."""
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        self.author = User.objects.create_user(email='a@x.com', username='author', password='x', role='author')
+        self.story = Story.objects.create(author=self.author, title='Tale', slug='tale',
+                                          review_threshold_override=10)
+        self.client = APIClient()
+        self.client.force_authenticate(self.author)
+
+    def add(self, n):
+        return self.client.post('/api/chapters/tale/chapters/',
+                                {'title': f'Ch {n}', 'content': '<p>Text</p>', 'chapter_number': n},
+                                format='json')
+
+    def test_no_limit_and_notice_only_on_the_threshold_chapter(self):
+        flags = {}
+        for n in range(1, 16):
+            res = self.add(n)
+            self.assertEqual(res.status_code, 201, (n, res.data))
+            flags[n] = bool(res.data.get('contract_eligible'))
+        self.assertEqual([n for n, f in flags.items() if f], [10])
+        self.assertEqual(Chapter.objects.filter(story=self.story).count(), 15)
+        self.story.refresh_from_db()
+        self.assertTrue(self.story.contract_eligible)
+
+    def test_autosave_edits_do_not_repeat_the_notice(self):
+        for n in range(1, 11):
+            self.add(n)
+        res = self.client.patch('/api/chapters/tale/chapters/10/', {'title': 'Renamed'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertFalse(res.data.get('contract_eligible', False))
+
+    def test_apply_sends_first_ten_and_writing_continues_in_review(self):
+        from apps.users.models import AuthorKYC
+        from apps.editorial.models import AuthorEditorLink
+        se = User.objects.create_user(email='se@x.com', username='se', password='x', role='se')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=se)
+        AuthorKYC.objects.create(user=self.author, full_name='A', phone='1', contact_address='x',
+                                 country='NG', id_number='1', status=AuthorKYC.STATUS_APPROVED)
+        for n in range(1, 16):
+            self.add(n)
+        res = self.client.post('/api/stories/tale/apply-contract/', {'se_selection': 'random'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        statuses = dict(Chapter.objects.filter(story=self.story).values_list('chapter_number', 'status'))
+        self.assertEqual({n for n, s in statuses.items() if s == Chapter.STATUS_PENDING_REVIEW}, set(range(1, 11)))
+        self.assertEqual({n for n, s in statuses.items() if s == Chapter.STATUS_DRAFT}, set(range(11, 16)))
+        # Still writing while the application is in review
+        res = self.add(16)
+        self.assertEqual(res.status_code, 201, res.data)
+        self.assertEqual(Chapter.objects.get(story=self.story, chapter_number=16).status, Chapter.STATUS_DRAFT)
+
+    def test_failed_application_leaves_chapters_alone(self):
+        from apps.users.models import AuthorKYC
+        AuthorKYC.objects.create(user=self.author, full_name='A', phone='1', contact_address='x',
+                                 country='NG', id_number='1', status=AuthorKYC.STATUS_APPROVED)
+        for n in range(1, 11):
+            self.add(n)
+        res = self.client.post('/api/stories/tale/apply-contract/', {'se_selection': 'code', 'editor_code': 'NOPE'},
+                               format='json')
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(Chapter.objects.filter(story=self.story, status=Chapter.STATUS_PENDING_REVIEW).exists())

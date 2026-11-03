@@ -1175,12 +1175,6 @@ def apply_for_contract(request, slug):
             status=400,
         )
 
-    # Flip all pre-review chapters into the SE queue
-    pre_review = [Chapter.STATUS_DRAFT, Chapter.STATUS_SUBMITTED]
-    Chapter.objects.filter(story=story, status__in=pre_review).update(
-        status=Chapter.STATUS_PENDING_REVIEW
-    )
-
     # ── SE selection ─────────────────────────────────────────────────────────
     # Three modes the author can pass in the request body:
     #   se_selection = "code"   → editor_code field required (existing flow)
@@ -1230,6 +1224,22 @@ def apply_for_contract(request, slug):
             {'detail': 'se_selection must be "code", "choose", or "random".'},
             status=400,
         )
+
+    # Send the first <threshold> chapters (by number) to the SE queue — the
+    # same 10 as before. Authors may have written more by now (there's no
+    # chapter limit); those, and anything added while the application is in
+    # review, stay drafts and keep being editable.
+    from apps.stories.models import PlatformSettings
+    threshold = story.review_threshold_override or PlatformSettings.get_threshold()
+    review_ids = list(
+        Chapter.objects.filter(story=story)
+        .order_by('chapter_number')
+        .values_list('pk', flat=True)[:threshold]
+    )
+    Chapter.objects.filter(
+        pk__in=review_ids,
+        status__in=[Chapter.STATUS_DRAFT, Chapter.STATUS_SUBMITTED],
+    ).update(status=Chapter.STATUS_PENDING_REVIEW)
 
     # ── Create ContractApplication and lock the story ──────────────────────
     ContractApplication.objects.get_or_create(

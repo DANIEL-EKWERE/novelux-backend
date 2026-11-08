@@ -78,6 +78,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'config.ratelimit.AuthRateLimitMiddleware',   # login / sign-up / reset limits
     'novelux_web.middleware.CanonicalHostRedirectMiddleware',
     'novelux_web.middleware.FreshAccessCookieMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -278,6 +279,16 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    # Rate limits for the whole API (see config/ratelimit.py). Generous on
+    # purpose — many mobile users share one carrier IP.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'config.ratelimit.AnonBurstThrottle',
+        'config.ratelimit.UserBurstThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '300/min',   # per IP, signed-out
+        'user': '600/min',   # per account
+    },
 }
 
 # ── JWT ──────────────────────────────────────────────────────────────────────

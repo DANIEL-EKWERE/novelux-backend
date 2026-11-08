@@ -5,6 +5,8 @@ logger = logging.getLogger(__name__)
 
 _SKIP_PREFIXES = (
     '/admin/',
+    '/master',          # the owner's dashboard — don't track yourself
+    '/api/master/',
     '/api/schema/',
     '/api/docs/',
     '/static/',

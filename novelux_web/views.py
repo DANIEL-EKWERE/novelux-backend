@@ -4008,6 +4008,34 @@ def ce_dashboard(request):
     return render(request, 'novelux/ce_dashboard.html', ctx)
 
 
+def _is_master(user):
+    return bool(user and (user.is_superuser or user.role == 'admin'))
+
+
+def master_dashboard(request):
+    """/master/ — the owner's dashboard (superusers and admins only)."""
+    user = _user_from_request(request)
+    if user is None:
+        return redirect(f'/login/?next={request.path}')
+    if not _is_master(user):
+        return redirect('/login/?error=access_denied')
+    return render(request, 'novelux/master_dashboard.html', {
+        'access_token': _jwt_from_request(request),
+        'api_url': _get_api_base(request),
+        'me': user,
+    })
+
+
+def master_token(request):
+    """/master/token/ — a fresh access token for the open dashboard, so it
+    keeps working past the 1-hour access-token lifetime."""
+    from django.http import JsonResponse
+    user = _user_from_request(request)
+    if not _is_master(user):
+        return JsonResponse({'detail': 'Not allowed.'}, status=403)
+    return JsonResponse({'access': _jwt_from_request(request)})
+
+
 def editor_login_redirect(request):
     """
     After login, redirect editors to the correct dashboard based on their role.

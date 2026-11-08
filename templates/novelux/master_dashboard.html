@@ -1,0 +1,688 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');})()</script>
+<meta charset="UTF-8"/>
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api" content="{{ api_url|default:'/api' }}">
+<meta name="robots" content="noindex,nofollow">
+<title>Master Dashboard – HuxNovel</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#fff;--fg:#171717;--primary:hsl(14 62% 38%);--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--card:#fafafa;--sw:228px;--role:hsl(14 62% 42%);--ok:hsl(142 60% 38%);--bad:hsl(0 70% 48%);--warn:hsl(38 92% 45%);}
+html.dark{--bg:#0f0f11;--fg:#e5e5e5;--muted:#1c1c20;--muted-fg:#8a8a90;--border:#2a2a30;--card:#141417;--ok:hsl(142 60% 55%);--bad:hsl(0 70% 62%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button,input,select{font-family:inherit;font-size:inherit;}
+button{cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:var(--sw);flex-shrink:0;border-right:1px solid var(--border);background:var(--bg);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:40;transform:translateX(-100%);transition:transform .2s;}
+.sb.open{transform:translateX(0);}
+@media(min-width:1024px){.sb{transform:none!important;position:sticky;top:0;height:100vh;}}
+.sb-top{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.brand-logo{width:24px;height:24px;border-radius:7px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;}
+.brand{font-size:14px;font-weight:700;letter-spacing:.03em;}
+.brand small{display:block;font-size:10px;font-weight:600;color:var(--role);letter-spacing:.14em;text-transform:uppercase;}
+.sb-nav{padding:12px 10px;flex:1;display:flex;flex-direction:column;gap:1px;overflow-y:auto;}
+.nbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;font-size:13px;color:var(--muted-fg);width:100%;border:none;background:none;border-radius:7px;text-align:left;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}
+.nbtn.active{background:color-mix(in srgb,var(--role) 11%,transparent);color:var(--role);font-weight:600;}
+.nbtn svg{width:16px;height:16px;flex-shrink:0;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--ok);margin-left:auto;box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 60%,transparent);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 55%,transparent);}70%{box-shadow:0 0 0 8px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
+.sb-bot{padding:14px 16px;border-top:1px solid var(--border);font-size:12px;color:var(--muted-fg);}
+.main{flex:1;min-width:0;}
+.topbar{position:sticky;top:0;z-index:30;height:54px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;gap:10px;}
+@media(min-width:1024px){.topbar{padding:0 24px;}.menu-btn{display:none!important;}}
+.topbar h1{font-size:16px;font-weight:600;}
+.tr{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:8px;}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.seg button{border:none;background:none;padding:6px 10px;font-size:12px;color:var(--muted-fg);}
+.seg button.on{background:var(--role);color:#fff;}
+.content{padding:18px 16px 60px;max-width:1500px;}
+@media(min-width:1024px){.content{padding:22px 24px 60px;}}
+.page{display:none;}
+.page.active{display:block;}
+.grid{display:grid;gap:12px;}
+.kpis{grid-template-columns:repeat(2,minmax(0,1fr));}
+@media(min-width:700px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(min-width:1200px){.kpis{grid-template-columns:repeat(6,minmax(0,1fr));}}
+.two{grid-template-columns:1fr;}
+@media(min-width:1000px){.two{grid-template-columns:1fr 1fr;}.two-1{grid-template-columns:2fr 1fr;}}
+.card{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:14px 16px;min-width:0;}
+.card h3{font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.card h3 .sub{font-weight:400;color:var(--muted-fg);font-size:12px;margin-left:auto;}
+.kpi .k{font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.02em;}
+.kpi .s{font-size:11px;color:var(--muted-fg);margin-top:2px;}
+.kpi.hl .v{color:var(--role);}
+.chart{position:relative;height:220px;}
+.chart.sm{height:160px;}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;font-weight:500;font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;padding:8px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.tbl tr.click{cursor:pointer;}
+.tbl tr.click:hover td{background:color-mix(in srgb,var(--role) 5%,transparent);}
+.scroll{overflow-x:auto;}
+.muted{color:var(--muted-fg);}
+.sm{font-size:12px;}
+.bdg{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;font-size:11px;font-weight:500;border-radius:5px;background:var(--muted);color:var(--muted-fg);white-space:nowrap;}
+.bdg.ok{background:color-mix(in srgb,var(--ok) 13%,transparent);color:var(--ok);}
+.bdg.bad{background:color-mix(in srgb,var(--bad) 13%,transparent);color:var(--bad);}
+.bdg.role{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;}
+.dot.on{background:var(--ok);}
+.av{width:30px;height:30px;border-radius:50%;background:var(--role);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex-shrink:0;overflow:hidden;}
+.av img{width:100%;height:100%;object-fit:cover;}
+.who{display:flex;align-items:center;gap:9px;min-width:0;}
+.who b{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar{height:8px;border-radius:5px;background:var(--muted);overflow:hidden;}
+.bar>i{display:block;height:100%;background:var(--role);border-radius:5px;}
+.row{display:flex;align-items:center;gap:10px;}
+.list-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}
+.list-row:last-child{border-bottom:none;}
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.filters input,.filters select{padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);}
+.filters input{flex:1;min-width:200px;}
+.btn{padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:13px;}
+.btn.p{background:var(--role);border-color:var(--role);color:#fff;}
+.pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px;font-size:13px;}
+.empty{padding:30px;text-align:center;color:var(--muted-fg);}
+.big{font-size:52px;font-weight:800;letter-spacing:-.03em;color:var(--role);line-height:1;}
+.stream{max-height:520px;overflow-y:auto;}
+.ev{display:grid;grid-template-columns:62px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px;}
+.ev time{color:var(--muted-fg);font-size:11px;}
+/* Drawer */
+.dr-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:none;}
+.dr-bg.open{display:block;}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(1100px,100vw);background:var(--bg);z-index:90;transform:translateX(100%);transition:transform .22s;display:flex;flex-direction:column;border-left:1px solid var(--border);}
+.drawer.open{transform:none;}
+.dr-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.dr-head .av{width:44px;height:44px;font-size:16px;}
+.dr-body{flex:1;overflow-y:auto;padding:16px 18px 50px;}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);padding:0 18px;overflow-x:auto;}
+.tabs button{border:none;background:none;padding:10px 10px;font-size:13px;color:var(--muted-fg);border-bottom:2px solid transparent;white-space:nowrap;}
+.tabs button.on{color:var(--role);border-color:var(--role);font-weight:600;}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px 18px;}
+.kv .k{font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;}
+.kv .v{font-size:13.5px;margin-top:2px;word-break:break-word;}
+.heat{display:grid;grid-template-columns:34px repeat(24,1fr);gap:2px;font-size:10px;color:var(--muted-fg);}
+.heat i{display:block;aspect-ratio:1;border-radius:3px;background:var(--muted);}
+.tl-item{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.tl-item .when{color:var(--muted-fg);font-size:12px;}
+.loading{padding:40px;text-align:center;color:var(--muted-fg);}
+.err{padding:14px;border:1px solid var(--bad);color:var(--bad);border-radius:10px;margin-bottom:12px;}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:35;display:none;}
+.ovl.show{display:block;}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sb" id="sb">
+    <div class="sb-top">
+      <div class="brand-logo">H</div>
+      <div class="brand">HuxNovel<small>Master</small></div>
+    </div>
+    <nav class="sb-nav" id="nav">
+      <button class="nbtn active" data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Overview</button>
+      <button class="nbtn" data-page="realtime"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Realtime<span class="live-dot"></span></button>
+      <button class="nbtn" data-page="users"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users</button>
+      <button class="nbtn" data-page="audience"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Audience</button>
+      <button class="nbtn" data-page="team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15l-3.5 2 1-4-3-2.6 4-.3L12 6l1.5 4.1 4 .3-3 2.6 1 4z"/><circle cx="12" cy="12" r="10"/></svg>Team</button>
+      <button class="nbtn" data-page="books"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Books</button>
+      <button class="nbtn" data-page="revenue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Revenue</button>
+    </nav>
+    <div class="sb-bot">Signed in as <b>{{ me.username }}</b><br><a href="/admin/novelux/database/" style="color:var(--role);">Django admin →</a></div>
+  </aside>
+  <div class="ovl" id="ovl" onclick="closeSb()"></div>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="row">
+        <button class="icon-btn menu-btn" onclick="openSb()" aria-label="Menu">☰</button>
+        <h1 id="ptitle">Overview</h1>
+      </div>
+      <div class="tr">
+        <div class="seg" id="periodSeg">
+          <button data-d="1">24h</button><button data-d="7">7d</button><button data-d="30" class="on">30d</button><button data-d="90">90d</button>
+        </div>
+        <button class="icon-btn" id="refreshBtn" title="Refresh">↻</button>
+        <button class="icon-btn" id="themeBtn" title="Theme">◐</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <section class="page active" id="page-overview"><div class="loading">Loading…</div></section>
+      <section class="page" id="page-realtime"><div class="loading">Loading…</div></section>
+      <section class="page" id="page-users">
+        <div class="filters">
+          <input id="uq" placeholder="Search name, username, email or ID…">
+          <select id="urole"><option value="">All roles</option><option value="reader">Readers</option><option value="author">Authors</option><option value="se">Senior editors</option><option value="ce">Chief editors</option><option value="admin">Admins</option></select>
+          <select id="ustatus"><option value="">Everyone</option><option value="online">Online now</option><option value="active7">Active in 7 days</option><option value="dormant">Inactive 30+ days</option><option value="paying">Paying</option><option value="vip">VIP</option><option value="banned">Banned</option></select>
+          <select id="usort"><option value="last_seen">Last seen</option><option value="joined">Newest</option><option value="spent">Top spenders</option><option value="coins">Most coins</option></select>
+        </div>
+        <div class="card"><div class="scroll" id="userTable"><div class="loading">Loading…</div></div>
+          <div class="pager" id="userPager"></div></div>
+      </section>
+      <section class="page" id="page-audience"><div class="loading">Loading…</div></section>
+      <section class="page" id="page-team"><div class="loading">Loading…</div></section>
+      <section class="page" id="page-books"><div class="loading">Loading…</div></section>
+      <section class="page" id="page-revenue"><div class="loading">Loading…</div></section>
+    </div>
+  </main>
+</div>
+
+<!-- Detail drawer (user / editor) -->
+<div class="dr-bg" id="drBg" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dr-head" id="drHead"></div>
+  <div class="tabs" id="drTabs"></div>
+  <div class="dr-body" id="drBody"></div>
+</aside>
+
+<script>
+// ── API ──────────────────────────────────────────────────────────────────────
+const API = {
+  token: document.querySelector('meta[name="nux-token"]').content,
+  base: document.querySelector('meta[name="nux-api"]').content || '/api',
+  async get(path, retry = true) {
+    const r = await fetch(this.base + path, { headers: { 'Authorization': 'Bearer ' + this.token } });
+    if (r.status === 401 && retry) {
+      // Access tokens last an hour — get a fresh one and try again
+      const t = await fetch('/master/token/', { credentials: 'same-origin' });
+      if (t.ok) { this.token = (await t.json()).access; return this.get(path, false); }
+      location.href = '/login/?next=/master/';
+    }
+    if (!r.ok) throw (await r.json().catch(() => ({ detail: 'Request failed (' + r.status + ')' })));
+    return r.json();
+  },
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const _e = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _n = v => Number(v || 0).toLocaleString();
+const _usd = v => '$' + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const _pct = v => (Number(v || 0) * 100).toFixed(1) + '%';
+const _d = iso => iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const _dd = iso => iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+function ago(iso) {
+  if (!iso) return 'never';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  if (s < 86400 * 30) return Math.floor(s / 86400) + 'd ago';
+  return _dd(iso);
+}
+const flag = cc => cc && cc.length === 2 ? String.fromCodePoint(...[...cc.toUpperCase()].map(c => 127397 + c.charCodeAt(0))) : '🌐';
+function avatar(u) {
+  return `<div class="av">${u.avatar ? `<img src="${_e(u.avatar)}" alt="">` : _e((u.username || '?')[0].toUpperCase())}</div>`;
+}
+function who(u, sub) {
+  return `<div class="who">${avatar(u)}<div style="min-width:0;"><b>${_e(u.username)}</b><span class="muted sm">${sub ?? _e(u.email || '')}</span></div></div>`;
+}
+const roleBdg = (r, owner) => owner ? '<span class="bdg role">Owner</span>'
+  : `<span class="bdg ${r === 'reader' ? '' : 'role'}">${_e({ reader: 'Reader', author: 'Author', se: 'Senior editor', ce: 'Chief editor', admin: 'Admin' }[r] || r)}</span>`;
+const parts = (...xs) => xs.filter(Boolean).map(_e).join(' · ');
+const err = e => `<div class="err">${_e(e?.detail || 'Something went wrong.')}</div>`;
+const kpi = (k, v, s, hl) => `<div class="card kpi${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div>${s ? `<div class="s">${s}</div>` : ''}</div>`;
+function barList(rows, label, value, fmt = _n) {
+  if (!rows.length) return '<div class="empty">No data yet.</div>';
+  const max = Math.max(...rows.map(value), 1);
+  return rows.map(r => `<div style="margin-bottom:9px;"><div class="row sm" style="justify-content:space-between;margin-bottom:3px;"><span>${label(r)}</span><b>${fmt(value(r))}</b></div><div class="bar"><i style="width:${(value(r) / max * 100).toFixed(1)}%"></i></div></div>`).join('');
+}
+
+// Charts (re-created on each render)
+const charts = {};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function chart(id, type, labels, datasets, opts = {}) {
+  charts[id]?.destroy();
+  const el = document.getElementById(id);
+  if (!el) return;
+  const role = css('--role'), grid = css('--border'), fg = css('--muted-fg');
+  const palette = [role, 'hsl(210 70% 50%)', 'hsl(142 55% 42%)', 'hsl(38 90% 50%)', 'hsl(270 55% 55%)', 'hsl(190 70% 42%)', 'hsl(340 65% 52%)', '#888'];
+  datasets.forEach((d, i) => {
+    const c = d.color || palette[i % palette.length];
+    if (type === 'doughnut') { d.backgroundColor = palette; d.borderWidth = 0; }
+    else {
+      d.borderColor = c; d.backgroundColor = type === 'bar' ? c : c.replace(')', ' / 12%)').replace('hsl(', 'hsl(');
+      d.fill = type === 'line'; d.tension = .3; d.pointRadius = 0; d.borderWidth = 2;
+    }
+  });
+  charts[id] = new Chart(el, {
+    type, data: { labels, datasets },
+    options: Object.assign({
+      responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: datasets.length > 1 || type === 'doughnut', labels: { color: fg, boxWidth: 10, font: { family: 'Geist' } } } },
+      scales: type === 'doughnut' ? {} : {
+        x: { grid: { display: false }, ticks: { color: fg, maxTicksLimit: 8, font: { size: 10 } } },
+        y: { grid: { color: grid }, ticks: { color: fg, font: { size: 10 } }, beginAtZero: true },
+      },
+    }, opts),
+  });
+}
+const shortDate = d => new Date(d + 'T00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+// ── Navigation & period ──────────────────────────────────────────────────────
+let days = Number(localStorage.getItem('master_days') || 30);
+let page = 'overview';
+const titles = { overview: 'Overview', realtime: 'Realtime', users: 'Users', audience: 'Audience', team: 'Team', books: 'Books', revenue: 'Revenue' };
+const loaders = {};
+function go(p) {
+  page = p;
+  document.querySelectorAll('.page').forEach(s => s.classList.toggle('active', s.id === 'page-' + p));
+  document.querySelectorAll('.nbtn').forEach(b => b.classList.toggle('active', b.dataset.page === p));
+  $('#ptitle').textContent = titles[p];
+  $('#periodSeg').style.visibility = ['realtime', 'users'].includes(p) ? 'hidden' : '';
+  if (location.hash.slice(1) !== p) history.pushState(null, '', '#' + p);
+  closeSb();
+  loaders[p]?.();
+}
+document.querySelectorAll('.nbtn').forEach(b => b.onclick = () => go(b.dataset.page));
+document.querySelectorAll('#periodSeg button').forEach(b => {
+  b.classList.toggle('on', Number(b.dataset.d) === days);
+  b.onclick = () => {
+    days = Number(b.dataset.d); localStorage.setItem('master_days', days);
+    document.querySelectorAll('#periodSeg button').forEach(x => x.classList.toggle('on', x === b));
+    loaders[page]?.();
+  };
+});
+$('#refreshBtn').onclick = () => loaders[page]?.();
+$('#themeBtn').onclick = () => {
+  const d = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('nux_theme', d ? 'dark' : 'light');
+  loaders[page]?.();
+};
+function openSb() { $('#sb').classList.add('open'); $('#ovl').classList.add('show'); }
+function closeSb() { $('#sb').classList.remove('open'); $('#ovl').classList.remove('show'); }
+const periodLabel = () => days === 1 ? 'last 24 hours' : `last ${days} days`;
+
+// ── Overview ─────────────────────────────────────────────────────────────────
+loaders.overview = async () => {
+  const el = $('#page-overview');
+  try {
+    const d = await API.get('/master/overview/?days=' + days);
+    const k = d.kpis, t = d.trends;
+    const f = d.funnel, fmax = Math.max(f.signed_up, 1);
+    el.innerHTML = `
+      <div class="grid kpis">
+        ${kpi('Online now', _n(k.online_now), `+ ${_n(k.online_guests)} guests`, true)}
+        ${kpi('Daily active', _n(k.dau), `Stickiness ${_pct(k.stickiness)} (DAU/MAU)`)}
+        ${kpi('Weekly active', _n(k.wau))}
+        ${kpi('Monthly active', _n(k.mau))}
+        ${kpi('New users', _n(k.new_users), periodLabel())}
+        ${kpi('Total users', _n(k.users_total), `${_n(k.readers)} readers · ${_n(k.authors)} authors · ${_n(k.editors)} editors`)}
+        ${kpi('Revenue', _usd(k.revenue_usd), `${_n(k.purchases)} purchases · ${periodLabel()}`, true)}
+        ${kpi('Gifts', _usd(k.gifts_usd), `${_n(k.gifts)} real-money gifts`)}
+        ${kpi('Paying users', _n(k.paying_users), `ARPPU ${_usd(k.arppu)}`)}
+        ${kpi('VIP active', _n(k.vip_active))}
+        ${kpi('Chapters opened', _n(k.chapter_reads), `${_n(k.unlocks)} unlocks`)}
+        ${kpi('Books', _n(k.books), `+${_n(k.new_books)} new · ${_n(k.chapters_published)} chapters updated`)}
+      </div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Active users & visitors <span class="sub">${periodLabel()}</span></h3><div class="chart"><canvas id="cActive"></canvas></div></div>
+        <div class="card"><h3>New sign-ups</h3><div class="chart"><canvas id="cSignups"></canvas></div></div>
+        <div class="card"><h3>Revenue (USD)</h3><div class="chart"><canvas id="cRevenue"></canvas></div></div>
+        <div class="card"><h3>Chapters opened</h3><div class="chart"><canvas id="cReads"></canvas></div></div>
+      </div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Top countries <span class="sub">visitors · signed-in users</span></h3>
+          ${barList(d.countries, r => `${flag(r.country_code)} ${_e(r.country)} <span class="muted sm">· ${_n(r.users)} users</span>`, r => r.visitors)}</div>
+        <div class="card"><h3>Top cities</h3>${barList(d.cities, r => `${_e(r.city)} <span class="muted sm">${_e(r.country)}</span>`, r => r.visitors)}</div>
+        <div class="card"><h3>Platforms <span class="sub">unique visitors</span></h3><div class="chart sm"><canvas id="cPlat"></canvas></div></div>
+        <div class="card"><h3>Conversion funnel <span class="sub">people who joined ${periodLabel()}</span></h3>
+          ${[['Signed up', f.signed_up], ['Read a chapter', f.read_a_chapter], ['Unlocked a chapter', f.unlocked_a_chapter], ['Made a purchase', f.made_a_purchase]]
+            .map(([l, v]) => `<div style="margin-bottom:10px;"><div class="row sm" style="justify-content:space-between;margin-bottom:3px;"><span>${l}</span><b>${_n(v)} <span class="muted">${_pct(v / fmax)}</span></b></div><div class="bar"><i style="width:${(v / fmax * 100).toFixed(1)}%"></i></div></div>`).join('')}</div>
+      </div>
+      <div class="card" style="margin-top:12px;"><h3>Most-read books <span class="sub">${periodLabel()}</span></h3><div class="scroll"><table class="tbl">
+        <thead><tr><th>Book</th><th>Chapters opened</th><th>Readers</th></tr></thead>
+        <tbody>${d.top_books.map(b => `<tr><td>${_e(b.story__title)}</td><td>${_n(b.reads)}</td><td>${_n(b.readers)}</td></tr>`).join('') || '<tr><td colspan="3" class="empty">No reads yet.</td></tr>'}</tbody></table></div></div>`;
+    const lab = t.active_users.map(x => shortDate(x.date));
+    chart('cActive', 'line', lab, [{ label: 'Active users', data: t.active_users.map(x => x.value) }, { label: 'Visitors', data: t.visitors.map(x => x.value) }]);
+    chart('cSignups', 'bar', t.signups.map(x => shortDate(x.date)), [{ label: 'Sign-ups', data: t.signups.map(x => x.value) }]);
+    chart('cRevenue', 'line', t.revenue.map(x => shortDate(x.date)), [{ label: 'USD', data: t.revenue.map(x => x.value) }]);
+    chart('cReads', 'bar', t.reads.map(x => shortDate(x.date)), [{ label: 'Reads', data: t.reads.map(x => x.value) }]);
+    chart('cPlat', 'doughnut', d.platforms.map(p => p.name), [{ data: d.platforms.map(p => p.value) }], { plugins: { legend: { position: 'right', labels: { color: css('--muted-fg') } } } });
+  } catch (e) { el.innerHTML = err(e); }
+};
+
+// ── Realtime ─────────────────────────────────────────────────────────────────
+let rtTimer = null;
+loaders.realtime = async () => {
+  const el = $('#page-realtime');
+  clearTimeout(rtTimer);
+  try {
+    const d = await API.get('/master/realtime/');
+    el.innerHTML = `
+      <div class="grid two two-1">
+        <div class="card"><h3><span class="live-dot" style="margin:0;"></span> Right now <span class="sub">auto-refreshes every 15s</span></h3>
+          <div class="row" style="gap:28px;align-items:flex-end;flex-wrap:wrap;">
+            <div><div class="big">${_n(d.online_users)}</div><div class="muted sm">signed-in users online (last 5 min)</div></div>
+            <div><div style="font-size:28px;font-weight:700;">${_n(d.online_guests)}</div><div class="muted sm">guests</div></div>
+            <div><div style="font-size:28px;font-weight:700;">${_n(d.last_30_min.visitors)}</div><div class="muted sm">visitors in 30 min</div></div>
+          </div>
+          <div class="chart sm" style="margin-top:14px;"><canvas id="cRt"></canvas></div></div>
+        <div class="card"><h3>Where they are now</h3>${barList(d.countries, r => `${flag(r.country_code)} ${_e(r.country)}`, r => r.n)}</div>
+      </div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Online users <span class="sub">${d.online.length}</span></h3>
+          ${d.online.map(u => `<div class="list-row" style="cursor:pointer;" onclick="openUser(${u.id})">
+            <span class="dot on"></span>${who(u, `${flag(u.country_code)} ${_e(u.city || u.country || '')} · ${_e(u.platform)}`)}
+            <div style="margin-left:auto;text-align:right;"><div class="sm">${_e(u.doing)}</div><div class="muted sm">${ago(u.last_seen)} · ${roleBdg(u.role)}</div></div></div>`).join('') || '<div class="empty">Nobody signed in right now.</div>'}</div>
+        <div class="card"><h3>Live activity</h3><div class="stream">
+          ${d.stream.map(v => `<div class="ev"><time>${new Date(v.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>
+            <div>${v.user_id ? `<a href="#" onclick="event.preventDefault();openUser(${v.user_id})" style="font-weight:600;color:var(--role);">${_e(v.username)}</a>` : `<span class="muted">Guest</span>`}
+            · ${_e(v.doing)} <span class="muted sm">${flag(v.country_code)} ${_e(v.city || v.country || '')} · ${_e(v.platform)}</span></div></div>`).join('') || '<div class="empty">No activity in the last 30 minutes.</div>'}
+        </div></div>
+      </div>`;
+    chart('cRt', 'bar', d.last_30_min.per_minute.map((_, i) => (30 - i) + 'm'), [{ label: 'Active per minute', data: d.last_30_min.per_minute }], { plugins: { legend: { display: false } } });
+  } catch (e) { el.innerHTML = err(e); }
+  // Only while the Realtime page is open and the browser tab is visible
+  if (page === 'realtime') rtTimer = setTimeout(() => {
+    if (page === 'realtime' && !document.hidden) loaders.realtime();
+  }, 15000);
+};
+
+// ── Users ────────────────────────────────────────────────────────────────────
+let uPage = 1, uTimer;
+loaders.users = async () => {
+  const box = $('#userTable');
+  const q = new URLSearchParams({ q: $('#uq').value, role: $('#urole').value, status: $('#ustatus').value, sort: $('#usort').value, page: uPage });
+  try {
+    const d = await API.get('/master/users/?' + q);
+    box.innerHTML = `<table class="tbl"><thead><tr><th></th><th>User</th><th>Role</th><th>Last seen</th><th>Doing</th><th>Location</th><th>Platform</th><th>Coins</th><th>Spent</th><th>Joined</th></tr></thead><tbody>
+      ${d.results.map(u => `<tr class="click" onclick="openUser(${u.id})">
+        <td><span class="dot ${u.online ? 'on' : ''}" title="${u.online ? 'Online' : ''}"></span></td>
+        <td>${who(u)}</td>
+        <td>${roleBdg(u.role, u.is_superuser)} ${u.is_vip ? '<span class="bdg ok">VIP</span>' : ''} ${u.is_banned ? '<span class="bdg bad">Banned</span>' : ''}</td>
+        <td class="sm" style="white-space:nowrap;">${ago(u.last_seen)}</td>
+        <td class="sm muted" style="max-width:220px;">${_e(u.doing)}</td>
+        <td class="sm" style="white-space:nowrap;">${u.country ? flag(u.country_code) + ' ' + _e(u.city ? u.city + ', ' : '') + _e(u.country) : '—'}</td>
+        <td class="sm">${_e(u.platform)}</td>
+        <td>${_n(u.coins)}${u.bonus ? ` <span class="muted sm">+${_n(u.bonus)}</span>` : ''}</td>
+        <td>${u.spent_usd ? _usd(u.spent_usd) : '—'}</td>
+        <td class="sm muted" style="white-space:nowrap;">${_dd(u.date_joined)}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">No users match.</td></tr>'}
+      </tbody></table>`;
+    $('#userPager').innerHTML = `<button class="btn" ${uPage <= 1 ? 'disabled' : ''} onclick="uPage--;loaders.users()">← Prev</button>
+      <span class="muted">Page ${d.page} of ${Math.max(d.pages, 1)} · ${_n(d.total)} users</span>
+      <button class="btn" ${uPage >= d.pages ? 'disabled' : ''} onclick="uPage++;loaders.users()">Next →</button>`;
+  } catch (e) { box.innerHTML = err(e); }
+};
+['#urole', '#ustatus', '#usort'].forEach(s => $(s).onchange = () => { uPage = 1; loaders.users(); });
+$('#uq').oninput = () => { clearTimeout(uTimer); uTimer = setTimeout(() => { uPage = 1; loaders.users(); }, 350); };
+
+// ── Drawer ───────────────────────────────────────────────────────────────────
+function openDrawer() { $('#drawer').classList.add('open'); $('#drBg').classList.add('open'); }
+function closeDrawer() { $('#drawer').classList.remove('open'); $('#drBg').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+function setTabs(tabs, render) {
+  $('#drTabs').innerHTML = tabs.map((t, i) => `<button class="${i === 0 ? 'on' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
+  $('#drTabs').querySelectorAll('button').forEach(b => b.onclick = () => {
+    $('#drTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    render(b.dataset.t);
+  });
+  render(tabs[0][0]);
+}
+const kv = pairs => `<div class="kv">${pairs.map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${v ?? '—'}</div></div>`).join('')}</div>`;
+const table = (head, rows, empty = 'Nothing yet.') => rows.length
+  ? `<div class="scroll"><table class="tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
+  : `<div class="empty">${empty}</div>`;
+
+async function openUser(id) {
+  openDrawer();
+  $('#drHead').innerHTML = '<div class="muted">Loading…</div>'; $('#drTabs').innerHTML = ''; $('#drBody').innerHTML = '';
+  let d;
+  try { d = await API.get('/master/users/' + id + '/'); }
+  catch (e) { $('#drBody').innerHTML = err(e); return; }
+  const p = d.profile, s = d.status;
+  $('#drHead').innerHTML = `${avatar(p)}<div style="min-width:0;flex:1;">
+      <div style="font-size:16px;font-weight:700;">${_e(p.username)} ${roleBdg(p.role, p.is_superuser)} ${p.is_vip ? '<span class="bdg ok">VIP</span>' : ''} ${p.is_banned ? '<span class="bdg bad">Banned</span>' : ''}</div>
+      <div class="muted sm"><span class="dot ${s.online ? 'on' : ''}"></span> ${s.online ? 'Online now' : 'Last seen ' + ago(s.last_seen)} · ${_e(s.last_doing)} · ${_e(p.email)}</div></div>
+    <a class="btn" href="/admin/novelux/database/users/user/${p.id}/change/" target="_blank">Edit in admin</a>
+    <button class="icon-btn" onclick="closeDrawer()">✕</button>`;
+  const tabs = [['overview', 'Overview'], ['activity', 'Activity'], ['location', 'Location & IPs'], ['devices', 'Devices'], ['wallet', 'Wallet'], ['reading', 'Reading'], ['engagement', 'Engagement']];
+  if (d.author) tabs.push(['author', 'Author']);
+  if (d.editor) tabs.push(['editor', 'Editor']);
+  setTabs(tabs, t => renderUserTab(d, t));
+}
+
+function renderUserTab(d, t) {
+  const b = $('#drBody'), p = d.profile, s = d.status;
+  if (t === 'overview') {
+    const loc = d.location.current;
+    b.innerHTML = `<div class="grid kpis">
+        ${kpi('Status', s.online ? '<span style="color:var(--ok)">Online</span>' : ago(s.last_seen))}
+        ${kpi('Active days (30d)', _n(s.active_days_30))}
+        ${kpi('Sessions (30d)', _n(s.sessions_30), `avg ${s.avg_session_minutes} min`)}
+        ${kpi('Spent', _usd(d.wallet.spent_usd), `${_n(d.wallet.purchases)} purchases`)}
+        ${kpi('Coins', _n(d.wallet.coins), `+${_n(d.wallet.bonus)} bonus`)}
+        ${kpi('Chapters unlocked', _n(d.reading.unlocks), `${_n(d.reading.minutes_total)} min read`)}
+      </div>
+      <div class="card" style="margin-top:12px;"><h3>Profile</h3>${kv([
+        ['User ID', p.id], ['Name', _e(p.name) || '—'], ['Email', _e(p.email)], ['Role', roleBdg(p.role)],
+        ['Joined', _d(p.date_joined)], ['Last login', _d(p.last_login)], ['First seen', _d(s.first_seen)], ['Last seen', _d(s.last_seen)],
+        ['Location now', loc ? `${flag(loc.country_code)} ${_e(loc.city ? loc.city + ', ' : '')}${_e(loc.country)}` : '—'],
+        ['Sign-up IP', _e(p.registration_ip)], ['Date of birth', _e(p.date_of_birth)], ['Language', _e(p.preferred_language)],
+        ['Favourite genres', _e((p.preferred_genres || []).join(', ')) || '—'], ['Reading level', `${_n(p.reading_level)} (${_n(p.reading_xp)} XP)`],
+        ['Chapters read', _n(p.total_chapters_read)], ['VIP until', _d(p.vip_expires)], ['Ad-free until', _d(p.ad_free_expires)],
+        ['Parental lock', p.restricted_mode ? 'On' : 'Off'], ['Requests logged', _n(s.total_hits)],
+        ['Banned', p.is_banned ? `Yes — ${_e(p.ban_reason)}` : 'No'],
+      ])}</div>`;
+  } else if (t === 'activity') {
+    const a = d.activity;
+    const days7 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const hmax = Math.max(1, ...a.heatmap.flat());
+    b.innerHTML = `<div class="grid two">
+        <div class="card"><h3>Activity, last 30 days</h3><div class="chart sm"><canvas id="cUDaily"></canvas></div></div>
+        <div class="card"><h3>When they're active <span class="sub">last 90 days · server time</span></h3>
+          <div class="heat"><span></span>${[...Array(24).keys()].map(h => `<span style="text-align:center;">${h % 6 === 0 ? h : ''}</span>`).join('')}
+          ${a.heatmap.map((row, i) => `<span>${days7[i]}</span>${row.map(v => `<i title="${v} requests" style="background:${v ? `color-mix(in srgb,var(--role) ${Math.round(15 + 85 * v / hmax)}%,transparent)` : 'var(--muted)'}"></i>`).join('')}`).join('')}</div></div>
+      </div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Recent sessions</h3>${table(['Started', 'Length', 'Requests'], a.sessions.map(x => [_d(x.start), x.minutes + ' min', _n(x.hits)]))}</div>
+        <div class="card"><h3>Timeline <span class="sub">latest ${a.timeline.length}</span></h3><div class="stream">
+          ${a.timeline.map(v => `<div class="tl-item"><span class="when">${_d(v.at)}</span><span>${_e(v.doing)} <span class="muted sm">· ${parts(v.platform, v.city || v.country, v.ip)}</span></span></div>`).join('') || '<div class="empty">No activity recorded.</div>'}</div></div>
+      </div>`;
+    chart('cUDaily', 'bar', a.daily.map(x => shortDate(x.date)), [{ label: 'Requests', data: a.daily.map(x => x.value) }], { plugins: { legend: { display: false } } });
+  } else if (t === 'location') {
+    const l = d.location;
+    b.innerHTML = `<div class="card"><h3>Places</h3>${table(['Place', 'Requests', 'First seen', 'Last seen'],
+        l.places.map(x => [`${flag(x.country_code)} ${_e(x.city ? x.city + ', ' : '')}${_e(x.country)}`, _n(x.hits), _d(x.first), _d(x.last)]), 'No location data.')}</div>
+      <div class="card" style="margin-top:12px;"><h3>IP addresses</h3>${table(['IP', 'Where', 'Requests', 'Last used'],
+        l.ips.map(x => [`<code>${_e(x.ip_address)}</code>`, _e([x.city, x.country].filter(Boolean).join(', ')), _n(x.hits), _d(x.last)]))}</div>
+      <div class="card" style="margin-top:12px;"><h3>Other accounts on the same IPs <span class="sub">possible duplicates</span></h3>
+        ${l.shared_accounts.map(u => `<div class="list-row" style="cursor:pointer;" onclick="openUser(${u.id})">${who(u)} <span style="margin-left:auto;">${roleBdg(u.role)}</span></div>`).join('') || '<div class="empty">None.</div>'}</div>`;
+  } else if (t === 'devices') {
+    const v = d.devices;
+    b.innerHTML = `<div class="card"><h3>App installs</h3>${table(['Platform', 'Model', 'App version', 'Notifications', 'Updated'],
+        v.app_installs.map(x => [_e(x.platform), _e(x.model), _e(x.app_version), x.active ? '<span class="bdg ok">on</span>' : '<span class="bdg">off</span>', _d(x.updated_at)]))}</div>
+      <div class="card" style="margin-top:12px;"><h3>Phones signed in</h3>${table(['Device ID', 'Platform', 'First seen', 'Last seen'],
+        v.devices.map(x => [`<code>${_e(x.device_id.slice(0, 16))}…</code>`, _e(x.platform), _d(x.first_seen), _d(x.last_seen)]))}</div>
+      <div class="card" style="margin-top:12px;"><h3>Browsers & systems</h3>${table(['System', 'Browser', 'Device', 'Requests', 'Last'],
+        v.browsers_os.map(x => [_e(x.os), _e(x.browser), _e(x.device_type), _n(x.hits), _d(x.last)]))}</div>`;
+  } else if (t === 'wallet') {
+    const w = d.wallet;
+    b.innerHTML = `<div class="grid kpis">${kpi('Coins', _n(w.coins))}${kpi('Bonus', _n(w.bonus))}${kpi('Spent', _usd(w.spent_usd))}${kpi('Purchases', _n(w.purchases))}
+        ${kpi('Subscription', w.subscription ? _e(w.subscription.plan || 'VIP') : 'None', w.subscription ? `${w.subscription.active ? 'active' : 'ended'} · until ${_dd(w.subscription.expires_at)}` : '')}</div>
+      <div class="card" style="margin-top:12px;"><h3>Purchases</h3>${table(['When', 'Type', 'Item', 'Paid', 'Coins', 'Via', 'Status'],
+        w.purchase_list.map(x => [_d(x.at), _e(x.type), _e(x.item), _usd(x.usd), _n(x.coins), _e(x.store), `<span class="bdg ${x.status === 'completed' ? 'ok' : x.status === 'refunded' ? 'bad' : ''}">${_e(x.status)}</span>`]))}</div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Coin activity</h3>${table(['When', 'Type', 'Amount', 'Reason', 'Balance'],
+          w.transactions.map(x => [_d(x.at), _e(x.type), (['debit', 'expire'].includes(x.type) ? '−' : '+') + _n(x.amount), _e(x.reason), _n(x.balance_after)]))}</div>
+        <div class="card"><h3>Bonus rewards</h3>${table(['When', 'Reward', 'Amount', 'Left', 'Expires'],
+          w.bonus_grants.map(x => [_d(x.at), _e(x.reason), _n(x.amount), _n(x.remaining), _dd(x.expires_at)]))}</div>
+      </div>`;
+  } else if (t === 'reading') {
+    const r = d.reading;
+    b.innerHTML = `<div class="grid kpis">${kpi('Minutes read', _n(r.minutes_total), `${_n(r.minutes_30)} in 30 days`)}${kpi('Unlocks', _n(r.unlocks), `${_n(r.unlock_coins)} coins`)}${kpi('Library', _n(r.library.length))}</div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Books read <span class="sub">latest chapter reached</span></h3>${table(['Last read', 'Book', 'Chapter'], r.history.map(h => [_d(h.at), _e(h.story), `${h.chapter} ${_e(h.chapter_title || '')}`]))}</div>
+        <div class="card"><h3>Library / progress</h3>${table(['Book', 'Up to', 'Updated'], r.library.map(h => [_e(h.story), 'Ch ' + h.last_chapter, _d(h.updated_at)]))}</div>
+      </div>`;
+  } else if (t === 'engagement') {
+    const g = d.engagement, c = g.checkin_streak || {};
+    b.innerHTML = `<div class="grid kpis">${kpi('Comments', _n(g.comments))}${kpi('Ratings', _n(g.ratings))}${kpi('Likes', _n(g.likes))}${kpi('Bookmarks', _n(g.bookmarks))}
+        ${kpi('Following', _n(g.following))}${kpi('Followers', _n(g.followers))}${kpi('Gifts sent', _n(g.gifts_sent))}${kpi('Rewards claimed', _n(g.reward_claims))}
+        ${kpi('Tasks done', _n(g.tasks_done))}${kpi('Check-in streak', _n(c.current_streak), `best ${_n(c.longest_streak)} · ${_n(c.total_checkins)} total`)}</div>
+      <div class="card" style="margin-top:12px;"><h3>Recent comments</h3>${table(['When', 'Book', 'Comment'], g.recent_comments.map(x => [_d(x.at), _e(x.story), _e(x.text)]))}</div>`;
+  } else if (t === 'author') {
+    const a = d.author;
+    b.innerHTML = `<div class="card"><h3>Author</h3>${kv([['Pen name', _e(a.pen_name) || '—'], ['Contract', a.has_contract ? 'Signed ' + _dd(a.contract_signed_at) : 'No'],
+        ['KYC', _e(a.kyc)], ['Editor', a.editor ? `<a href="#" style="color:var(--role)" onclick="event.preventDefault();openEditor(${a.editor_id})">${_e(a.editor)}</a>` : '—'],
+        ['Earnings held', _n(a.earnings_coins_held) + ' coins'], ['Earnings paid', _n(a.earnings_coins_released) + ' coins'], ['Gifts received', _usd(a.gifts_received_usd)]])}</div>
+      <div class="card" style="margin-top:12px;"><h3>Books</h3>${table(['Title', 'Status', 'Contract', 'Chapters', 'Views', 'Unlocks', 'Words', 'Updated'],
+        a.books.map(x => [_e(x.title), _e(x.status), _e(x.contract_status), _n(x.chapters), _n(x.views), _n(x.unlocks), _n(x.words), _dd(x.updated_at)]))}</div>`;
+  } else if (t === 'editor') {
+    b.innerHTML = editorStats(d.editor) + `<div style="margin-top:12px;"><button class="btn p" onclick="openEditor(${d.profile.id})">Open full editor view →</button></div>`;
+  }
+}
+
+// ── Audience ─────────────────────────────────────────────────────────────────
+loaders.audience = async () => {
+  const el = $('#page-audience');
+  try {
+    const d = await API.get('/master/audience/?days=' + days);
+    el.innerHTML = `
+      <div class="grid two">
+        <div class="card"><h3>Age</h3><div class="chart sm"><canvas id="cAge"></canvas></div></div>
+        <div class="card"><h3>Favourite genres</h3>${barList(d.genres, r => _e(r.name), r => r.value)}</div>
+        <div class="card"><h3>Time of day <span class="sub">requests by hour (server time)</span></h3><div class="chart sm"><canvas id="cHours"></canvas></div></div>
+        <div class="card"><h3>Operating systems</h3>${barList(d.os, r => _e(r.os), r => r.n)}</div>
+        <div class="card"><h3>App versions <span class="sub">active installs</span></h3>${table(['Platform', 'Version', 'Installs'], d.app_versions.map(x => [_e(x.platform), _e(x.app_version), _n(x.n)]))}</div>
+        <div class="card"><h3>Languages</h3>${barList(d.languages, r => _e(r.preferred_language), r => r.n)}</div>
+      </div>
+      <div class="card" style="margin-top:12px;"><h3>Retention by sign-up week <span class="sub">share who came back</span></h3>
+        ${table(['Week of', 'Signed up', 'Day 1', 'Day 7', 'Day 30'], d.retention.map(c => [_dd(c.week), _n(c.size),
+          ...['d1', 'd7', 'd30'].map(k => c.size ? `<span class="bdg" style="background:color-mix(in srgb,var(--role) ${Math.round(c[k] * 100)}%,var(--muted));color:${c[k] > .4 ? '#fff' : 'inherit'}">${_pct(c[k])}</span>` : '—')]))}</div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>Most used screens & endpoints</h3>${table(['What', 'Path', 'Requests'], d.top_paths.map(x => [_e(x.label), `<code class="sm">${_e(x.path)}</code>`, _n(x.hits)]))}</div>
+        <div class="card"><h3>Where web visitors come from</h3>${table(['Referrer', 'Visits'], d.referrers.map(x => [`<span class="sm">${_e(x.referrer)}</span>`, _n(x.n)]), 'No outside referrers yet.')}</div>
+      </div>`;
+    chart('cAge', 'bar', d.ages.map(a => a.name), [{ label: 'Users', data: d.ages.map(a => a.value) }], { plugins: { legend: { display: false } } });
+    chart('cHours', 'bar', d.hours.map((_, h) => h + ':00'), [{ label: 'Requests', data: d.hours }], { plugins: { legend: { display: false } } });
+  } catch (e) { el.innerHTML = err(e); }
+};
+
+// ── Team ─────────────────────────────────────────────────────────────────────
+function editorStats(s) {
+  return `<div class="grid kpis">
+    ${kpi('Authors', _n(s.authors), `+${_n(s.new_authors)} recently`)}
+    ${kpi('Chapters reviewed', _n(s.chapters_reviewed), `${_n(s.chapters_reviewed_period)} recently`)}
+    ${kpi('Edits reviewed', _n(s.edits_reviewed))}
+    ${kpi('Applications', _n(s.applications), `${_n(s.applications_pending)} pending`)}
+    ${kpi('Approved', _n(s.applications_approved), `${_n(s.applications_rejected)} rejected`)}
+    ${kpi('Contracts sent', _n(s.contracts_sent))}
+    ${kpi('Signed', _n(s.contracts_signed), `${_n(s.contracts_signed_period)} recently`, true)}
+    ${kpi('CE signatures', _n(s.ce_signed))}
+    ${kpi('KYC reviewed', _n(s.kyc_reviewed))}
+    ${kpi('Earnings approved', _n(s.earnings_approved))}
+    ${kpi('Promotions', _n(s.promotions + s.promotion_requests))}
+    ${kpi('Invites sent', _n(s.invites_sent), `${_n(s.warnings_issued)} warnings · ${_n(s.notes_written)} notes`)}
+  </div>`;
+}
+loaders.team = async () => {
+  const el = $('#page-team');
+  try {
+    const d = await API.get('/master/team/?days=' + days);
+    el.innerHTML = `<div class="card"><h3>Editorial team <span class="sub">${d.editors.length} editors · ${periodLabel()}</span></h3><div class="scroll"><table class="tbl">
+      <thead><tr><th></th><th>Editor</th><th>Role</th><th>Last active</th><th>Active days</th><th>Authors</th><th>Chapters reviewed</th><th>Applications</th><th>Signed</th><th>KYC</th><th>Activity</th></tr></thead><tbody>
+      ${d.editors.map((e, i) => `<tr class="click" onclick="openEditor(${e.id})">
+        <td><span class="dot ${e.online ? 'on' : ''}"></span></td>
+        <td>${who(e, e.supervisor ? 'reports to ' + _e(e.supervisor) : _e(e.email))}</td><td>${roleBdg(e.role)}</td>
+        <td class="sm" style="white-space:nowrap;">${ago(e.last_seen)}</td>
+        <td>${_n(e.active_days)} / ${days}</td>
+        <td>${_n(e.stats.authors)}</td>
+        <td>${_n(e.stats.chapters_reviewed_period)} <span class="muted sm">/ ${_n(e.stats.chapters_reviewed)}</span></td>
+        <td>${_n(e.stats.applications)} <span class="muted sm">${_n(e.stats.applications_pending)} pending</span></td>
+        <td>${_n(e.stats.contracts_signed)}</td><td>${_n(e.stats.kyc_reviewed)}</td>
+        <td style="width:140px;"><div style="height:34px;"><canvas id="spark${i}"></canvas></div></td></tr>`).join('') || '<tr><td colspan="11" class="empty">No editors yet.</td></tr>'}
+      </tbody></table></div></div>`;
+    d.editors.forEach((e, i) => chart('spark' + i, 'line', e.activity.map(x => x.date), [{ data: e.activity.map(x => x.value) }],
+      { plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } }));
+  } catch (e) { el.innerHTML = err(e); }
+};
+
+async function openEditor(id) {
+  openDrawer();
+  $('#drHead').innerHTML = '<div class="muted">Loading…</div>'; $('#drTabs').innerHTML = ''; $('#drBody').innerHTML = '';
+  let d;
+  try { d = await API.get('/master/team/' + id + '/'); }
+  catch (e) { $('#drBody').innerHTML = err(e); return; }
+  const ed = d.editor;
+  $('#drHead').innerHTML = `${avatar(ed)}<div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:700;">${_e(ed.username)} ${roleBdg(ed.role)}</div>
+      <div class="muted sm">${_e(ed.email)} · joined ${_dd(ed.date_joined)}</div></div>
+    <button class="btn" onclick="openUser(${ed.id})">Activity & profile</button><button class="icon-btn" onclick="closeDrawer()">✕</button>`;
+  setTabs([['work', 'Work'], ['authors', `Authors (${d.authors.length})`], ['log', 'Activity log']], t => {
+    const b = $('#drBody');
+    if (t === 'work') b.innerHTML = editorStats(ed.stats);
+    else if (t === 'authors') b.innerHTML = d.authors.map(a => `<div class="card" style="margin-bottom:10px;">
+        <div class="row" style="cursor:pointer;" onclick="openUser(${a.id})">${who(a, `${_e(a.pen_name || a.email)} · KYC ${_e(a.kyc)} · linked ${_dd(a.linked_at)} (${_e(a.link_method)})`)}
+          <span class="muted sm" style="margin-left:auto;">last active ${ago(a.last_seen)}</span></div>
+        ${a.books.length ? `<div style="margin-top:8px;">${table(['Book', 'Status', 'Contract', 'Chapters', 'Views', 'Updated'],
+          a.books.map(x => [_e(x.title), _e(x.status), `<span class="bdg ${x.contract_status === 'signed' ? 'ok' : ''}">${_e(x.contract_status)}</span>`, _n(x.chapters), _n(x.views), _dd(x.updated_at)]))}</div>` : '<div class="muted sm" style="margin-top:6px;">No books yet.</div>'}
+      </div>`).join('') || '<div class="empty">No authors linked.</div>';
+    else b.innerHTML = `<div class="card">${d.log.map(x => `<div class="tl-item"><span class="when">${_d(x.at)}</span><span>${_e(x.what)}</span></div>`).join('') || '<div class="empty">Nothing recorded yet.</div>'}</div>`;
+  });
+}
+
+// ── Books ────────────────────────────────────────────────────────────────────
+loaders.books = async () => {
+  const el = $('#page-books');
+  try {
+    const d = await API.get('/master/books/?days=' + days);
+    const p = d.pipeline;
+    const stages = [['Eligible, not applied', p.eligible_not_applied], ['Under review', p.under_review], ['SE approved', p.se_approved], ['Contract sent', p.contract_sent], ['Awaiting signature', p.awaiting_signature], ['Signed', p.signed], ['Rejected', p.rejected]];
+    const book = b => [`<a href="/explore/${_e(b.slug)}/" target="_blank" style="font-weight:600;">${_e(b.title)}</a>`, `<a href="#" style="color:var(--role)" onclick="event.preventDefault();openUser(${b.author_id})">${_e(b.author)}</a>`];
+    el.innerHTML = `
+      <div class="grid kpis">${stages.map(([l, v]) => kpi(l, _n(v || 0))).join('')}${kpi('No contract', _n(p.none || 0))}</div>
+      <div class="card" style="margin-top:12px;"><h3>Most read <span class="sub">${periodLabel()}</span></h3>${table(['Book', 'Author', 'Chapters opened', 'Readers', 'Views', 'Unlocks', 'Chapters', 'Contract', 'Rating'],
+        d.top_books.map(b => [...book(b), _n(b.period_reads), _n(b.period_readers), _n(b.views), _n(b.unlocks), _n(b.chapters), _e(b.contract_status), b.rating.toFixed(1)]))}</div>
+      <div class="grid two" style="margin-top:12px;">
+        <div class="card"><h3>All-time most viewed</h3>${table(['Book', 'Author', 'Views', 'Likes'], d.all_time_top.map(b => [...book(b), _n(b.views), _n(b.likes)]))}</div>
+        <div class="card"><h3>Recently signed</h3>${table(['Book', 'Author', 'Editor', 'Signed'], d.recent_signed.map(x => [_e(x.story), _e(x.author), _e(x.se), _dd(x.signed_at)]))}</div>
+      </div>
+      <div class="card" style="margin-top:12px;"><h3>New books <span class="sub">${periodLabel()}</span></h3>${table(['Book', 'Author', 'Status', 'Chapters', 'Created'],
+        d.new_books.map(b => [...book(b), _e(b.status), _n(b.chapters), _dd(b.created_at)]))}</div>`;
+  } catch (e) { el.innerHTML = err(e); }
+};
+
+// ── Revenue ──────────────────────────────────────────────────────────────────
+loaders.revenue = async () => {
+  const el = $('#page-revenue');
+  try {
+    const d = await API.get('/master/revenue/?days=' + days);
+    const type = t => ({ coin_pack: 'Coin packs', subscription: 'VIP subscriptions' }[t] || t);
+    el.innerHTML = `
+      <div class="grid kpis">${kpi('Revenue', _usd(d.total_usd), periodLabel(), true)}${kpi('Purchases', _n(d.purchases))}${kpi('Refunds', _n(d.refunds))}
+        ${kpi('Gifts (real money)', _usd(d.gifts_usd))}${kpi('VIP active', _n(d.vip_active))}${kpi('Author earnings held', _n(d.author_earnings_held_coins) + ' coins', `${_n(d.author_earnings_released_coins)} released ${periodLabel()}`)}</div>
+      <div class="grid two two-1" style="margin-top:12px;">
+        <div class="card"><h3>Revenue per day</h3><div class="chart"><canvas id="cRev2"></canvas></div></div>
+        <div class="card"><h3>By product</h3>${barList(d.by_type, r => `${type(r.type)} <span class="muted sm">· ${_n(r.n)}</span>`, r => r.usd, _usd)}
+          <h3 style="margin-top:16px;">Author payouts</h3>${table(['Status', 'Count', 'USD'], d.payouts.map(x => [_e(x.status), _n(x.n), _usd(x.usd)]), 'No payouts yet.')}</div>
+      </div>
+      <div class="card" style="margin-top:12px;"><h3>Top spenders <span class="sub">all time</span></h3>${table(['User', 'Purchases', 'Spent'],
+        d.top_spenders.map(x => [`<a href="#" style="color:var(--role);font-weight:600;" onclick="event.preventDefault();openUser(${x.user_id})">${_e(x.username)}</a>`, _n(x.n), _usd(x.usd)]))}</div>`;
+    chart('cRev2', 'bar', d.daily.map(x => shortDate(x.date)), [{ label: 'USD', data: d.daily.map(x => x.value) }], { plugins: { legend: { display: false } } });
+  } catch (e) { el.innerHTML = err(e); }
+};
+
+// ── Start ────────────────────────────────────────────────────────────────────
+go(titles[location.hash.slice(1)] ? location.hash.slice(1) : 'overview');
+// Coming back to a hidden tab on Realtime: refresh now and resume polling
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && page === 'realtime') loaders.realtime();
+});
+window.addEventListener('hashchange', () => {
+  const p = location.hash.slice(1);
+  if (titles[p] && p !== page) go(p);
+});
+</script>
+</body>
+</html>

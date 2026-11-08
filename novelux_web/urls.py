@@ -42,6 +42,10 @@ urlpatterns = [
     path('editorial/se/',            views.se_dashboard,          name='se_dashboard'),
     path('editorial/ce/',            views.ce_dashboard,          name='ce_dashboard'),
 
+    # ── Owner's master dashboard (superusers / admins) ───────────────────────
+    path('master/',                  views.master_dashboard,      name='master_dashboard'),
+    path('master/token/',            views.master_token,          name='master_token'),
+
     # ── Editor onboarding invites ────────────────────────────────────────────
     path('editorial/invite/create/',              views.ce_invite_create_web,  name='invite_create'),
     path('editorial/invite/<str:token>/',         views.editor_invite_page,    name='invite_accept'),

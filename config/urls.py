@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/stories/reviews/', include('apps.reviews.urls')),
     path('api/editorial/',    include('apps.editorial.urls')),  # AE/SE/CE editorial workflow
     path('api/blog/',         include('apps.blog.urls')),       # SE-authored blog / learning content
+    path('api/master/',       include('apps.analytics.urls')),  # owner's master dashboard (admins only)
     
      # Reading sessions & schedule (add to coins urls, NOT a separate file)
     path('api/reading/', include('apps.coins.reading_urls')),

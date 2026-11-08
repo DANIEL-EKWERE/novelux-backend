@@ -107,8 +107,13 @@ class RateLimitTests(TestCase):
         cache.clear()
 
     def test_login_is_limited_per_ip_but_refresh_is_not(self):
+        from unittest import mock
         c = APIClient()
         hdr = {'HTTP_X_FORWARDED_FOR': '203.0.113.7'}
+        # Freeze the clock inside one window (fixed one-minute windows)
+        self._clock = mock.patch('config.ratelimit.time.time', return_value=1_800_000_010)
+        self._clock.start()
+        self.addCleanup(self._clock.stop)
         codes = [c.post('/api/auth/token/', {'email': 'x@x.com', 'password': 'bad'}, format='json', **hdr).status_code
                  for _ in range(21)]
         self.assertNotIn(429, codes[:20])
@@ -137,3 +142,68 @@ class RateLimitTests(TestCase):
         from config.ratelimit import client_ip
         r = RequestFactory().get('/', HTTP_X_FORWARDED_FOR='102.89.4.4, 10.0.0.1', REMOTE_ADDR='10.0.0.1')
         self.assertEqual(client_ip(r), '102.89.4.4')
+
+
+from django.test import override_settings  # noqa: E402
+
+
+class CronTests(TestCase):
+    """Scheduled jobs run through /api/cron/run/ when there's no Celery worker."""
+
+    def test_switched_off_without_a_secret(self):
+        with override_settings(CRON_SECRET=''):
+            self.assertEqual(self.client.get('/api/cron/run/?key=anything').status_code, 503)
+
+    @override_settings(CRON_SECRET='s3cret')
+    def test_needs_the_secret(self):
+        self.assertEqual(self.client.get('/api/cron/run/').status_code, 403)
+        self.assertEqual(self.client.get('/api/cron/run/?key=wrong').status_code, 403)
+
+    @override_settings(CRON_SECRET='s3cret')
+    def test_runs_due_jobs_once(self):
+        from apps.analytics.models import ScheduledJobRun
+        res = self.client.get('/api/cron/run/?key=s3cret')
+        self.assertEqual(res.status_code, 200, res.content)
+        jobs = res.json()['jobs']
+        self.assertEqual(set(jobs), {'expire_promotions', 'expire_bonus_coins', 'send_promotion_reminders', 'vip_payout'})
+        self.assertTrue(all(v == 'ok' for v in jobs.values()), jobs)
+        # Called again straight away: nothing is due
+        again = self.client.get('/api/cron/run/', HTTP_X_CRON_KEY='s3cret').json()['jobs']
+        self.assertEqual(set(again.values()), {'not due'})
+        # An hour later the hourly jobs run again, the daily ones don't
+        ScheduledJobRun.objects.update(last_started=timezone.now() - timedelta(minutes=58))
+        later = self.client.get('/api/cron/run/?key=s3cret').json()['jobs']
+        self.assertEqual(later['expire_bonus_coins'], 'ok')
+        self.assertEqual(later['vip_payout'], 'not due')
+
+    @override_settings(CRON_SECRET='s3cret')
+    def test_one_failing_job_does_not_stop_the_rest(self):
+        from unittest import mock
+        with mock.patch('apps.coins.tasks.expire_bonus_coins.run', side_effect=RuntimeError('boom')):
+            jobs = self.client.get('/api/cron/run/?key=s3cret').json()['jobs']
+        self.assertTrue(jobs['expire_bonus_coins'].startswith('failed'))
+        self.assertEqual(jobs['expire_promotions'], 'ok')
+
+    def test_ping(self):
+        self.assertEqual(self.client.get('/api/cron/ping/').json(), {'ok': True})
+
+
+class InlineTaskTests(TestCase):
+    def test_inline_mode_runs_tasks_in_a_thread(self):
+        import threading
+        from unittest import mock
+        import config.celery as cc
+        from apps.notifications.tasks import notify_followers_new_chapter
+        started = []
+        real_thread = threading.Thread
+
+        class _Spy(real_thread):
+            def start(self):
+                started.append(self.name)
+                # run synchronously so the test can check it
+                self.run()
+
+        with mock.patch.object(cc, 'CELERY_INLINE', True), mock.patch('config.celery.threading.Thread', _Spy), \
+                mock.patch('django.db.connection.close'):
+            self.assertIsNone(notify_followers_new_chapter.delay(999999))  # unknown chapter → task just returns
+        self.assertEqual(started, ['task:apps.notifications.tasks.notify_followers_new_chapter'])

@@ -285,3 +285,50 @@ class BonusExpiryTests(TestCase):
         g = BonusGrant.objects.get(user=self.user)
         self.assertEqual((g.amount, g.remaining), (40, 40))
         self.assertAlmostEqual((g.expires_at - timezone.now()).total_seconds(), 7 * 86400, delta=60)
+
+
+from django.test import override_settings as _override  # noqa: E402
+
+
+@_override(REVENUECAT_WEBHOOK_AUTH='Bearer test-hook')
+class RevenueCatPriceTests(TestCase):
+    """Revenue should be what the store charged (RevenueCat's price), not the
+    list price typed on the plan in the admin."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from apps.coins.models import SubscriptionPlan
+        self.user = get_user_model().objects.create_user(email='v@x.com', username='vipper', password='x')
+        SubscriptionPlan.objects.create(plan_id='vip_weekly', label='Weekly VIP', price_usd='10.99',
+                                        coins_per_month=0, bonus_coins=0, duration_days=7, is_active=True)
+
+    def hook(self, **event):
+        from rest_framework.test import APIClient
+        body = {'event': {'app_user_id': str(self.user.pk), 'product_id': 'novelux_vip_weekly', **event}}
+        return APIClient().post('/api/coins/revenuecat-webhook/', body, format='json',
+                                HTTP_AUTHORIZATION='Bearer test-hook')
+
+    def test_records_the_real_price(self):
+        from apps.coins.models import Purchase
+        from django.utils import timezone
+        exp = int((timezone.now().timestamp() + 7 * 86400) * 1000)
+        res = self.hook(type='INITIAL_PURCHASE', transaction_id='GPA.1', price=2.49, expiration_at_ms=exp)
+        self.assertEqual(res.status_code, 200)
+        p = Purchase.objects.get(user=self.user)
+        self.assertEqual(str(p.amount_paid_usd), '2.49')
+        # A renewal is a new purchase at its own price
+        self.hook(type='RENEWAL', transaction_id='GPA.1..0', price=2.49, expiration_at_ms=exp + 7 * 86400000)
+        self.assertEqual([str(x) for x in Purchase.objects.values_list('amount_paid_usd', flat=True)], ['2.49', '2.49'])
+
+    def test_corrects_a_list_price_recorded_by_the_app_first(self):
+        from apps.coins.models import Purchase
+        from apps.coins.views import VerifyPurchaseView
+        VerifyPurchaseView()._grant(self.user, 'novelux_vip_weekly', 'GPA.2')   # app verify, no price
+        self.assertEqual(str(Purchase.objects.get().amount_paid_usd), '10.99')
+        self.hook(type='INITIAL_PURCHASE', transaction_id='GPA.2', price=2.49)
+        self.assertEqual(str(Purchase.objects.get().amount_paid_usd), '2.49')
+
+    def test_falls_back_to_the_plan_price(self):
+        from apps.coins.models import Purchase
+        self.hook(type='INITIAL_PURCHASE', transaction_id='GPA.3')
+        self.assertEqual(str(Purchase.objects.get().amount_paid_usd), '10.99')

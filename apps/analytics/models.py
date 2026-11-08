@@ -41,3 +41,21 @@ class PageVisit(models.Model):
 
     def __str__(self):
         return f'{self.ip_address} → {self.path} [{self.created_at:%Y-%m-%d}]'
+
+
+class ScheduledJobRun(models.Model):
+    """When each scheduled job last ran via /api/cron/run/ (the stand-in for
+    celery beat when no worker is running)."""
+    name          = models.CharField(max_length=60, unique=True)
+    last_started  = models.DateTimeField(null=True, blank=True)
+    last_finished = models.DateTimeField(null=True, blank=True)
+    last_ok       = models.BooleanField(default=True)
+    last_result   = models.TextField(blank=True)
+    runs          = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'scheduled_job_runs'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name

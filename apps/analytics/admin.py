@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import PageVisit
+from .models import PageVisit, ScheduledJobRun
 
 
 @admin.register(PageVisit)
@@ -9,3 +9,10 @@ class PageVisitAdmin(admin.ModelAdmin):
     search_fields = ('ip_address', 'path', 'country', 'city', 'referrer')
     readonly_fields = ('created_at',)
     date_hierarchy  = 'created_at'
+
+
+@admin.register(ScheduledJobRun)
+class ScheduledJobRunAdmin(admin.ModelAdmin):
+    """When each scheduled job last ran (via /api/cron/run/)."""
+    list_display    = ('name', 'last_started', 'last_finished', 'last_ok', 'runs', 'last_result')
+    readonly_fields = list_display

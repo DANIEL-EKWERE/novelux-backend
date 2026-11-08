@@ -7,6 +7,7 @@ _SKIP_PREFIXES = (
     '/admin/',
     '/master',          # the owner's dashboard — don't track yourself
     '/api/master/',
+    '/api/cron/',       # scheduler pings
     '/api/schema/',
     '/api/docs/',
     '/static/',

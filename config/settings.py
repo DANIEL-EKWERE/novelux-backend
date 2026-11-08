@@ -379,6 +379,11 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_TASK_ALWAYS_EAGER = DEBUG        # In DEBUG mode, tasks run synchronously (no Redis needed)
 CELERY_TASK_EAGER_PROPAGATES = DEBUG 
 
+# Scheduled jobs without celery beat: an outside scheduler calls
+# /api/cron/run/?key=<CRON_SECRET> every hour (apps/analytics/cron.py).
+# Leave CRON_SECRET empty to keep that URL switched off.
+CRON_SECRET = config('CRON_SECRET', default='')
+
 
 # CELERY_RESULT_BACKEND = REDIS_URL
 # CELERY_ACCEPT_CONTENT = ['json']

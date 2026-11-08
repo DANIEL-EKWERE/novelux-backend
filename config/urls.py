@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from apps.analytics import cron as analytics_cron
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.sitemaps.views import sitemap
@@ -55,6 +56,9 @@ urlpatterns = [
     path('api/editorial/',    include('apps.editorial.urls')),  # AE/SE/CE editorial workflow
     path('api/blog/',         include('apps.blog.urls')),       # SE-authored blog / learning content
     path('api/master/',       include('apps.analytics.urls')),  # owner's master dashboard (admins only)
+    # Scheduled jobs without a Celery worker (called by an outside scheduler)
+    path('api/cron/run/',     analytics_cron.cron_run),
+    path('api/cron/ping/',    analytics_cron.cron_ping),
     
      # Reading sessions & schedule (add to coins urls, NOT a separate file)
     path('api/reading/', include('apps.coins.reading_urls')),

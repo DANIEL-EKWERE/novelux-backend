@@ -1230,7 +1230,10 @@ class VerifyPurchaseView(APIView):
 
     # ── Grant ─────────────────────────────────────────────────────────────────
 
-    def _grant(self, user, product_id, transaction_id, expires_at=None):
+    def _grant(self, user, product_id, transaction_id, expires_at=None, price_usd=None):
+        """[price_usd] is what the store actually charged (RevenueCat's
+        webhook sends it). Without it, the price set on the plan / pack is
+        recorded instead."""
         # Replay protection. A transaction we already processed for THIS user
         # is not an error — the webhook usually grants before the app verifies,
         # so answer idempotently with the current state. Only a transaction
@@ -1245,6 +1248,9 @@ class VerifyPurchaseView(APIView):
                     {'error': 'This purchase has already been redeemed'},
                     status=status.HTTP_409_CONFLICT,
                 )
+            # The app verified first with the list price — record the real one
+            if price_usd is not None and existing.amount_paid_usd != price_usd:
+                Purchase.objects.filter(pk=existing.pk).update(amount_paid_usd=price_usd)
             user.refresh_from_db()
             if product_id in self.COIN_PRODUCTS:
                 return Response({
@@ -1261,22 +1267,23 @@ class VerifyPurchaseView(APIView):
             })
 
         if product_id in self.COIN_PRODUCTS:
-            return self._grant_coins(user, product_id, transaction_id)
+            return self._grant_coins(user, product_id, transaction_id, price_usd=price_usd)
         if product_id in self.VIP_PRODUCTS:
-            return self._grant_vip(user, product_id, transaction_id, expires_at=expires_at)
+            return self._grant_vip(user, product_id, transaction_id, expires_at=expires_at,
+                                   price_usd=price_usd)
 
         return Response(
             {'error': f'Unknown product: {product_id}'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    def _grant_coins(self, user, product_id, transaction_id):
+    def _grant_coins(self, user, product_id, transaction_id, price_usd=None):
         meta = self.COIN_PRODUCTS[product_id]
         Purchase.objects.create(
             user=user,
             purchase_type=Purchase.TYPE_COIN_PACK,
             coins_granted=meta['coins'],
-            amount_paid_usd=meta['price'],
+            amount_paid_usd=meta['price'] if price_usd is None else price_usd,
             iap_transaction_id=transaction_id,
             status=Purchase.STATUS_COMPLETED,
             completed_at=timezone.now(),
@@ -1287,7 +1294,7 @@ class VerifyPurchaseView(APIView):
             'new_balance': user.coin_balance,
         })
 
-    def _grant_vip(self, user, product_id, transaction_id, expires_at=None):
+    def _grant_vip(self, user, product_id, transaction_id, expires_at=None, price_usd=None):
         from datetime import timedelta
         plan_id = self.VIP_PRODUCTS[product_id]
         try:
@@ -1307,6 +1314,13 @@ class VerifyPurchaseView(APIView):
         if (existing and existing.is_active and existing.plan_id == plan.pk
                 and existing.expires_at is not None
                 and abs((existing.expires_at - expires_at).total_seconds()) < 120):
+            if price_usd is not None:
+                # Same period recorded earlier with the list price — correct it
+                last = (Purchase.objects.filter(user=user, purchase_type=Purchase.TYPE_SUBSCRIPTION,
+                                                subscription_plan=plan)
+                        .order_by('-created_at').first())
+                if last and last.amount_paid_usd != price_usd:
+                    Purchase.objects.filter(pk=last.pk).update(amount_paid_usd=price_usd)
             return Response({
                 'is_vip': True,
                 'plan_id': plan_id,
@@ -1321,7 +1335,7 @@ class VerifyPurchaseView(APIView):
             purchase_type=Purchase.TYPE_SUBSCRIPTION,
             subscription_plan=plan,
             coins_granted=total_coins,
-            amount_paid_usd=plan.price_usd,
+            amount_paid_usd=plan.price_usd if price_usd is None else price_usd,
             iap_transaction_id=transaction_id,
             status=Purchase.STATUS_COMPLETED,
             completed_at=timezone.now(),
@@ -1408,6 +1422,21 @@ class RedeemView(APIView):
         })
 
 
+def _event_price_usd(event):
+    """What the customer actually paid, in USD, from a RevenueCat event
+    ('price' — converted to USD by RevenueCat; 0 for free trials). None when
+    missing, so the plan's list price is used instead."""
+    from decimal import Decimal, InvalidOperation
+    raw = event.get('price')
+    if raw is None:
+        return None
+    try:
+        value = Decimal(str(raw)).quantize(Decimal('0.01'))
+    except (InvalidOperation, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
 class RevenueCatWebhookView(APIView):
     """POST /api/coins/revenuecat-webhook/
 
@@ -1456,7 +1485,7 @@ class RevenueCatWebhookView(APIView):
 
         elif (event_type == 'NON_RENEWING_PURCHASE'
                 and product_id in VerifyPurchaseView.COIN_PRODUCTS):
-            granter._grant(user, product_id, transaction_id)
+            granter._grant(user, product_id, transaction_id, price_usd=_event_price_usd(event))
 
         elif event_type in ('INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION',
                             'PRODUCT_CHANGE', 'TRANSFER'):
@@ -1469,7 +1498,7 @@ class RevenueCatWebhookView(APIView):
                     expires_at = datetime.fromtimestamp(
                         expires_ms / 1000, tz=dt_timezone.utc)
                 granter._grant(user, new_product, transaction_id,
-                               expires_at=expires_at)
+                               expires_at=expires_at, price_usd=_event_price_usd(event))
 
         elif event_type == 'CANCELLATION':
             # Auto-renew turned off — access continues until EXPIRATION

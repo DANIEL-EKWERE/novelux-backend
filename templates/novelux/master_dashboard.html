@@ -120,6 +120,42 @@ a{color:inherit;text-decoration:none;}
 .err{padding:14px;border:1px solid var(--bad);color:var(--bad);border-radius:10px;margin-bottom:12px;}
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:35;display:none;}
 .ovl.show{display:block;}
+
+/* Replay — phone mockup */
+.rp-wrap{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:900px){.rp-wrap{grid-template-columns:340px 1fr;}}
+.phone{width:320px;height:660px;margin:0 auto;border-radius:44px;background:#0b0b0d;padding:12px;box-shadow:0 20px 50px rgba(0,0,0,.35),inset 0 0 0 2px #2a2a30;position:relative;}
+.phone::before{content:'';position:absolute;top:18px;left:50%;transform:translateX(-50%);width:96px;height:24px;background:#000;border-radius:14px;z-index:5;}
+.scr{width:100%;height:100%;border-radius:34px;overflow:hidden;background:#0d0d0f;color:#f2f2f7;position:relative;font-size:12px;display:flex;flex-direction:column;}
+.scr .sbar{height:40px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 24px 6px;font-size:11px;font-weight:600;flex-shrink:0;}
+.scr .body{flex:1;overflow:hidden;position:relative;animation:scrIn .35s ease;}
+@keyframes scrIn{from{opacity:0;transform:translateX(18px);}to{opacity:1;transform:none;}}
+.scr .nav{height:52px;border-top:1px solid #222;display:flex;justify-content:space-around;align-items:center;font-size:9.5px;color:#777;flex-shrink:0;}
+.scr .nav b{display:block;text-align:center;font-size:15px;line-height:1;}
+.scr .nav .on{color:#C15F3C;}
+.a-head{display:flex;align-items:center;gap:8px;padding:6px 14px 10px;}
+.a-head .lg{width:22px;height:22px;border-radius:6px;background:#C15F3C;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;}
+.a-search{margin:0 14px 10px;background:#1c1c20;border-radius:20px;padding:9px 12px;color:#888;}
+.a-sec{padding:4px 14px;font-weight:700;font-size:13px;}
+.a-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:6px 14px;}
+.a-grid>div{min-width:0;}
+.cv{aspect-ratio:3/4;border-radius:8px;background:linear-gradient(135deg,#C15F3C,#5b2412);overflow:hidden;display:flex;align-items:flex-end;padding:5px;font-size:9px;font-weight:700;color:#fff;background-size:cover;background-position:center;}
+.a-btn{background:#C15F3C;color:#fff;border-radius:22px;text-align:center;padding:11px;font-weight:700;margin:12px 14px;}
+.a-sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1c20;border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -10px 30px rgba(0,0,0,.5);animation:sheetUp .35s ease;}
+@keyframes sheetUp{from{transform:translateY(100%);}to{transform:none;}}
+.read{padding:8px 18px;font-family:Georgia,serif;font-size:12.5px;line-height:1.75;color:#e9e3d8;}
+.tap{position:absolute;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.35);pointer-events:none;animation:tap .7s ease-out forwards;}
+@keyframes tap{from{transform:scale(.4);opacity:1;}to{transform:scale(1.6);opacity:0;}}
+.rp-ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;justify-content:center;}
+.rp-tl{position:relative;height:28px;margin-top:12px;background:var(--muted);border-radius:6px;cursor:pointer;}
+.rp-tl i{position:absolute;top:4px;bottom:4px;width:3px;border-radius:2px;background:var(--muted-fg);opacity:.5;}
+.rp-tl i.k-read,.rp-tl i.k-unlock{background:var(--role);opacity:.9;}
+.rp-tl .head{position:absolute;top:0;bottom:0;width:2px;background:var(--fg);}
+.rp-list{max-height:560px;overflow-y:auto;}
+.rp-item{display:grid;grid-template-columns:70px 1fr auto;gap:8px;padding:8px;border-radius:8px;cursor:pointer;font-size:12.5px;}
+.rp-item:hover{background:var(--muted);}
+.rp-item.on{background:color-mix(in srgb,var(--role) 12%,transparent);}
+.live-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);font-size:11px;font-weight:700;}
 </style>
 </head>
 <body>
@@ -375,7 +411,8 @@ loaders.realtime = async () => {
         <div class="card"><h3>Online users <span class="sub">${d.online.length}</span></h3>
           ${d.online.map(u => `<div class="list-row" style="cursor:pointer;" onclick="openUser(${u.id})">
             <span class="dot on"></span>${who(u, `${flag(u.country_code)} ${_e(u.city || u.country || '')} · ${_e(u.platform)}`)}
-            <div style="margin-left:auto;text-align:right;"><div class="sm">${_e(u.doing)}</div><div class="muted sm">${ago(u.last_seen)} · ${roleBdg(u.role)}</div></div></div>`).join('') || '<div class="empty">Nobody signed in right now.</div>'}</div>
+            <div style="margin-left:auto;text-align:right;"><div class="sm">${_e(u.doing)}</div><div class="muted sm">${ago(u.last_seen)} · ${roleBdg(u.role)}</div></div>
+            <button class="btn" style="margin-left:6px;padding:5px 9px;font-size:12px;" onclick="event.stopPropagation();openUser(${u.id},{tab:'replay',live:true})">▶ Watch</button></div>`).join('') || '<div class="empty">Nobody signed in right now.</div>'}</div>
         <div class="card"><h3>Live activity</h3><div class="stream">
           ${d.stream.map(v => `<div class="ev"><time>${new Date(v.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</time>
             <div>${v.user_id ? `<a href="#" onclick="event.preventDefault();openUser(${v.user_id})" style="font-weight:600;color:var(--role);">${_e(v.username)}</a>` : `<span class="muted">Guest</span>`}
@@ -420,7 +457,7 @@ $('#uq').oninput = () => { clearTimeout(uTimer); uTimer = setTimeout(() => { uPa
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
 function openDrawer() { $('#drawer').classList.add('open'); $('#drBg').classList.add('open'); }
-function closeDrawer() { $('#drawer').classList.remove('open'); $('#drBg').classList.remove('open'); }
+function closeDrawer() { Replay.stop(); $('#drawer').classList.remove('open'); $('#drBg').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 function setTabs(tabs, render) {
   $('#drTabs').innerHTML = tabs.map((t, i) => `<button class="${i === 0 ? 'on' : ''}" data-t="${t[0]}">${t[1]}</button>`).join('');
@@ -435,7 +472,8 @@ const table = (head, rows, empty = 'Nothing yet.') => rows.length
   ? `<div class="scroll"><table class="tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
   : `<div class="empty">${empty}</div>`;
 
-async function openUser(id) {
+async function openUser(id, opts = {}) {
+  Replay.stop();
   openDrawer();
   $('#drHead').innerHTML = '<div class="muted">Loading…</div>'; $('#drTabs').innerHTML = ''; $('#drBody').innerHTML = '';
   let d;
@@ -447,14 +485,18 @@ async function openUser(id) {
       <div class="muted sm"><span class="dot ${s.online ? 'on' : ''}"></span> ${s.online ? 'Online now' : 'Last seen ' + ago(s.last_seen)} · ${_e(s.last_doing)} · ${_e(p.email)}</div></div>
     <a class="btn" href="/admin/novelux/database/users/user/${p.id}/change/" target="_blank">Edit in admin</a>
     <button class="icon-btn" onclick="closeDrawer()">✕</button>`;
-  const tabs = [['overview', 'Overview'], ['activity', 'Activity'], ['location', 'Location & IPs'], ['devices', 'Devices'], ['wallet', 'Wallet'], ['reading', 'Reading'], ['engagement', 'Engagement']];
+  const tabs = [['overview', 'Overview'], ['replay', '▶ Replay'], ['activity', 'Activity'], ['location', 'Location & IPs'], ['devices', 'Devices'], ['wallet', 'Wallet'], ['reading', 'Reading'], ['engagement', 'Engagement']];
   if (d.author) tabs.push(['author', 'Author']);
   if (d.editor) tabs.push(['editor', 'Editor']);
+  d._live = !!opts.live;
+  if (opts.tab) { const i = tabs.findIndex(x => x[0] === opts.tab); if (i > 0) tabs.unshift(tabs.splice(i, 1)[0]); }
   setTabs(tabs, t => renderUserTab(d, t));
 }
 
 function renderUserTab(d, t) {
   const b = $('#drBody'), p = d.profile, s = d.status;
+  if (t !== 'replay') Replay.stop();
+  if (t === 'replay') return Replay.open(d.profile.id, { live: d._live });
   if (t === 'overview') {
     const loc = d.location.current;
     b.innerHTML = `<div class="grid kpis">
@@ -543,6 +585,185 @@ function renderUserTab(d, t) {
     b.innerHTML = editorStats(d.editor) + `<div style="margin-top:12px;"><button class="btn p" onclick="openEditor(${d.profile.id})">Open full editor view →</button></div>`;
   }
 }
+
+
+// ── Session replay (phone mockup) ────────────────────────────────────────────
+// Screens are rebuilt from the app's requests — not a screen recording.
+const Replay = {
+  uid: null, data: null, i: 0, playing: false, speed: 4, timer: null, poll: null, live: false,
+  stop() { clearTimeout(this.timer); clearTimeout(this.poll); this.playing = false; this.timer = this.poll = null; },
+  async open(uid, { live = false, start = null } = {}) {
+    this.stop();
+    this.uid = uid; this.live = live;
+    const b = $('#drBody');
+    b.innerHTML = '<div class="loading">Rebuilding the session…</div>';
+    try {
+      this.data = await API.get(`/master/users/${uid}/replay/?` + (live ? 'live=1' : (start ? 'start=' + encodeURIComponent(start) : '')));
+    } catch (e) { b.innerHTML = err(e); return; }
+    this.i = live ? Math.max(0, this.data.screens.length - 1) : 0;
+    this.layout();
+    if (live) this.schedulePoll(); else if (this.data.screens.length) this.play();
+  },
+  layout() {
+    const d = this.data, b = $('#drBody');
+    const opts = d.sessions.map(x => `<option value="${_e(x.start)}" ${!this.live && x.start === d.window.start ? 'selected' : ''}>${_d(x.start)} · ${x.minutes} min · ${x.hits} requests</option>`).join('');
+    b.innerHTML = `
+      <div class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        ${this.live ? '<span class="live-pill"><span class="live-dot" style="margin:0;background:var(--bad)"></span> LIVE · last 20 min</span>' : ''}
+        <select id="rpSession" class="btn" style="max-width:360px;"><option value="">Choose a session…</option>${opts}</select>
+        <button class="btn ${this.live ? 'p' : ''}" id="rpLive">${this.live ? 'Live on' : '● Watch live'}</button>
+        <span class="muted sm" style="margin-left:auto;">Rebuilt from their app activity — not a screen recording.</span>
+      </div>
+      <div class="rp-wrap">
+        <div>
+          <div class="phone"><div class="scr" id="rpScr"></div></div>
+          <div class="rp-ctl">
+            <button class="btn" id="rpPrev">⏮</button>
+            <button class="btn p" id="rpPlay" style="min-width:76px;">${this.playing ? '⏸ Pause' : '▶ Play'}</button>
+            <button class="btn" id="rpNext">⏭</button>
+            <div class="seg" id="rpSpeed">${[1, 4, 10, 20].map(x => `<button data-s="${x}" class="${x === this.speed ? 'on' : ''}">${x}×</button>`).join('')}</div>
+          </div>
+          <div class="rp-tl" id="rpTl"></div>
+          <div class="muted sm" id="rpNow" style="text-align:center;margin-top:6px;"></div>
+        </div>
+        <div class="card"><h3>Screens <span class="sub">${d.screens.length} in ${this.live ? 'the last 20 minutes' : 'this session'}</span></h3>
+          <div class="rp-list" id="rpList">${d.screens.map((sc, i) => `<div class="rp-item" data-i="${i}">
+            <span class="muted">${new Date(sc.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span>${_e(sc.doing)}${sc.story ? ` <span class="muted">· ${_e(sc.story.title)}</span>` : ''}</span>
+            <span class="muted">${this.dur(sc)}</span></div>`).join('') || '<div class="empty">No activity in this window.</div>'}</div></div>
+      </div>`;
+    $('#rpSession').onchange = e => e.target.value && this.open(this.uid, { start: e.target.value });
+    $('#rpLive').onclick = () => this.open(this.uid, { live: !this.live });
+    $('#rpPlay').onclick = () => this.playing ? this.pause() : this.play();
+    $('#rpPrev').onclick = () => this.go(this.i - 1);
+    $('#rpNext').onclick = () => this.go(this.i + 1);
+    $('#rpSpeed').querySelectorAll('button').forEach(x => x.onclick = () => {
+      this.speed = Number(x.dataset.s);
+      $('#rpSpeed').querySelectorAll('button').forEach(y => y.classList.toggle('on', y === x));
+      if (this.playing) { clearTimeout(this.timer); this.schedule(); }
+    });
+    $('#rpList').querySelectorAll('.rp-item').forEach(x => x.onclick = () => { this.pause(); this.go(+x.dataset.i); });
+    this.drawTimeline();
+    this.show();
+  },
+  dur(sc) {
+    const s = Math.max(0, (new Date(sc.until) - new Date(sc.at)) / 1000);
+    return s < 60 ? Math.round(s) + 's' : Math.round(s / 60) + 'm';
+  },
+  drawTimeline() {
+    const sc = this.data.screens, tl = $('#rpTl');
+    if (!sc.length) { tl.innerHTML = ''; return; }
+    const t0 = new Date(sc[0].at), t1 = new Date(sc[sc.length - 1].until), span = Math.max(1, t1 - t0);
+    tl.innerHTML = sc.map(x => `<i class="k-${x.type}" style="left:${((new Date(x.at) - t0) / span * 100).toFixed(2)}%"></i>`).join('') + '<span class="head" id="rpHead"></span>';
+    tl.onclick = e => {
+      const r = tl.getBoundingClientRect(), at = +t0 + (e.clientX - r.left) / r.width * span;
+      let k = 0; sc.forEach((x, j) => { if (+new Date(x.at) <= at) k = j; });
+      this.go(k);
+    };
+  },
+  go(i) {
+    const n = this.data.screens.length;
+    if (!n) return;
+    this.i = Math.max(0, Math.min(n - 1, i));
+    this.show();
+    if (this.playing) { clearTimeout(this.timer); this.schedule(); }
+  },
+  play() {
+    if (!this.data.screens.length) return;
+    if (this.i >= this.data.screens.length - 1) this.i = 0;
+    this.playing = true; $('#rpPlay') && ($('#rpPlay').textContent = '⏸ Pause');
+    this.show(); this.schedule();
+  },
+  pause() { this.playing = false; clearTimeout(this.timer); $('#rpPlay') && ($('#rpPlay').textContent = '▶ Play'); },
+  schedule() {
+    const sc = this.data.screens[this.i];
+    if (!sc || this.i >= this.data.screens.length - 1) { if (!this.live) this.pause(); return; }
+    // Real time spent on the screen, sped up; long idle gaps capped at 30s
+    const real = Math.min(30000, Math.max(800, new Date(sc.until) - new Date(sc.at)));
+    this.timer = setTimeout(() => { this.i++; this.show(); this.schedule(); }, Math.max(700, real / this.speed));
+  },
+  schedulePoll() {
+    this.poll = setTimeout(async () => {
+      if (!this.live || !$('#rpScr')) return;
+      if (!document.hidden) {
+        try {
+          const d = await API.get(`/master/users/${this.uid}/replay/?live=1`);
+          const atEnd = this.i >= this.data.screens.length - 1;
+          const grew = d.screens.length !== this.data.screens.length;
+          this.data = d;
+          if (grew) { const keep = atEnd ? d.screens.length - 1 : this.i; this.layout(); this.i = keep; this.show(); }
+        } catch (e) { /* keep showing what we have */ }
+      }
+      this.schedulePoll();
+    }, 5000);
+  },
+  show() {
+    const d = this.data, sc = d.screens[this.i], scr = $('#rpScr');
+    if (!scr) return;
+    if (!sc) { scr.innerHTML = this.frame('<div style="padding:60px 20px;text-align:center;color:#888;">No activity to replay here.</div>', 'home'); $('#rpNow').textContent = ''; return; }
+    scr.innerHTML = this.frame(this.render(sc), sc.type);
+    // a "tap" where the action happened
+    const tapAt = { book: [160, 600], read: [250, 320], unlock: [160, 560], gift: [160, 520], store: [160, 300], rewards: [160, 300] }[sc.type];
+    if (tapAt) { const t = document.createElement('div'); t.className = 'tap'; t.style.left = (tapAt[0] - 30) + 'px'; t.style.top = (tapAt[1] - 70) + 'px'; scr.appendChild(t); }
+    document.querySelectorAll('#rpList .rp-item').forEach(x => x.classList.toggle('on', +x.dataset.i === this.i));
+    document.querySelector(`#rpList .rp-item[data-i="${this.i}"]`)?.scrollIntoView({ block: 'nearest' });
+    const sc0 = d.screens[0], last = d.screens[d.screens.length - 1];
+    const span = Math.max(1, new Date(last.until) - new Date(sc0.at));
+    const head = $('#rpHead'); if (head) head.style.left = ((new Date(sc.at) - new Date(sc0.at)) / span * 100).toFixed(2) + '%';
+    $('#rpNow').innerHTML = `${_d(sc.at)} · ${_e(sc.platform)}${sc.place ? ' · ' + flag(sc.country_code) + ' ' + _e(sc.place) : ''} · screen ${this.i + 1} of ${d.screens.length} · stayed ${this.dur(sc)}`;
+  },
+  frame(inner, type) {
+    const tab = { home: 0, search: 0, book: 0, read: 0, unlock: 0, ad_access: 0, download: 0, library: 1, rewards: 2, wallet: 3, store: 3, redeem: 3, profile: 3, notifications: 3 }[type] ?? 0;
+    const t = new Date(this.data.screens[this.i]?.at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const reading = ['read', 'unlock', 'ad_access'].includes(type);
+    return `<div class="sbar"><span>${t}</span><span>▮▮▮ ◔</span></div><div class="body">${inner}</div>` + (reading ? '' :
+      `<div class="nav">${['Explore', 'Library', 'Rewards', 'Me'].map((x, k) => `<span class="${k === tab ? 'on' : ''}"><b>${['⌂', '▤', '🎁', '☺'][k]}</b>${x}</span>`).join('')}</div>`);
+  },
+  cover(st, h) {
+    const bg = st && st.cover ? `background-image:url('${_e(st.cover)}')` : '';
+    return `<div class="cv" style="${bg};${h ? 'height:' + h + 'px;aspect-ratio:auto;' : ''}">${st && !st.cover ? _e(st.title) : ''}</div>`;
+  },
+  render(sc) {
+    const st = sc.story || {}, ch = sc.chapter || {}, u = this.data.user, books = this.data.home_books || [];
+    const homeGrid = books.slice(0, 6).map(x => `<div>${this.cover(x)}<div style="font-size:9.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(x.title)}</div></div>`).join('');
+    const readPage = (extra = '') => `<div style="display:flex;justify-content:space-between;padding:6px 14px;color:#888;font-size:11px;"><span>‹</span><span style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(st.title || '')}</span><span>⚙</span></div>
+      <div class="read"><div style="font-weight:700;font-size:15px;margin-bottom:10px;color:#fff;">${_e(ch.title || 'Chapter ' + (ch.number || ''))}</div>${_e(ch.excerpt || 'Reading…').replace(/\n+/g, '<br><br>')}</div>${extra}`;
+    switch (sc.type) {
+      case 'home': return `<div class="a-head"><span class="lg">H</span><b style="color:#C15F3C;font-size:15px;">HuxNovel</b><span style="margin-left:auto;font-size:11px;color:#C15F3C;">🎧 Listen</span></div>
+        <div class="a-search">🔍 Search novels, authors, genres…</div>${books[0] ? `<div style="margin:0 14px 10px;">${this.cover(books[0], 120)}</div>` : ''}
+        <div class="a-sec">Trending now</div><div class="a-grid">${homeGrid}</div>`;
+      case 'search': return `<div class="a-search" style="margin-top:10px;color:#fff;">🔍 <span style="color:#888">Searching…</span></div><div class="a-sec">Results</div><div class="a-grid">${homeGrid}</div>`;
+      case 'book': case 'download': return `<div style="position:relative;">
+          <div style="display:flex;gap:12px;padding:10px 14px;">${'<div style="width:96px;flex-shrink:0;">' + this.cover(st) + '</div>'}
+          <div style="min-width:0;"><div style="font-weight:800;font-size:15px;line-height:1.25;">${_e(st.title || '')}</div><div style="color:#aaa;margin-top:4px;">${_e(st.author || '')}</div>
+          <div style="color:#888;margin-top:6px;font-size:10.5px;">${_e(st.genre || '')}${st.chapters ? ' · ' + _n(st.chapters) + ' chapters' : ''}${st.rating ? ' · ★ ' + st.rating.toFixed(1) : ''}</div></div></div>
+          <div style="display:flex;justify-content:space-around;padding:8px 14px;border-top:1px solid #222;border-bottom:1px solid #222;color:#bbb;font-size:10.5px;"><span><b style="color:#fff">${_n(st.views || 0)}</b> views</span><span><b style="color:#fff">${_n(st.chapters || 0)}</b> chapters</span><span><b style="color:#fff">${st.rating ? st.rating.toFixed(1) : '—'}</b> rating</span></div>
+          <div style="padding:10px 14px;color:#ccc;line-height:1.55;font-size:11.5px;max-height:190px;overflow:hidden;">${_e(st.synopsis || '')}</div></div>
+          <div class="a-btn" style="position:absolute;left:0;right:0;bottom:6px;">${sc.type === 'download' ? '⬇ Downloading…' : 'READ'}</div>`;
+      case 'read': return readPage();
+      case 'unlock': return readPage(`<div class="a-sheet"><div style="font-weight:700;font-size:14px;margin-bottom:6px;">🔓 Chapter ${ch.number || ''} unlocked</div><div style="color:#aaa;">Spent ${_n(ch.coin_cost || 0)} coins</div><div class="a-btn" style="margin:12px 0 0;">Continue reading</div></div>`);
+      case 'ad_access': return readPage(`<div style="position:absolute;inset:0;background:rgba(0,0,0,.85);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;"><div style="font-size:30px;">▶</div><div style="font-weight:700;">Watching an ad</div><div style="color:#aaa;">to read chapter ${ch.number || ''} for free</div></div>`);
+      case 'rewards': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">Rewards</div>
+        <div style="margin:10px 14px;padding:12px;border-radius:14px;background:#1c1c20;"><div style="font-weight:700;">Daily check-in</div><div style="color:#aaa;font-size:11px;margin:4px 0 10px;">Streak: ${_n(u.streak?.current_streak || 0)} days</div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">${[5, 8, 10, 12, 15, 18, 20].map((c, k) => `<div style="text-align:center;padding:6px 0;border-radius:8px;background:${k < (u.streak?.current_streak || 0) % 7 ? '#C15F3C' : '#2a2a30'};font-size:10px;">+${c}</div>`).join('')}</div></div>
+        <div style="margin:10px 14px;padding:12px;border-radius:14px;background:#1c1c20;"><div style="font-weight:700;">Watch ads & earn</div><div style="color:#aaa;font-size:11px;margin-top:4px;">Tasks and ad rewards</div></div>`;
+      case 'store': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">Top up</div><div style="padding:0 14px;color:#aaa;font-size:11px;">Balance: ${_n(u.coins)} coins</div>
+        ${[['100 coins', '$0.99'], ['500 coins', '$4.99'], ['1,000 coins', '$9.99'], ['👑 VIP Weekly', '$2.49']].map(([a, b]) => `<div style="margin:8px 14px;padding:12px;border-radius:12px;background:#1c1c20;display:flex;justify-content:space-between;"><b>${a}</b><span style="color:#C15F3C;font-weight:700;">${b}</span></div>`).join('')}`;
+      case 'redeem': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">Redeem coins</div>${['30 Mins of VIP · 300', 'Ad-free 1h · 190', 'Audiobooks 1h · 110'].map(x => `<div style="margin:8px 14px;padding:12px;border-radius:12px;background:#1c1c20;">${x} coins</div>`).join('')}`;
+      case 'wallet': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">My wallet</div><div style="margin:10px 14px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#C15F3C,#5b2412);"><div style="font-size:11px;opacity:.8;">Coins</div><div style="font-size:26px;font-weight:800;">${_n(u.coins)}</div><div style="font-size:11px;opacity:.8;">+${_n(u.bonus)} bonus</div></div>`;
+      case 'gift': return `${st.title ? `<div style="display:flex;gap:10px;padding:10px 14px;opacity:.55;"><div style="width:70px;">${this.cover(st)}</div><b>${_e(st.title)}</b></div>` : ''}<div class="a-sheet"><div style="font-weight:700;font-size:14px;margin-bottom:10px;">🎁 Send a gift</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${['☕', '🌹', '💎', '👑'].map(x => `<div style="text-align:center;padding:10px 0;background:#2a2a30;border-radius:10px;font-size:18px;">${x}</div>`).join('')}</div><div class="a-btn" style="margin:12px 0 0;">Send</div></div>`;
+      case 'comments': return `<div class="a-sec" style="font-size:15px;padding-top:10px;">Comments</div><div style="padding:0 14px;color:#888;">${_e(st.title || '')}</div>${['Loved this chapter!', 'Can’t wait for the next one 😭', 'Plot twist 🔥'].map(x => `<div style="margin:8px 14px;padding:10px;border-radius:12px;background:#1c1c20;">${x}</div>`).join('')}`;
+      case 'listen': return `<div style="padding:20px 30px;">${this.cover(st.title ? st : books[0])}</div><div style="text-align:center;font-weight:700;">${_e(st.title || 'Listening')}</div><div style="margin:14px 24px;height:4px;background:#2a2a30;border-radius:2px;"><div style="width:35%;height:100%;background:#C15F3C;border-radius:2px;"></div></div><div style="text-align:center;font-size:26px;">⏮ ⏸ ⏭</div>`;
+      case 'library': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">Library</div><div class="a-grid">${homeGrid}</div>`;
+      case 'profile': return `<div style="text-align:center;padding:26px 14px;"><div class="av" style="width:64px;height:64px;margin:0 auto;font-size:24px;">${_e((u.username || '?')[0].toUpperCase())}</div><div style="font-weight:700;margin-top:8px;">${_e(u.username)}</div><div style="color:#888;">${_n(u.coins)} coins</div></div>`;
+      case 'notifications': return `<div class="a-sec" style="font-size:16px;padding-top:10px;">Notifications</div>${['New chapter from an author you follow', 'Your daily reward is ready', 'Someone replied to your comment'].map(x => `<div style="margin:8px 14px;padding:10px;border-radius:12px;background:#1c1c20;">${x}</div>`).join('')}`;
+      case 'login': case 'signup': return `<div style="padding:60px 24px;text-align:center;"><div class="a-head" style="justify-content:center;"><span class="lg">H</span><b style="color:#C15F3C;font-size:18px;">HuxNovel</b></div><div style="margin-top:20px;font-weight:700;font-size:16px;">${sc.type === 'login' ? 'Signing in…' : 'Creating account…'}</div><div class="a-btn">Continue with Google</div></div>`;
+      case 'app_open': return `<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;"><span class="lg" style="width:56px;height:56px;border-radius:16px;background:#C15F3C;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:24px;">H</span><b>Opening HuxNovel…</b></div>`;
+      case 'author_dashboard': case 'editor_dashboard': return `<div style="padding:30px 18px;"><div style="font-weight:700;font-size:15px;">${sc.type === 'author_dashboard' ? 'Author dashboard' : 'Editor dashboard'}</div><div style="color:#888;margin-top:6px;">(website)</div></div>`;
+      default: return `<div style="padding:40px 18px;color:#bbb;">${_e(sc.doing)}</div>`;
+    }
+  },
+};
 
 // ── Audience ─────────────────────────────────────────────────────────────────
 loaders.audience = async () => {

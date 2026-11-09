@@ -933,3 +933,193 @@ def audience(request):
         'hours': hours,
         'retention': cohorts,
     })
+
+
+# ── Session replay ────────────────────────────────────────────────────────────
+# There is no screen recording: the app's requests are turned back into the
+# screens that made them. One screen usually fires several requests (a book
+# page loads the book, its chapters, reviews…), so requests close together are
+# merged and the most telling one names the screen.
+
+_STORY_WORDS = {'mine', 'trending', 'featured', 'editors-pick', 'completed-stories', 'free-download',
+                'world-famous', 'african-folktale', 'bookmarks', 'genres', 'subgenres', 'tags', 'banners',
+                'library-banner', 'short-stories', 'new-arrivals', 'recommended', 'free-discount', 'rankings',
+                'author-spotlight', 'explore-tab', 'ranking-section', 'genre-section', 'request',
+                'my-promotions', 'reviews'}
+
+# (regex, screen type, priority) — higher priority wins inside a merged group
+_SCREENS = [
+    (r'^/api/chapters/(?P<slug>[^/]+)/chapters/(?P<n>\d+)/unlock/?$', 'unlock', 12),
+    (r'^/api/chapters/(?P<slug>[^/]+)/chapters/(?P<n>\d+)/ad-access/?$', 'ad_access', 12),
+    (r'^/api/chapters/(?P<slug>[^/]+)/chapters/(?P<n>\d+)/?$', 'read', 10),
+    (r'^/api/chapters/(?P<slug>[^/]+)/chapters/download/?$', 'download', 11),
+    (r'^/api/chapters/(?P<slug>[^/]+)/chapters/?$', 'book', 6),
+    (r'^/api/stories/(?P<slug>[^/]+)/(?:rate|like|bookmark|report)/?$', 'book', 7),
+    (r'^/api/stories/(?P<slug>[^/]+)/?$', 'book', 8),
+    (r'^/api/stories/(?:search|$)', 'search', 5),
+    (r'^/api/stories/bookmarks', 'library', 6),
+    (r'^/api/stories/', 'home', 3),
+    (r'^/api/coins/(?:checkin|claim-reward|tasks|ad-tasks)', 'rewards', 7),
+    (r'^/api/coins/(?:packages|plans|verify-purchases|checkout|vip-status)', 'store', 8),
+    (r'^/api/coins/redeem', 'redeem', 8),
+    (r'^/api/coins/history', 'library', 5),
+    (r'^/api/coins/', 'wallet', 4),
+    (r'^/api/tips/', 'gift', 9),
+    (r'^/api/comments/', 'comments', 7),
+    (r'^/api/stories/reviews/', 'comments', 7),
+    (r'^/api/audio/', 'listen', 7),
+    (r'^/api/notifications/', 'notifications', 5),
+    (r'^/api/users/', 'profile', 5),
+    (r'^/api/auth/(?:token|social|google|apple|dj/login)', 'login', 9),
+    (r'^/api/auth/(?:dj/registration|register)', 'signup', 9),
+    (r'^/api/auth/me', 'app_open', 1),
+    (r'^/api/auth/', 'profile', 2),
+    (r'^/api/editorial/', 'editor_dashboard', 6),
+    (r'^/explore/(?P<slug>[^/]+)', 'book', 8),
+    (r'^/story/(?P<slug>[^/]+)', 'book', 8),
+    (r'^/author', 'author_dashboard', 6),
+    (r'^/editorial', 'editor_dashboard', 6),
+    (r'^/$', 'home', 3),
+    (r'^/api/', 'app', 0),
+    (r'^/', 'web', 0),
+]
+_SCREENS = [(re.compile(p), t, pr) for p, t, pr in _SCREENS]
+MERGE_SECONDS = 4
+
+
+def _screen_of(path):
+    for rx, kind, prio in _SCREENS:
+        m = rx.match(path or '')
+        if m:
+            gd = m.groupdict()
+            slug = gd.get('slug')
+            if slug and slug.lower() in _STORY_WORDS:
+                return 'home', 3, {}
+            return kind, prio, {k: v for k, v in gd.items() if v}
+    return 'app', 0, {}
+
+
+def _build_screens(visits):
+    """Visits (oldest first) → screens: [{at, until, type, slug, n, paths, …}]"""
+    screens = []
+    for v in visits:
+        kind, prio, params = _screen_of(v.path)
+        cur = screens[-1] if screens else None
+        same_place = cur and (not params.get('slug') or not cur.get('slug') or params.get('slug') == cur.get('slug'))
+        if cur and (v.created_at - cur['_last']).total_seconds() <= MERGE_SECONDS and same_place \
+                and not (kind in ('read', 'unlock', 'ad_access') and cur['type'] in ('read', 'unlock', 'ad_access')
+                         and params.get('n') != cur.get('n')):
+            cur['_last'] = v.created_at
+            cur['paths'].append(v.path)
+            if prio > cur['_prio']:
+                cur.update(type=kind, _prio=prio, **params)
+            continue
+        screens.append({'at': v.created_at, '_last': v.created_at, '_prio': prio, 'type': kind,
+                        'paths': [v.path], 'platform': _platform(v.os, v.device_type),
+                        'city': v.city, 'country': v.country, 'country_code': v.country_code, **params})
+    for i, s in enumerate(screens):
+        s['until'] = screens[i + 1]['at'] if i + 1 < len(screens) else s['_last']
+    return screens
+
+
+@api_view(['GET'])
+@permission_classes([IsMaster])
+def replay(request, user_id):
+    """GET /api/master/users/<id>/replay/?start=<iso>   one session
+           /api/master/users/<id>/replay/?live=1        the last 20 minutes
+    Rebuilds the screens a person went through, with the real books and
+    chapters, for the dashboard's phone replay."""
+    from django.utils.dateparse import parse_datetime
+    from apps.chapters.models import Chapter, strip_html
+    from apps.coins.models import CheckinStreak
+    from apps.stories.models import Story
+
+    u = get_object_or_404(User, pk=user_id)
+    now = timezone.now()
+    visits_qs = PageVisit.objects.filter(user=u)
+
+    # Sessions over the last 30 days (newest first) for the picker
+    times = list(visits_qs.filter(created_at__gte=now - timedelta(days=30))
+                 .order_by('-created_at').values_list('created_at', flat=True)[:20000])
+    sessions = sorted(_sessions(times), key=lambda x: x[0], reverse=True)[:60]
+
+    live = request.query_params.get('live') in ('1', 'true')
+    if live:
+        win_start, win_end = now - timedelta(minutes=20), now
+    else:
+        raw = (request.query_params.get('start') or '').replace(' ', '+')  # unencoded "+00:00"
+        start = parse_datetime(raw) if raw else None
+        chosen = next((s for s in sessions if start and abs((s[0] - start).total_seconds()) < 1), None) \
+            or (sessions[0] if sessions else None)
+        win_start, win_end = (chosen[0], chosen[1]) if chosen else (now, now)
+    visits = list(visits_qs.filter(created_at__gte=win_start, created_at__lte=win_end + timedelta(seconds=1))
+                  .order_by('created_at')[:3000])
+    screens = _build_screens(visits)[-400:]
+
+    # Fill screens with the real books and chapters
+    slugs = {s['slug'] for s in screens if s.get('slug')}
+    stories = {st.slug: st for st in Story.objects.filter(slug__in=slugs).select_related('author', 'genre')}
+    want = {(s['slug'], int(s['n'])) for s in screens if s.get('slug') and s.get('n')}
+    chapters = {}
+    if want:
+        for ch in Chapter.objects.filter(story__slug__in={w[0] for w in want},
+                                         chapter_number__in={w[1] for w in want}).select_related('story'):
+            chapters[(ch.story.slug, ch.chapter_number)] = ch
+
+    def story_card(st):
+        if not st:
+            return None
+        cover = None
+        try:
+            cover = request.build_absolute_uri(st.cover_image.url) if st.cover_image else None
+        except Exception:
+            pass
+        return {'title': st.title, 'slug': st.slug, 'cover': cover, 'author': st.author.username,
+                'genre': st.genre.name if st.genre_id else '', 'chapters': st.total_chapters,
+                'views': st.total_views, 'rating': float(st.average_rating or 0),
+                'synopsis': (st.description or st.synopsis or '')[:400]}
+
+    labels = {'home': 'Home', 'search': 'Search', 'book': 'Book page', 'read': 'Reading', 'unlock': 'Unlocked',
+              'ad_access': 'Watched an ad to read', 'download': 'Downloading the book', 'library': 'Library',
+              'rewards': 'Rewards & check-in', 'store': 'Coin store / VIP', 'redeem': 'Redeem coins', 'wallet': 'Wallet',
+              'gift': 'Sent a gift', 'comments': 'Comments', 'listen': 'Listening', 'notifications': 'Notifications',
+              'profile': 'Profile', 'login': 'Signing in', 'signup': 'Signing up', 'app_open': 'Opened the app',
+              'author_dashboard': 'Author dashboard (web)', 'editor_dashboard': 'Editor dashboard (web)'}
+    out = []
+    last_slug = None
+    for s in screens:
+        # Gifts and comments don't name the book — it's the one they were on
+        if s['type'] in ('gift', 'comments') and not s.get('slug') and last_slug:
+            s['slug'] = last_slug
+        if s.get('slug'):
+            last_slug = s['slug']
+        label = labels.get(s['type'])
+        if label and s.get('n'):
+            label += f" · Chapter {s['n']}"
+        item = {'at': _iso(s['at']), 'until': _iso(s['until']), 'type': s['type'],
+                'doing': label or describe(next((p for p in s['paths'] if _screen_of(p)[0] == s['type']), s['paths'][0])),
+                'requests': len(s['paths']), 'platform': s['platform'],
+                'place': ', '.join(x for x in (s['city'], s['country']) if x), 'country_code': s['country_code']}
+        st = stories.get(s.get('slug'))
+        if s.get('slug'):
+            item['story'] = story_card(st) or {'title': s['slug'].replace('-', ' ').title(), 'slug': s['slug']}
+        if s.get('n'):
+            ch = chapters.get((s.get('slug'), int(s['n'])))
+            item['chapter'] = {'number': int(s['n']), 'title': ch.title if ch else f'Chapter {s["n"]}',
+                               'locked': bool(ch and ch.is_locked), 'coin_cost': ch.coin_cost if ch else 0,
+                               'excerpt': strip_html(re.sub(r'(?i)</p>|<br\s*/?>', '\n\n', ch.content or ''))[:900].strip()
+                               if ch else ''}
+        out.append(item)
+
+    # Covers for a believable home screen
+    popular = [story_card(x) for x in Story.objects.select_related('author', 'genre').order_by('-total_views')[:6]]
+    streak = CheckinStreak.objects.filter(user=u).values('current_streak', 'longest_streak').first()
+    return Response({
+        'user': _user_brief(request, u, {'coins': u.coin_balance, 'bonus': u.bonus_balance, 'streak': streak}),
+        'live': live,
+        'window': {'start': _iso(win_start), 'end': _iso(win_end)},
+        'sessions': [{'start': _iso(a), 'end': _iso(b), 'hits': n,
+                      'minutes': round((b - a).total_seconds() / 60, 1)} for a, b, n in sessions],
+        'screens': out,
+        'home_books': popular,
+    })

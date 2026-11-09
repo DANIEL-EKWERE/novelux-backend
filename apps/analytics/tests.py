@@ -80,6 +80,29 @@ class MasterDashboardTests(TestCase):
         self.assertEqual([a['username'] for a in member['authors']], ['author'])
         self.assertTrue(any('Contract signed' in x['what'] for x in member['log']))
 
+    def test_replay(self):
+        res = self.client.get(f'/api/master/users/{self.reader.pk}/replay/?live=1')
+        self.assertEqual(res.status_code, 200, res.data)
+        kinds = [x['type'] for x in res.data['screens']]
+        self.assertIn('read', kinds)
+        read = next(x for x in res.data['screens'] if x['type'] == 'read')
+        self.assertEqual((read['story']['title'], read['chapter']['number']), ('Tale', 1))
+        # Past sessions are listed and each can be replayed
+        full = self.client.get(f'/api/master/users/{self.reader.pk}/replay/').data
+        self.assertEqual(len(full['sessions']), 2)   # visits 90 minutes apart
+        from urllib.parse import quote
+        older = self.client.get(f"/api/master/users/{self.reader.pk}/replay/?start={quote(full['sessions'][1]['start'])}").data
+        self.assertEqual([x['type'] for x in older['screens']], ['rewards'])
+        self.client.force_authenticate(self.reader)
+        self.assertEqual(self.client.get(f'/api/master/users/{self.reader.pk}/replay/').status_code, 403)
+
+    def test_screen_grouping(self):
+        from apps.analytics.master import _screen_of
+        self.assertEqual(_screen_of('/api/stories/trending/')[0], 'home')
+        self.assertEqual(_screen_of('/api/stories/tale/')[0], 'book')
+        self.assertEqual(_screen_of('/api/chapters/tale/chapters/4/unlock/')[0], 'unlock')
+        self.assertEqual(_screen_of('/api/coins/checkin/')[0], 'rewards')
+
     def test_search_and_filters(self):
         self.assertEqual([u['username'] for u in self.client.get('/api/master/users/?q=read').data['results']], ['reader'])
         self.assertEqual([u['username'] for u in self.client.get('/api/master/users/?status=paying').data['results']], ['reader'])

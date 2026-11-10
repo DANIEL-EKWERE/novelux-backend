@@ -189,7 +189,7 @@ class CronTests(TestCase):
         self.assertEqual(res.status_code, 200, res.content)
         jobs = res.json()['jobs']
         self.assertEqual(set(jobs), {'expire_promotions', 'expire_bonus_coins', 'send_promotion_reminders', 'vip_payout',
-                                     'social_scheduled_posts'})
+                                     'social_scheduled_posts', 'social_insights'})
         self.assertTrue(all(v == 'ok' for v in jobs.values()), jobs)
         # Called again straight away: nothing is due
         again = self.client.get('/api/cron/run/', HTTP_X_CRON_KEY='s3cret').json()['jobs']

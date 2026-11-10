@@ -13,7 +13,8 @@ from rest_framework.response import Response
 
 from .models import PLATFORMS, TEXT_LIMITS, SocialAccount, SocialMedia, SocialPost, SocialPostTarget, SocialSettings
 from .publishers import PUBLISHERS
-from .service import can_manage, can_post, check_lengths, needs_approval, publish_in_background
+from .service import (can_manage, can_post, can_review, can_review_post, check_lengths, needs_approval,
+                      notify_review_needed, notify_reviewed, publish_in_background)
 
 MAX_MB = {'image': 15, 'video': 250}
 
@@ -48,7 +49,7 @@ def _account(a, manage):
 def _post(request, p):
     return {
         'id': p.pk, 'text': p.text, 'link': p.link, 'title': p.title, 'status': p.status,
-        'author': p.author.username if p.author_id else None,
+        'author': p.author.username if p.author_id else None, 'author_id': p.author_id,
         'story': {'title': p.story.title, 'slug': p.story.slug} if p.story_id else None,
         'scheduled_at': _iso(p.scheduled_at), 'created_at': _iso(p.created_at),
         'published_at': _iso(p.published_at),
@@ -68,14 +69,23 @@ def overview(request):
     s = SocialSettings.get()
     return Response({
         'can_manage': manage,
+        'can_review': can_review(request.user),
+        'me_id': request.user.pk,
         'needs_approval': needs_approval(request.user),
-        'settings': {'require_approval': s.require_approval, 'poster_roles': s.poster_roles},
+        'settings': {'require_approval': s.require_approval, 'ce_can_review': s.ce_can_review,
+                     'poster_roles': s.poster_roles},
         'accounts': [_account(a, manage) for a in SocialAccount.objects.all()],
         'platforms': [{'id': k, 'name': n, 'text_limit': TEXT_LIMITS.get(k),
                        'fields': [{'key': f, 'label': lbl, 'secret': sec} for f, lbl, sec in PUBLISHERS[k].fields]}
                       for k, n in PLATFORMS],
         'pending_count': SocialPost.objects.filter(status=SocialPost.STATUS_PENDING).count(),
+        'open_comments': _open_comments(),
     })
+
+
+def _open_comments():
+    from .models import SocialComment
+    return SocialComment.objects.filter(is_ours=False, parent__isnull=True, handled=False).count()
 
 
 @api_view(['PATCH'])
@@ -86,10 +96,13 @@ def update_settings(request):
     s = SocialSettings.get()
     if 'require_approval' in request.data:
         s.require_approval = bool(request.data['require_approval'])
+    if 'ce_can_review' in request.data:
+        s.ce_can_review = bool(request.data['ce_can_review'])
     if 'poster_roles' in request.data:
         s.poster_roles = [x for x in request.data['poster_roles'] if x in ('se', 'ce', 'author')]
     s.save()
-    return Response({'require_approval': s.require_approval, 'poster_roles': s.poster_roles})
+    return Response({'require_approval': s.require_approval, 'ce_can_review': s.ce_can_review,
+                     'poster_roles': s.poster_roles})
 
 
 def _apply_account_fields(acc, data):
@@ -259,6 +272,8 @@ def posts(request):
     else:
         post.status = SocialPost.STATUS_PUBLISHING   # going out now
     post.save(update_fields=['status'])
+    if post.status == SocialPost.STATUS_PENDING:
+        notify_review_needed(post)
     if post.status == SocialPost.STATUS_PUBLISHING:
         publish_in_background(post.pk)
     post.refresh_from_db()
@@ -287,8 +302,10 @@ def post_action(request, pk, action):
     post = get_object_or_404(SocialPost, pk=pk)
     mine = post.author_id == request.user.pk or can_manage(request.user)
     if action in ('approve', 'reject'):
-        if (r := _manage_only(request)):
-            return r
+        if not can_review_post(request.user, post):
+            msg = ("You can't review your own post — another reviewer has to." if can_review(request.user)
+                   else 'Only reviewers can approve or reject posts.')
+            return Response({'detail': msg}, status=403)
         if post.status != SocialPost.STATUS_PENDING:
             return Response({'detail': 'This post is not waiting for approval.'}, status=400)
         post.approved_by, post.approved_at = request.user, timezone.now()
@@ -296,10 +313,12 @@ def post_action(request, pk, action):
         if action == 'reject':
             post.status = SocialPost.STATUS_REJECTED
             post.save()
+            notify_reviewed(post, approved=False)
         else:
             now_due = not post.scheduled_at or post.scheduled_at <= timezone.now()
             post.status = SocialPost.STATUS_PUBLISHING if now_due else SocialPost.STATUS_SCHEDULED
             post.save()
+            notify_reviewed(post, approved=True)
             if now_due:
                 publish_in_background(post.pk)
     elif action == 'retry':
@@ -315,6 +334,7 @@ def post_action(request, pk, action):
         if post.status == SocialPost.STATUS_DRAFT and needs_approval(request.user):
             post.status = SocialPost.STATUS_PENDING
             post.save(update_fields=['status'])
+            notify_review_needed(post)
         else:
             post.scheduled_at = None
             post.status = SocialPost.STATUS_PUBLISHING
@@ -329,3 +349,177 @@ def post_action(request, pk, action):
         return Response({'detail': 'Unknown action.'}, status=400)
     post.refresh_from_db()
     return Response(_post(request, post))
+
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+METRIC_KEYS = ['views', 'reach', 'impressions', 'likes', 'comments', 'shares', 'saves', 'quotes', 'clicks']
+
+
+@api_view(['GET'])
+@permission_classes([CanPost])
+def analytics(request):
+    """GET /api/social/analytics/?days=30 — totals per network, follower
+    growth, best posts and each post's numbers."""
+    from datetime import timedelta
+    from .insights import supports
+    from .models import SocialFollowerStat
+    try:
+        days = max(1, min(int(request.query_params.get('days', 30)), 365))
+    except ValueError:
+        days = 30
+    since = timezone.now() - timedelta(days=days)
+    targets = list(SocialPostTarget.objects.filter(status='published', published_at__gte=since)
+                   .select_related('account', 'post', 'post__author'))
+    per_net = {}
+    for t in targets:
+        n = per_net.setdefault(t.account_id, {'account_id': t.account_id, 'account': t.account.name,
+                                               'platform': t.account.platform, 'posts': 0,
+                                               **{k: 0 for k in METRIC_KEYS}})
+        n['posts'] += 1
+        for k in METRIC_KEYS:
+            n[k] += int((t.metrics or {}).get(k) or 0)
+    # Followers now vs. the start of the period
+    for acc in SocialAccount.objects.filter(is_active=True):
+        stats = list(SocialFollowerStat.objects.filter(account=acc).order_by('date').values('date', 'followers'))
+        row = per_net.setdefault(acc.pk, {'account_id': acc.pk, 'account': acc.name, 'platform': acc.platform,
+                                          'posts': 0, **{k: 0 for k in METRIC_KEYS}})
+        now_f = stats[-1]['followers'] if stats else None
+        before = next((s['followers'] for s in stats if s['date'] >= since.date()), None)
+        row.update(followers=now_f, followers_change=(now_f - before) if now_f is not None and before is not None else None,
+                   followers_series=[{'date': str(s['date']), 'value': s['followers']} for s in stats[-90:]],
+                   supports={'numbers': supports(acc.platform, 'metrics'), 'comments':
+                             supports(acc.platform, 'comments') or acc.platform == 'telegram'})
+
+    def engagement(t):
+        m = t.metrics or {}
+        return sum(int(m.get(k) or 0) for k in ('likes', 'comments', 'shares', 'saves', 'quotes'))
+
+    posts = {}
+    for t in sorted(targets, key=lambda x: x.published_at, reverse=True):
+        p = posts.setdefault(t.post_id, {'id': t.post_id, 'text': t.post.text[:200],
+                                         'author': t.post.author.username if t.post.author_id else None,
+                                         'published_at': _iso(t.post.published_at), 'networks': [], 'engagement': 0})
+        p['networks'].append({'account': t.account.name, 'platform': t.account.platform, 'url': t.url,
+                              'metrics': {k: v for k, v in (t.metrics or {}).items() if k in METRIC_KEYS},
+                              'metrics_at': _iso(t.metrics_at), 'sync_error': t.sync_error})
+        p['engagement'] += engagement(t)
+    post_list = list(posts.values())
+    last = max((t.metrics_at for t in targets if t.metrics_at), default=None)
+    return Response({
+        'days': days, 'last_synced': _iso(last),
+        'networks': sorted(per_net.values(), key=lambda r: r['platform']),
+        'totals': {k: sum(n[k] for n in per_net.values()) for k in METRIC_KEYS + ['posts']},
+        'top_posts': sorted(post_list, key=lambda p: p['engagement'], reverse=True)[:5],
+        'posts': post_list[:100],
+    })
+
+
+@api_view(['POST'])
+@permission_classes([CanPost])
+def sync_now(request):
+    """POST /api/social/sync/ — refresh numbers and comments now (at most once
+    every 2 minutes, to stay inside the networks' rate limits)."""
+    from django.core.cache import cache
+    if not cache.add('social:sync-lock', 1, timeout=120):
+        return Response({'detail': 'Refreshed a moment ago — try again in a couple of minutes.'}, status=429)
+    from .tasks import sync_social_insights
+    try:
+        sync_social_insights.delay()
+    except Exception:
+        import threading
+        from .sync import sync_all
+
+        def run():
+            from django.db import connection
+            try:
+                sync_all()
+            finally:
+                connection.close()
+        threading.Thread(target=run, daemon=True).start()
+    return Response({'ok': True})
+
+
+# ── Inbox ─────────────────────────────────────────────────────────────────────
+
+def _comment(c):
+    t = c.target
+    return {
+        'id': c.pk, 'platform': c.account.platform, 'account': c.account.name, 'account_id': c.account_id,
+        'author': c.author_name, 'handle': c.author_handle, 'text': c.text, 'url': c.permalink,
+        'posted_at': _iso(c.posted_at), 'handled': c.handled,
+        'handled_by': c.handled_by.username if c.handled_by_id else None,
+        'can_reply': supports_reply(c.account.platform),
+        'post': {'id': t.post_id, 'text': t.post.text[:140], 'url': t.url} if t else None,
+        'replies': [{'id': r.pk, 'author': r.author_name, 'text': r.text, 'is_ours': r.is_ours,
+                     'sent_by': r.sent_by.username if r.sent_by_id else None, 'posted_at': _iso(r.posted_at)}
+                    for r in c.replies.select_related('sent_by').order_by('posted_at')],
+    }
+
+
+def supports_reply(platform):
+    from .insights import supports
+    return supports(platform, 'reply')
+
+
+@api_view(['GET'])
+@permission_classes([CanPost])
+def inbox(request):
+    """GET /api/social/inbox/?status=open|handled|all&platform=&page="""
+    from .models import SocialComment
+    qs = (SocialComment.objects.filter(is_ours=False, parent__isnull=True)
+          .select_related('account', 'target__post', 'handled_by').order_by('-posted_at'))
+    status = request.query_params.get('status', 'open')
+    if status == 'open':
+        qs = qs.filter(handled=False)
+    elif status == 'handled':
+        qs = qs.filter(handled=True)
+    if request.query_params.get('platform'):
+        qs = qs.filter(account__platform=request.query_params['platform'])
+    try:
+        page = max(1, int(request.query_params.get('page', 1)))
+    except ValueError:
+        page = 1
+    total = qs.count()
+    return Response({'total': total, 'page': page, 'pages': (total + 24) // 25,
+                     'open_count': SocialComment.objects.filter(is_ours=False, parent__isnull=True,
+                                                                handled=False).count(),
+                     'results': [_comment(c) for c in qs[(page - 1) * 25: page * 25]]})
+
+
+@api_view(['POST'])
+@permission_classes([CanPost])
+def inbox_reply(request, pk):
+    """POST /api/social/inbox/<id>/reply/ {text} — answers from the brand account."""
+    from .insights import INSIGHTS
+    from .models import SocialComment
+    c = get_object_or_404(SocialComment.objects.select_related('account', 'target', 'parent'), pk=pk)
+    text = (request.data.get('text') or '').strip()
+    if not text:
+        return Response({'detail': 'Write a reply first.'}, status=400)
+    if not supports_reply(c.account.platform):
+        return Response({'detail': f'{c.account.get_platform_display()} doesn\'t allow replying from outside its app.'},
+                        status=400)
+    try:
+        ext_id, url = INSIGHTS[c.account.platform].reply(c.account, c, text)
+    except Exception as e:
+        return Response({'detail': f'The network refused the reply: {e}'}, status=502)
+    SocialComment.objects.create(account=c.account, target=c.target, parent=c, external_id=str(ext_id) or f'local-{c.pk}-{timezone.now().timestamp()}',
+                                 author_name=c.account.name, text=text, permalink=url or '', posted_at=timezone.now(),
+                                 is_ours=True, sent_by=request.user, handled=True)
+    c.handled, c.handled_by, c.handled_at = True, request.user, timezone.now()
+    c.save(update_fields=['handled', 'handled_by', 'handled_at'])
+    c.refresh_from_db()
+    return Response(_comment(c))
+
+
+@api_view(['POST'])
+@permission_classes([CanPost])
+def inbox_handled(request, pk):
+    """POST /api/social/inbox/<id>/handled/ {handled: true|false}"""
+    from .models import SocialComment
+    c = get_object_or_404(SocialComment, pk=pk)
+    c.handled = bool(request.data.get('handled', True))
+    c.handled_by, c.handled_at = (request.user, timezone.now()) if c.handled else (None, None)
+    c.save(update_fields=['handled', 'handled_by', 'handled_at'])
+    return Response(_comment(c))

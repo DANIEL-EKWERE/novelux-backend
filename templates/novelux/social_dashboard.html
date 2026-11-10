@@ -102,6 +102,30 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
 .empty{padding:30px;text-align:center;color:var(--muted-fg);}
 .per{border-top:1px solid var(--border);padding-top:10px;margin-top:10px;}
 .per summary{cursor:pointer;font-size:12.5px;color:var(--muted-fg);}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px;}
+.kpi{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px 14px;}
+.kpi .v{font-size:22px;font-weight:700;margin-top:2px;}
+.kpi .l{font-size:12px;color:var(--muted-fg);}
+.nets{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:16px;}
+.net .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.net .nums div{font-size:11px;color:var(--muted-fg);}
+.net .nums b{display:block;font-size:16px;color:var(--fg);}
+.up{color:var(--ok);font-size:12px;font-weight:600;}.down{color:var(--bad);font-size:12px;font-weight:600;}
+.spark{display:block;width:100%;height:34px;margin-top:8px;}
+.tbl-wrap{overflow-x:auto;}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.t th{text-align:left;font-weight:500;color:var(--muted-fg);padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+table.t td{padding:8px;border-bottom:1px solid var(--border);vertical-align:top;}
+table.t td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.cm{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--card);}
+.cm.done{opacity:.7;}
+.cm .who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted-fg);}
+.cm .who b{color:var(--fg);font-size:13px;}
+.cm .body{margin:8px 0;white-space:pre-wrap;line-height:1.5;word-break:break-word;}
+.cm .on-post{font-size:12px;color:var(--muted-fg);border-left:3px solid var(--border);padding-left:8px;margin-bottom:8px;}
+.cm .rep{margin:6px 0 0 18px;padding:8px 10px;border-radius:9px;background:var(--muted);font-size:12.5px;}
+.cm .rep.ours{background:color-mix(in srgb,var(--role) 9%,var(--bg));}
+.cm textarea{min-height:70px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -110,6 +134,8 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
   <div class="tabs" id="tabs">
     <button data-p="compose" class="on">✎ Compose</button>
     <button data-p="posts">Posts <span class="badge" id="pendBadge" style="display:none"></span></button>
+    <button data-p="analytics">Analytics</button>
+    <button data-p="inbox">Inbox <span class="badge" id="inboxBadge" style="display:none"></span></button>
     <button data-p="accounts" class="admin-only">Accounts</button>
     <button data-p="settings" class="admin-only">Settings</button>
   </div>
@@ -121,6 +147,7 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
 <div class="wrap">
   <!-- Compose -->
   <section class="page on" id="p-compose">
+    <div class="note" id="reviewBanner" style="display:none;margin:0 0 16px;font-size:13.5px;"></div>
     <div class="grid cmp">
       <div>
         <div class="card">
@@ -156,7 +183,7 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
             <button class="btn" id="schedule">Schedule</button>
             <button class="btn" id="draft">Save draft</button>
           </div>
-          <div class="note" id="approvalNote" style="display:none;">Posts need an admin's approval before they go out — yours will wait in <b>Posts → Waiting</b>.</div>
+          <div class="note" id="approvalNote" style="display:none;">Posts are reviewed before they go out — yours will wait in <b>Posts → Waiting approval</b> until a reviewer approves it.</div>
           <div class="err" id="cErr" style="display:none;"></div>
         </div>
       </div>
@@ -176,6 +203,32 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
     <div class="row" id="postPager" style="justify-content:center;margin-top:10px;"></div>
   </section>
 
+  <!-- Analytics -->
+  <section class="page" id="p-analytics">
+    <div class="row" style="margin-bottom:14px;">
+      <div class="subtabs" id="anDays" style="margin:0;"><button data-d="7">7 days</button><button data-d="30" class="on">30 days</button><button data-d="90">90 days</button></div>
+      <span class="sm muted" style="margin-left:auto;" id="anSynced"></span>
+      <button class="btn sm" id="anRefresh">↻ Refresh now</button>
+    </div>
+    <div class="kpis" id="anKpis"></div>
+    <div class="nets" id="anNets"></div>
+    <div class="card" style="margin-bottom:16px;"><h3>Best posts <span class="sub">by likes + comments + shares</span></h3><div id="anTop"></div></div>
+    <div class="card"><h3>Every post</h3><div class="tbl-wrap" id="anPosts"></div></div>
+    <div class="note">Numbers update every hour (or when you press Refresh). Posts older than 30 days stop updating. Some networks don't share everything — see the note on each card.</div>
+  </section>
+
+  <!-- Inbox -->
+  <section class="page" id="p-inbox">
+    <div class="row" style="margin-bottom:12px;">
+      <div class="subtabs" id="inTabs" style="margin:0;"><button data-s="open" class="on">To answer</button><button data-s="handled">Done</button><button data-s="all">All</button></div>
+      <select id="inPlat" style="width:auto;margin-left:auto;"><option value="">All networks</option></select>
+      <button class="btn sm" id="inRefresh">↻ Check for new</button>
+    </div>
+    <div id="inList"><div class="empty">Loading…</div></div>
+    <div class="row" id="inPager" style="justify-content:center;margin-top:10px;"></div>
+    <div class="note">Comments come in every hour. Replies go out from the brand account right away. TikTok doesn't let outside apps read comments, and X needs a paid API plan to read replies.</div>
+  </section>
+
   <!-- Accounts -->
   <section class="page" id="p-accounts">
     <div class="card"><h3>Connected accounts <span class="sub"><button class="btn p sm" id="addAcc">+ Connect an account</button></span></h3>
@@ -191,6 +244,10 @@ textarea{min-height:150px;resize:vertical;line-height:1.5;}
       <div class="row" style="justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
         <div><b>Require approval</b><div class="sm muted">When on, posts by editors wait for an admin to approve them. Admins' own posts always go out directly.</div></div>
         <label class="switch"><input type="checkbox" id="setApproval"><span></span></label>
+      </div>
+      <div class="row" style="justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div><b>Chief editors can review</b><div class="sm muted">Lets chief editors approve or reject waiting posts here in Social → Posts → Waiting approval (admins always can). Nobody can approve their own post — a CE's post goes to another CE or an admin.</div></div>
+        <label class="switch"><input type="checkbox" id="setCeReview"><span></span></label>
       </div>
       <div style="padding:10px 0;"><b>Who can post</b><div class="sm muted" style="margin-bottom:8px;">Admins always can.</div>
         <label class="row"><input type="checkbox" class="role" value="se"> Senior editors</label>
@@ -242,6 +299,8 @@ function go(p) {
   document.querySelectorAll('.page').forEach(s => s.classList.toggle('on', s.id === 'p-' + p));
   if (p === 'posts') loadPosts();
   if (p === 'accounts') renderAccounts();
+  if (p === 'analytics') loadAnalytics();
+  if (p === 'inbox') loadInbox();
   if (p === 'settings') renderSettings();
 }
 document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => go(b.dataset.p));
@@ -250,7 +309,13 @@ async function load() {
   ov = await API.get('/social/overview/');
   document.querySelectorAll('.admin-only').forEach(x => x.style.display = ov.can_manage ? '' : 'none');
   $('#approvalNote').style.display = ov.needs_approval ? '' : 'none';
-  const pb = $('#pendBadge'); pb.textContent = ov.pending_count; pb.style.display = ov.pending_count && ov.can_manage ? '' : 'none';
+  const pb = $('#pendBadge'); pb.textContent = ov.pending_count; pb.style.display = ov.pending_count && ov.can_review ? '' : 'none';
+  const ib = $('#inboxBadge'); ib.textContent = ov.open_comments; ib.style.display = ov.open_comments ? '' : 'none';
+  const rb = $('#reviewBanner');
+  if (ov.can_review && ov.pending_count) {
+    rb.innerHTML = `🕓 <b>${ov.pending_count} post${ov.pending_count === 1 ? '' : 's'}</b> waiting for review. <a href="#" style="color:var(--role);font-weight:600;" onclick="event.preventDefault();openWaiting()">Review now →</a>`;
+    rb.style.display = '';
+  } else rb.style.display = 'none';
   renderAccPicker();
   refresh();
 }
@@ -393,6 +458,11 @@ document.querySelectorAll('#postTabs button').forEach(b => b.onclick = () => {
   document.querySelectorAll('#postTabs button').forEach(x => x.classList.toggle('on', x === b));
   postStatus = b.dataset.s; postPage = 1; loadPosts();
 });
+function openWaiting() {
+  go('posts');
+  document.querySelectorAll('#postTabs button').forEach(x => x.classList.toggle('on', x.dataset.s === 'pending_approval'));
+  postStatus = 'pending_approval'; postPage = 1; loadPosts();
+}
 const STATUS = { draft: 'Draft', pending_approval: 'Waiting approval', scheduled: 'Scheduled', publishing: 'Posting…', published: 'Published', partial: 'Partly failed', failed: 'Failed', rejected: 'Rejected' };
 async function loadPosts() {
   clearTimeout(postTimer);
@@ -400,7 +470,8 @@ async function loadPosts() {
   $('#postList').innerHTML = d.results.map(p => {
     const mine = p.author === '{{ me.username|escapejs }}';
     const acts = [];
-    if (p.status === 'pending_approval' && ov.can_manage) acts.push(`<button class="btn p sm" onclick="act(${p.id},'approve')">Approve</button><button class="btn sm danger" onclick="act(${p.id},'reject')">Reject</button>`);
+    if (p.status === 'pending_approval' && ov.can_review && (ov.can_manage || p.author_id !== ov.me_id)) acts.push(`<button class="btn p sm" onclick="act(${p.id},'approve')">Approve</button><button class="btn sm danger" onclick="act(${p.id},'reject')">Reject</button>`);
+    else if (p.status === 'pending_approval' && p.author_id === ov.me_id) acts.push(`<span class="sm muted">Waiting for another reviewer</span>`);
     if (['failed', 'partial'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn p sm" onclick="act(${p.id},'retry')">Retry failed</button>`);
     if (['scheduled', 'draft'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn sm" onclick="act(${p.id},'send_now')">Send now</button>`);
     if (['scheduled', 'pending_approval'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn sm" onclick="act(${p.id},'cancel')">Cancel</button>`);
@@ -435,32 +506,134 @@ async function delPost(id) {
   try { await API.del(`/social/posts/${id}/`); loadPosts(); } catch (e) { toast(e.detail || 'Could not delete'); }
 }
 
+// ── Analytics ──
+let anDays = 30;
+const fmt = n => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k' : n.toLocaleString();
+const LIMITS = { tiktok: 'TikTok: numbers only — comments can\'t be read by outside apps.', x: 'X: needs a paid API plan for numbers and replies.', telegram: 'Telegram: shows subscribers and post views; comments come from your discussion group.', linkedin: 'LinkedIn: needs Community Management API access.' };
+function spark(series) {
+  if (!series || series.length < 2) return '';
+  const v = series.map(s => s.value), lo = Math.min(...v), hi = Math.max(...v), r = hi - lo || 1;
+  const pts = v.map((x, i) => `${(i / (v.length - 1) * 100).toFixed(1)},${(30 - (x - lo) / r * 26).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--role)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>`;
+}
+document.querySelectorAll('#anDays button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#anDays button').forEach(x => x.classList.toggle('on', x === b));
+  anDays = +b.dataset.d; loadAnalytics();
+});
+async function syncNow(btn, after) {
+  btn.disabled = true;
+  try { await API.post('/social/sync/'); toast('Checking the networks… numbers update in about a minute.'); setTimeout(() => { btn.disabled = false; after(); load(); }, 45000); }
+  catch (e) { btn.disabled = false; toast(e.detail || 'Could not refresh'); }
+}
+$('#anRefresh').onclick = () => syncNow($('#anRefresh'), loadAnalytics);
+async function loadAnalytics() {
+  let d;
+  try { d = await API.get(`/social/analytics/?days=${anDays}`); }
+  catch (e) { $('#anKpis').innerHTML = `<div class="err">${_e(e.detail || 'Could not load analytics.')}</div>`; return; }
+  $('#anSynced').textContent = d.last_synced ? 'Updated ' + _d(d.last_synced) : 'Not updated yet';
+  const T = d.totals, followers = d.networks.reduce((a, n) => a + (n.followers || 0), 0);
+  const fchg = d.networks.reduce((a, n) => a + (n.followers_change || 0), 0);
+  $('#anKpis').innerHTML = [
+    ['Followers', fmt(followers), fchg ? `<span class="${fchg > 0 ? 'up' : 'down'}">${fchg > 0 ? '+' : ''}${fmt(fchg)}</span>` : ''],
+    ['Posts', fmt(T.posts)], ['Views', fmt(T.views || T.impressions)], ['Likes', fmt(T.likes)],
+    ['Comments', fmt(T.comments)], ['Shares', fmt(T.shares + (T.quotes || 0))], ['Link clicks', fmt(T.clicks)],
+  ].map(([l, v, x]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v} ${x || ''}</div></div>`).join('');
+  $('#anNets').innerHTML = d.networks.map(n => `<div class="card net">
+      <div class="row">${pi(n.platform)}<b>${_e(n.account)}</b>
+        <span style="margin-left:auto;text-align:right;"><b>${fmt(n.followers)}</b> <span class="sm muted">followers</span>
+        ${n.followers_change ? `<div class="${n.followers_change > 0 ? 'up' : 'down'}">${n.followers_change > 0 ? '+' : ''}${fmt(n.followers_change)} in ${d.days}d</div>` : ''}</span></div>
+      ${spark(n.followers_series)}
+      <div class="nums"><div><b>${fmt(n.posts)}</b>posts</div><div><b>${fmt(n.views || n.impressions)}</b>views</div><div><b>${fmt(n.likes)}</b>likes</div>
+        <div><b>${fmt(n.comments)}</b>comments</div><div><b>${fmt(n.shares + (n.quotes || 0))}</b>shares</div><div><b>${fmt(n.clicks || n.saves)}</b>${n.clicks ? 'clicks' : 'saves'}</div></div>
+      ${LIMITS[n.platform] ? `<div class="sm muted" style="margin-top:8px;">${LIMITS[n.platform]}</div>` : ''}</div>`).join('')
+    || '<div class="empty">Connect an account to see numbers here.</div>';
+  const netLinks = p => p.networks.map(n => n.url ? `<a href="${_e(n.url)}" target="_blank" title="${_e(n.account)}">${pi(n.platform)}</a>` : pi(n.platform)).join(' ');
+  $('#anTop').innerHTML = d.top_posts.filter(p => p.engagement).map((p, i) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap;">
+      <b style="width:18px;">${i + 1}</b><div style="flex:1;min-width:0;"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(p.text) || '<span class="muted">(no text)</span>'}</div>
+      <div class="sm muted">${_d(p.published_at)}${p.author ? ' · by ' + _e(p.author) : ''}</div></div>
+      <span class="row" style="flex-wrap:nowrap;">${netLinks(p)}</span><b style="min-width:50px;text-align:right;">${fmt(p.engagement)}</b></div>`).join('')
+    || '<div class="empty">No likes, comments or shares yet in this period.</div>';
+  const sum = (p, k) => p.networks.reduce((a, n) => a + (n.metrics[k] || 0), 0);
+  $('#anPosts').innerHTML = d.posts.length ? `<table class="t"><thead><tr><th>Post</th><th>Where</th><th style="text-align:right">Views</th><th style="text-align:right">Likes</th><th style="text-align:right">Comments</th><th style="text-align:right">Shares</th><th style="text-align:right">Clicks</th></tr></thead><tbody>
+    ${d.posts.map(p => `<tr><td style="max-width:340px;"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(p.text) || '<span class="muted">(no text)</span>'}</div><div class="sm muted">${_d(p.published_at)}${p.author ? ' · ' + _e(p.author) : ''}</div>
+        ${p.networks.filter(n => n.sync_error).map(n => `<div class="sm" style="color:var(--warn);" title="${_e(n.sync_error)}">⚠ ${_e(n.account)}: couldn't read numbers</div>`).join('')}</td>
+      <td style="white-space:nowrap;">${netLinks(p)}</td>
+      <td class="n">${fmt(sum(p, 'views') || sum(p, 'impressions'))}</td><td class="n">${fmt(sum(p, 'likes'))}</td><td class="n">${fmt(sum(p, 'comments'))}</td>
+      <td class="n">${fmt(sum(p, 'shares') + sum(p, 'quotes'))}</td><td class="n">${fmt(sum(p, 'clicks'))}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">Nothing posted in this period.</div>';
+}
+
+// ── Inbox ──
+let inStatus = 'open', inPage = 1;
+document.querySelectorAll('#inTabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#inTabs button').forEach(x => x.classList.toggle('on', x === b));
+  inStatus = b.dataset.s; inPage = 1; loadInbox();
+});
+$('#inPlat').onchange = () => { inPage = 1; loadInbox(); };
+$('#inRefresh').onclick = () => syncNow($('#inRefresh'), loadInbox);
+function renderComment(c) {
+  return `<div class="cm ${c.handled ? 'done' : ''}" id="cm-${c.id}">
+    <div class="who">${pi(c.platform)}<b>${_e(c.author || c.handle || 'Someone')}</b>${c.handle && c.author ? `<span>@${_e(c.handle)}</span>` : ''}
+      <span>· ${_d(c.posted_at)}</span><span>· on ${_e(c.account)}</span>
+      ${c.handled ? `<span class="st published">✓ done${c.handled_by ? ' · ' + _e(c.handled_by) : ''}</span>` : ''}
+      ${c.url ? `<a href="${_e(c.url)}" target="_blank" style="margin-left:auto;color:var(--role);">Open ↗</a>` : ''}</div>
+    ${c.post ? `<div class="on-post" style="margin-top:8px;">On: ${c.post.url ? `<a href="${_e(c.post.url)}" target="_blank">` : ''}${_e(c.post.text) || '(post)'}${c.post.url ? '</a>' : ''}</div>` : ''}
+    <div class="body">${_e(c.text)}</div>
+    ${c.replies.map(r => `<div class="rep ${r.is_ours ? 'ours' : ''}"><b>${_e(r.is_ours ? (r.sent_by ? r.sent_by + ' (as ' + c.account + ')' : c.account) : r.author)}</b> <span class="sm muted">${_d(r.posted_at)}</span><div>${_e(r.text)}</div></div>`).join('')}
+    ${c.can_reply ? `<textarea id="rt-${c.id}" placeholder="Reply as ${_e(c.account)}…"></textarea>` : `<div class="sm muted" style="margin-top:6px;">This network doesn't allow replying from here — use "Open ↗".</div>`}
+    <div class="row" style="margin-top:8px;justify-content:flex-end;">
+      <button class="btn sm" onclick="markHandled(${c.id},${!c.handled})">${c.handled ? 'Reopen' : 'Mark done'}</button>
+      ${c.can_reply ? `<button class="btn p sm" onclick="sendReply(${c.id})">Reply</button>` : ''}</div></div>`;
+}
+async function loadInbox() {
+  const sel = $('#inPlat');
+  if (sel.options.length === 1) [...new Set(ov.accounts.map(a => a.platform))].forEach(p => sel.add(new Option(ov.platforms.find(x => x.id === p)?.name || p, p)));
+  const d = await API.get(`/social/inbox/?status=${inStatus}&page=${inPage}${sel.value ? '&platform=' + sel.value : ''}`).catch(e => ({ results: [], error: e.detail }));
+  const ib = $('#inboxBadge'); if (d.open_count != null) { ib.textContent = d.open_count; ib.style.display = d.open_count ? '' : 'none'; }
+  $('#inList').innerHTML = d.results.map(renderComment).join('')
+    || `<div class="empty">${d.error ? _e(d.error) : inStatus === 'open' ? 'All caught up 🎉 No comments waiting.' : 'Nothing here.'}</div>`;
+  $('#inPager').innerHTML = d.pages > 1 ? `<button class="btn sm" ${inPage <= 1 ? 'disabled' : ''} onclick="inPage--;loadInbox()">← Prev</button><span class="sm muted">Page ${inPage} of ${d.pages}</span><button class="btn sm" ${inPage >= d.pages ? 'disabled' : ''} onclick="inPage++;loadInbox()">Next →</button>` : '';
+}
+async function sendReply(id) {
+  const ta = $('#rt-' + id), text = ta.value.trim();
+  if (!text) return ta.focus();
+  ta.disabled = true;
+  try { const c = await API.post(`/social/inbox/${id}/reply/`, { text }); $('#cm-' + id).outerHTML = renderComment(c); toast('Reply sent ✓'); load(); }
+  catch (e) { ta.disabled = false; toast(e.detail || 'Could not send the reply'); }
+}
+async function markHandled(id, handled) {
+  try { await API.post(`/social/inbox/${id}/handled/`, { handled }); loadInbox(); load(); }
+  catch (e) { toast(e.detail || 'Could not update'); }
+}
+
 // ── Accounts (admins) ──
 const GUIDES = {
   facebook: `<ol><li>Go to <b>developers.facebook.com</b> → My Apps → <b>Create app</b> (type: Business). You stay in development mode — posting to your own Page needs no Meta review while you're an app admin.</li>
-    <li>Open <b>Graph API Explorer</b>, pick your app, add the permissions <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code>, then <b>Generate Access Token</b>.</li>
+    <li>Open <b>Graph API Explorer</b>, pick your app, add the permissions <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code> — and for Analytics/Inbox also <code>read_insights</code> and <code>pages_manage_engagement</code> — then <b>Generate Access Token</b>.</li>
     <li>Exchange it for a long-lived token (Access Token Debugger → <b>Extend</b>), then call <code>me/accounts</code> in the Explorer. Copy your Page's <b>id</b> and <b>access_token</b> — that Page token doesn't expire.</li></ol>`,
   instagram: `<ol><li>Make your Instagram a <b>Business or Creator</b> account and link it to your Facebook Page (Instagram → Settings → Account type / Linked accounts).</li>
-    <li>In the same Meta app, add permissions <code>instagram_basic</code> and <code>instagram_content_publish</code> and generate the token as for Facebook.</li>
+    <li>In the same Meta app, add permissions <code>instagram_basic</code> and <code>instagram_content_publish</code> (plus <code>instagram_manage_insights</code> and <code>instagram_manage_comments</code> for Analytics/Inbox) and generate the token as for Facebook.</li>
     <li>Call <code>{page-id}?fields=instagram_business_account</code> in the Graph Explorer — that id is the <b>Instagram account ID</b>. Use the <b>Page access token</b> as the token.</li></ol>`,
-  threads: `<ol><li>In your Meta app, add the <b>Threads API</b> use case with <code>threads_basic</code> and <code>threads_content_publish</code>.</li>
+  threads: `<ol><li>In your Meta app, add the <b>Threads API</b> use case with <code>threads_basic</code> and <code>threads_content_publish</code> (plus <code>threads_manage_insights</code>, <code>threads_read_replies</code> and <code>threads_manage_replies</code> for Analytics/Inbox).</li>
     <li>Authorise your Threads account, then exchange the code for a <b>long-lived token</b> (60 days — the dashboard refreshes it automatically every time it posts).</li>
     <li>Your <b>Threads user ID</b> comes from <code>graph.threads.net/v1.0/me?fields=id</code>.</li></ol>`,
   x: `<ol><li>Create a project and app at <b>developer.x.com</b>. Posting needs an API plan that allows writing posts (check current X API pricing).</li>
     <li>In the app's <b>User authentication settings</b>, set permissions to <b>Read and write</b>.</li>
-    <li>Under <b>Keys and tokens</b>, copy the <b>API key &amp; secret</b>, then generate the <b>Access token &amp; secret</b> for your account (generate them <i>after</i> setting Read and write).</li></ol>`,
-  tiktok: `<ol><li>Create an app at <b>developers.tiktok.com</b>, add the <b>Content Posting API</b> with scopes <code>video.publish</code> (and <code>video.upload</code>).</li>
+    <li>Under <b>Keys and tokens</b>, copy the <b>API key &amp; secret</b>, then generate the <b>Access token &amp; secret</b> for your account (generate them <i>after</i> setting Read and write).</li>
+    <li>Analytics and reading replies need an X plan with <b>read</b> access (Basic or higher) — on the free tier, posting works but numbers and the Inbox stay empty.</li></ol>`,
+  tiktok: `<ol><li>Create an app at <b>developers.tiktok.com</b>, add the <b>Content Posting API</b> with scopes <code>video.publish</code> (and <code>video.upload</code>), plus <code>video.list</code> and <code>user.info.stats</code> for Analytics.</li>
     <li>Authorise your TikTok account with Login Kit and exchange the code for an <b>access token</b> and <b>refresh token</b> (the dashboard refreshes them itself).</li>
     <li>Until TikTok <b>audits</b> your app, posts can only be <code>SELF_ONLY</code> (private). After approval, set privacy to <code>PUBLIC_TO_EVERYONE</code>. Photo posts also need your media domain verified in the TikTok app settings.</li></ol>`,
   linkedin: `<ol><li>Create an app at <b>linkedin.com/developers</b> and link it to your <b>company page</b>.</li>
-    <li>Request the <b>Community Management API</b> product (LinkedIn reviews this) — it gives <code>w_organization_social</code>.</li>
+    <li>Request the <b>Community Management API</b> product (LinkedIn reviews this) — it gives <code>w_organization_social</code>, and <code>r_organization_social</code> + <code>rw_organization_admin</code> for Analytics/Inbox.</li>
     <li>Generate a token with that scope (Developer portal → Auth → OAuth token tools). The <b>organization ID</b> is the number in your company page admin URL. Tokens last 60 days — come back and paste a new one when it expires.</li></ol>`,
   youtube: `<ol><li>In <b>Google Cloud Console</b>, create a project, enable <b>YouTube Data API v3</b> and create an <b>OAuth client</b> (Web application) with redirect <code>https://developers.google.com/oauthplayground</code>.</li>
-    <li>In the <b>OAuth Playground</b> (settings ⚙ → use your own client ID/secret), authorise <code>https://www.googleapis.com/auth/youtube.upload</code> with your channel's Google account and exchange for a <b>refresh token</b>.</li>
+    <li>In the <b>OAuth Playground</b> (settings ⚙ → use your own client ID/secret), authorise <code>https://www.googleapis.com/auth/youtube.upload</code> and <code>https://www.googleapis.com/auth/youtube.force-ssl</code> (for Analytics/Inbox) with your channel's Google account and exchange for a <b>refresh token</b>.</li>
     <li>Paste the client ID, client secret and refresh token. Until Google verifies your app, uploads may be locked to private — publish your OAuth consent screen to avoid that.</li></ol>`,
   telegram: `<ol><li>In Telegram, talk to <b>@BotFather</b> → <code>/newbot</code> → copy the <b>bot token</b>.</li>
     <li>Add the bot to your channel as an <b>administrator</b> with permission to post.</li>
-    <li>The channel is <code>@yourchannel</code> (or its <code>-100…</code> id for private channels).</li></ol>`,
+    <li>The channel is <code>@yourchannel</code> (or its <code>-100…</code> id for private channels).</li>
+    <li>For the Inbox: link a <b>discussion group</b> to the channel, add the bot to that group, and in @BotFather turn <code>/setprivacy</code> <b>off</b> so the bot can read comments.</li></ol>`,
 };
 function renderAccounts() {
   $('#accTable').innerHTML = ov.accounts.length ? ov.accounts.map(a => `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--border);">
@@ -505,11 +678,12 @@ async function removeAcc(id) { if (!confirm('Remove this account? Its saved keys
 // ── Settings ──
 function renderSettings() {
   $('#setApproval').checked = ov.settings.require_approval;
+  $('#setCeReview').checked = ov.settings.ce_can_review;
   document.querySelectorAll('.role').forEach(c => c.checked = ov.settings.poster_roles.includes(c.value));
 }
 $('#saveSettings').onclick = async () => {
   try {
-    await API.patch('/social/settings/', { require_approval: $('#setApproval').checked, poster_roles: [...document.querySelectorAll('.role:checked')].map(c => c.value) });
+    await API.patch('/social/settings/', { require_approval: $('#setApproval').checked, ce_can_review: $('#setCeReview').checked, poster_roles: [...document.querySelectorAll('.role:checked')].map(c => c.value) });
     await load(); toast('Saved');
   } catch (e) { toast(e.detail || 'Could not save'); }
 };

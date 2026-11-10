@@ -33,6 +33,7 @@ JOBS = [
     ('send_promotion_reminders', 'apps.editorial.tasks.send_promotion_reminders', 86400),
     ('vip_payout',               'apps.chapters.tasks.run_monthly_vip_payout',  86400),
     ('social_scheduled_posts',   'apps.social.tasks.publish_due_social_posts',  60),
+    ('social_insights',          'apps.social.tasks.sync_social_insights',      3600),
 ]
 
 GRACE = timedelta(minutes=5)  # an hourly call that's a little early still counts

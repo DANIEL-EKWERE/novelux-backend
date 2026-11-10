@@ -450,6 +450,10 @@ class YouTube:
         r = requests.get('https://www.googleapis.com/youtube/v3/channels', params={'part': 'snippet', 'mine': 'true'},
                          headers={'Authorization': f'Bearer {YouTube._token(acc)}'}, timeout=TIMEOUT)
         items = _check(r, 'YouTube').get('items') or []
+        if items and acc.config.get('channel_id') != items[0].get('id'):
+            acc.config['channel_id'] = items[0].get('id')   # to recognise our own replies
+            if acc.pk:
+                acc.save(update_fields=['config'])
         return f"Channel: {items[0]['snippet']['title']}" if items else 'Connected (no channel found)'
 
     @staticmethod

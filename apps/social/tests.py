@@ -111,6 +111,37 @@ class SocialDashboardTests(TestCase):
         self.assertEqual(done['status'], 'published')
         self.assertEqual(len(FakeNet.sent), 2)
 
+    def test_ce_reviewers(self):
+        from apps.notifications.models import Notification
+        aid = self.connect()
+        ce1 = User.objects.create_user(email='c1@x.com', username='ce1', password='x', role='ce')
+        ce2 = User.objects.create_user(email='c2@x.com', username='ce2', password='x', role='ce')
+        self.as_(self.boss).patch('/api/social/settings/', {'require_approval': True}, format='json')
+        # SE and CE posts both wait for review
+        se_post = self.as_(self.se).post('/api/social/posts/', {'text': 'SE post', 'account_ids': [aid]}).data
+        ce_post = self.as_(ce1).post('/api/social/posts/', {'text': 'CE post', 'account_ids': [aid]}).data
+        self.assertEqual((se_post['status'], ce_post['status']), ('pending_approval', 'pending_approval'))
+        # Reviewing is admin-only until CEs are allowed
+        self.assertFalse(self.as_(ce2).get('/api/social/overview/').data['can_review'])
+        self.assertEqual(self.as_(ce2).post(f"/api/social/posts/{se_post['id']}/approve/", {}, format='json')
+                         .status_code, 403)
+        self.as_(self.boss).patch('/api/social/settings/', {'ce_can_review': True}, format='json')
+        ov = self.as_(ce2).get('/api/social/overview/').data
+        self.assertEqual((ov['can_review'], ov['pending_count']), (True, 2))
+        # A CE can't approve their own post…
+        r = self.as_(ce1).post(f"/api/social/posts/{ce_post['id']}/approve/", {}, format='json')
+        self.assertEqual(r.status_code, 403)
+        self.assertIn('own post', r.data['detail'])
+        # …but another CE can, and can reject the SE's
+        self.assertEqual(self.as_(ce2).post(f"/api/social/posts/{ce_post['id']}/approve/", {}, format='json')
+                         .data['status'], 'published')
+        rej = self.as_(ce2).post(f"/api/social/posts/{se_post['id']}/reject/", {'note': 'Typo'}, format='json').data
+        self.assertEqual((rej['status'], rej['approved_by'], rej['review_note']), ('rejected', 'ce2', 'Typo'))
+        # Reviewers were told; the posters heard back
+        self.assertTrue(Notification.objects.filter(recipient=self.boss, title__icontains='waiting').exists())
+        self.assertTrue(Notification.objects.filter(recipient=ce1, title__icontains='approved').exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.se, title__icontains='not approved').exists())
+
     def test_failure_then_retry(self):
         aid, aid2 = self.connect(), self.connect('x', 'HuxNovel X')
         FakeNet.fail = True
@@ -197,3 +228,96 @@ class PublisherRequestTests(TestCase):
 
     def test_linkedin_escapes_reserved_characters(self):
         self.assertEqual(publishers._li_escape('Hi (new) #book @me'), 'Hi \\(new\\) \\#book \\@me')
+
+
+class FakeInsights:
+    """Stands in for a network's read side (numbers, comments, replies)."""
+    replies = []
+
+    @staticmethod
+    def metrics(acc, t):
+        return {'views': 1200, 'likes': 40, 'comments': 2, 'shares': 5}
+
+    @staticmethod
+    def followers(acc):
+        return 950
+
+    @staticmethod
+    def comments(acc, t):
+        now = timezone.now()
+        return [{'id': 'c1', 'parent_id': None, 'name': 'Ada', 'handle': 'ada', 'text': 'When is chapter 20 out?',
+                 'at': now - timedelta(minutes=5), 'url': '', 'ours': False},
+                {'id': 'c2', 'parent_id': None, 'name': 'Bo', 'handle': 'bo', 'text': 'Love this book',
+                 'at': now - timedelta(minutes=3), 'url': '', 'ours': False},
+                {'id': 'c3', 'parent_id': 'c2', 'name': 'HuxNovel', 'handle': '', 'text': 'Thank you!',
+                 'at': now - timedelta(minutes=1), 'url': '', 'ours': True}]
+
+    @classmethod
+    def reply(cls, acc, comment, text):
+        cls.replies.append((comment.external_id, text))
+        return 'r-1', ''
+
+
+@override_settings(STORAGES=MEM)
+@mock.patch('apps.social.views.publish_in_background', _sync_publish)
+class SocialInsightsTests(TestCase):
+    def setUp(self):
+        from . import insights
+        FakeNet.sent, FakeNet.fail, FakeInsights.replies = [], False, []
+        for p in (mock.patch.dict(publishers.PUBLISHERS, {'facebook': FakeNet}),
+                  mock.patch.dict(insights.INSIGHTS, {'facebook': FakeInsights})):
+            p.start()
+            self.addCleanup(p.stop)
+        self.boss = User.objects.create_superuser(email='b@x.com', username='boss', password='x')
+        self.se = User.objects.create_user(email='se@x.com', username='se', password='x', role='se')
+        self.c = APIClient()
+        self.c.force_authenticate(self.boss)
+        self.acc = SocialAccount.objects.create(platform='facebook', name='HuxNovel FB')
+        r = self.c.post('/api/social/posts/', {'action': 'publish', 'text': 'New chapter!',
+                                               'account_ids': [self.acc.pk]}, format='multipart')
+        self.assertEqual(r.status_code, 201, r.data)
+
+    def test_sync_pulls_numbers_followers_and_comments(self):
+        from .models import SocialComment, SocialFollowerStat
+        from .sync import sync_all
+        self.assertIn('2 new comment', sync_all())
+        self.assertEqual(SocialFollowerStat.objects.get(account=self.acc).followers, 950)
+        # Our own reply (made in the Facebook app) closes the comment it answers
+        self.assertTrue(SocialComment.objects.get(external_id='c2').handled)
+        self.assertFalse(SocialComment.objects.get(external_id='c1').handled)
+        self.assertIn('0 new comment', sync_all())   # running again doesn't duplicate
+
+        d = self.c.get('/api/social/analytics/?days=7').data
+        self.assertEqual(d['totals']['views'], 1200)
+        self.assertEqual(d['totals']['posts'], 1)
+        net = next(n for n in d['networks'] if n['account_id'] == self.acc.pk)
+        self.assertEqual((net['followers'], net['likes']), (950, 40))
+        self.assertEqual(d['top_posts'][0]['engagement'], 47)
+        self.assertEqual(self.c.get('/api/social/overview/').data['open_comments'], 1)
+
+    def test_inbox_reply_and_mark_done(self):
+        from .models import SocialComment
+        from .sync import sync_all
+        sync_all()
+        self.c.force_authenticate(self.se)
+        d = self.c.get('/api/social/inbox/').data
+        self.assertEqual([c['text'] for c in d['results']], ['When is chapter 20 out?'])
+        cid = d['results'][0]['id']
+        self.assertEqual(self.c.post(f'/api/social/inbox/{cid}/reply/', {'text': ' '}, format='json').status_code, 400)
+        r = self.c.post(f'/api/social/inbox/{cid}/reply/', {'text': 'Friday!'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(FakeInsights.replies, [('c1', 'Friday!')])
+        self.assertTrue(r.data['handled'])
+        self.assertEqual(r.data['replies'][-1]['sent_by'], 'se')
+        self.assertTrue(SocialComment.objects.filter(parent_id=cid, is_ours=True, external_id='r-1').exists())
+        self.assertEqual(self.c.get('/api/social/inbox/').data['total'], 0)
+        self.assertEqual(self.c.get('/api/social/inbox/?status=handled').data['total'], 2)
+        # Reopen it
+        self.assertFalse(self.c.post(f'/api/social/inbox/{cid}/handled/', {'handled': False},
+                                     format='json').data['handled'])
+
+    def test_readers_cannot_see_analytics_or_inbox(self):
+        reader = User.objects.create_user(email='r@x.com', username='r', password='x', role='reader')
+        self.c.force_authenticate(reader)
+        for url in ('/api/social/analytics/', '/api/social/inbox/'):
+            self.assertEqual(self.c.get(url).status_code, 403)

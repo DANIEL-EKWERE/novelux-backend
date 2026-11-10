@@ -78,7 +78,10 @@ class SocialAccount(models.Model):
 class SocialSettings(models.Model):
     """Singleton. Approval is off by default — team posts go out directly."""
     require_approval = models.BooleanField(
-        default=False, help_text='When on, posts by editors wait for an admin to approve them.')
+        default=False, help_text='When on, posts by editors wait for review before going out.')
+    ce_can_review    = models.BooleanField(
+        default=False, help_text='Chief editors can approve or reject waiting posts (admins always can). '
+                                 'Nobody but an admin can approve their own post.')
     poster_roles     = models.JSONField(
         default=list, blank=True,
         help_text='Roles allowed to post (admins always can). Default: senior and chief editors.')
@@ -158,7 +161,51 @@ class SocialPostTarget(models.Model):
     error       = models.TextField(blank=True)
     attempts    = models.PositiveSmallIntegerField(default=0)
     published_at = models.DateTimeField(null=True, blank=True)
+    # Latest numbers from the network (views, likes, comments, shares, reach…)
+    metrics     = models.JSONField(default=dict, blank=True)
+    metrics_at  = models.DateTimeField(null=True, blank=True)
+    sync_error  = models.TextField(blank=True)
 
     class Meta:
         db_table = 'social_post_targets'
         unique_together = ('post', 'account')
+
+
+class SocialComment(models.Model):
+    """A comment on one of our posts (or our reply to one), pulled from the
+    network so the team can answer from the Inbox."""
+    account      = models.ForeignKey(SocialAccount, on_delete=models.CASCADE, related_name='comments')
+    target       = models.ForeignKey(SocialPostTarget, on_delete=models.CASCADE, null=True, blank=True,
+                                     related_name='comments')
+    external_id  = models.CharField(max_length=200)
+    parent       = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='replies')
+    author_name  = models.CharField(max_length=200, blank=True)
+    author_handle = models.CharField(max_length=200, blank=True)
+    text         = models.TextField(blank=True)
+    permalink    = models.URLField(blank=True, max_length=500)
+    posted_at    = models.DateTimeField(null=True, blank=True)
+    is_ours      = models.BooleanField(default=False, help_text='A reply sent from the dashboard.')
+    sent_by      = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='+')
+    handled      = models.BooleanField(default=False, db_index=True)
+    handled_by   = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                     related_name='+')
+    handled_at   = models.DateTimeField(null=True, blank=True)
+    fetched_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'social_comments'
+        ordering = ['-posted_at']
+        unique_together = ('account', 'external_id')
+
+
+class SocialFollowerStat(models.Model):
+    """Follower count per account per day, for growth over time."""
+    account   = models.ForeignKey(SocialAccount, on_delete=models.CASCADE, related_name='follower_stats')
+    date      = models.DateField()
+    followers = models.PositiveIntegerField()
+
+    class Meta:
+        db_table = 'social_follower_stats'
+        unique_together = ('account', 'date')
+        ordering = ['date']

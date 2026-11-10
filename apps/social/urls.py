@@ -12,4 +12,9 @@ urlpatterns = [
     path('posts/',                             views.posts),
     path('posts/<int:pk>/',                    views.post_detail),
     path('posts/<int:pk>/<str:action>/',       views.post_action),
+    path('analytics/',                         views.analytics),
+    path('sync/',                              views.sync_now),
+    path('inbox/',                             views.inbox),
+    path('inbox/<int:pk>/reply/',              views.inbox_reply),
+    path('inbox/<int:pk>/handled/',            views.inbox_handled),
 ]

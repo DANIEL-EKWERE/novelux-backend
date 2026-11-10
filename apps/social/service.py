@@ -23,8 +23,60 @@ def can_post(user):
     return bool(user and user.is_authenticated and user.role in (SocialSettings.get().poster_roles or []))
 
 
+def can_review(user):
+    """Approve / reject waiting posts: admins, and chief editors when that's
+    switched on in Social settings."""
+    if can_manage(user):
+        return True
+    return bool(user and user.is_authenticated and user.role == 'ce' and SocialSettings.get().ce_can_review)
+
+
+def can_review_post(user, post):
+    """Reviewers can't approve their own post (admins excepted)."""
+    return can_review(user) and (can_manage(user) or post.author_id != user.pk)
+
+
 def needs_approval(user):
+    """With approval on, every SE/CE post waits for review — only admins post
+    straight away."""
     return SocialSettings.get().require_approval and not can_manage(user)
+
+
+def reviewers():
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+    User = get_user_model()
+    q = Q(is_superuser=True) | Q(role='admin')
+    if SocialSettings.get().ce_can_review:
+        q |= Q(role='ce')
+    return User.objects.filter(q, is_active=True)
+
+
+def _notify(user, title, message, post):
+    try:
+        from apps.notifications.services import create_notification
+        create_notification(user, 'system', title, message,
+                            data={'screen': 'social', 'post_id': post.pk, 'url': '/social/'}, send_push=False)
+    except Exception:
+        logger.exception('Social notification failed')
+
+
+def notify_review_needed(post):
+    who = post.author.username if post.author_id else 'Someone'
+    for r in reviewers().exclude(pk=post.author_id):
+        _notify(r, 'Social post waiting for review',
+                f'{who} wants to post: "{post.text[:80]}". Review it in Social → Posts → Waiting approval.', post)
+
+
+def notify_reviewed(post, approved):
+    if not post.author_id:
+        return
+    by = post.approved_by.username if post.approved_by_id else 'A reviewer'
+    if approved:
+        _notify(post.author, 'Your social post was approved', f'{by} approved your post — it\'s going out now.', post)
+    else:
+        note = f' Note: {post.review_note}' if post.review_note else ''
+        _notify(post.author, 'Your social post was not approved', f'{by} rejected your post.{note}', post)
 
 
 def _absolute(url):

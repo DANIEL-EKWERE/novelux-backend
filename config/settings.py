@@ -68,7 +68,8 @@ LOCAL_APPS = [
     'apps.reviews',
     'apps.editorial',      # Editorial hierarchy — AE / SE / CE
     'apps.blog',           # SE-authored blog / learning content
-    'apps.analytics',      # Visitor tracking
+    'apps.analytics',
+    'apps.social',         # Posting to HuxNovel's social accounts      # Visitor tracking
     'novelux_web',
 
 ]
@@ -473,6 +474,10 @@ CELERY_BEAT_SCHEDULE = {
     'expire-bonus-coins-hourly': {
         'task':     'apps.coins.tasks.expire_bonus_coins',
         'schedule': 3600,   # bonus coins are valid for 7 days
+    },
+    'social-scheduled-posts': {
+        'task':     'apps.social.tasks.publish_due_social_posts',
+        'schedule': 60,     # send scheduled social posts on time
     },
     'vip-payout-daily-check': {
         'task':     'apps.chapters.tasks.run_monthly_vip_payout',

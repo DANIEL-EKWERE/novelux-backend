@@ -63,7 +63,7 @@ class NoStoreDashboardsMiddleware:
     """Dashboards are personal pages (and carry a login token). Mark them
     "never store" so the browser's back button, page cache or any proxy can't
     show one account's dashboard to the next person who signs in."""
-    PREFIXES = ('/dashboard', '/editorial/', '/master', '/welcome', '/author/')
+    PREFIXES = ('/dashboard', '/editorial/', '/master', '/welcome', '/author/', '/social')
 
     def __init__(self, get_response):
         self.get_response = get_response

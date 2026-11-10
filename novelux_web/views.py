@@ -4068,13 +4068,29 @@ def master_dashboard(request):
     })
 
 
+def social_dashboard(request):
+    """/social/ — where the team writes posts for all HuxNovel social accounts."""
+    from apps.social.service import can_post
+    user = _user_from_request(request)
+    if user is None:
+        return redirect(f'/login/?next={request.path}')
+    if not can_post(user):
+        return redirect(_home_for(user))
+    return render(request, 'novelux/social_dashboard.html', {
+        'access_token': _jwt_from_request(request),
+        'api_url': _get_api_base(request),
+        'me': user,
+    })
+
+
 def master_token(request):
-    """/master/token/ — a fresh access token for the open dashboard, so it
-    keeps working past the 1-hour access-token lifetime."""
+    """/master/token/ — a fresh access token for an open dashboard (master,
+    social…), so it keeps working past the 1-hour access-token lifetime. It
+    only ever returns the signed-in person's own token."""
     from django.http import JsonResponse
     user = _user_from_request(request)
-    if not _is_master(user):
-        return JsonResponse({'detail': 'Not allowed.'}, status=403)
+    if user is None:
+        return JsonResponse({'detail': 'Not signed in.'}, status=401)
     return JsonResponse({'access': _jwt_from_request(request)})
 
 

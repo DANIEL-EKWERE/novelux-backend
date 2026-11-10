@@ -1,0 +1,520 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');})()</script>
+<meta charset="UTF-8"/>
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api" content="{{ api_url|default:'/api' }}">
+<meta name="robots" content="noindex,nofollow">
+<title>Social – HuxNovel</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fff;--fg:#171717;--primary:hsl(14 62% 38%);--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--card:#fafafa;--role:hsl(14 62% 42%);--ok:hsl(142 60% 38%);--bad:hsl(0 70% 48%);--warn:hsl(38 92% 42%);}
+html.dark{--bg:#0f0f11;--fg:#e5e5e5;--muted:#1c1c20;--muted-fg:#8a8a90;--border:#2a2a30;--card:#141417;--ok:hsl(142 60% 55%);--bad:hsl(0 70% 62%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+button{cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+.top{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:14px;padding:0 18px;}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;}
+.brand .lg{width:24px;height:24px;border-radius:7px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+.tabs{display:flex;gap:2px;margin-left:10px;overflow-x:auto;}
+.tabs button{border:none;background:none;padding:8px 12px;border-radius:8px;color:var(--muted-fg);white-space:nowrap;}
+.tabs button.on{background:color-mix(in srgb,var(--role) 11%,transparent);color:var(--role);font-weight:600;}
+.badge{display:inline-flex;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:10px;font-weight:700;align-items:center;justify-content:center;margin-left:4px;}
+.top .r{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted-fg);}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 80px;}
+.page{display:none;}.page.on{display:block;}
+.grid{display:grid;gap:16px;grid-template-columns:1fr;}
+@media(min-width:1000px){.grid.cmp{grid-template-columns:1.25fr 1fr;}}
+.card{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:16px;min-width:0;}
+.card h3{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.card h3 .sub{margin-left:auto;font-weight:400;font-size:12px;color:var(--muted-fg);}
+label.lbl{display:block;font-size:12px;color:var(--muted-fg);margin:12px 0 6px;}
+input[type=text],input[type=url],input[type=datetime-local],input[type=password],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg);}
+textarea{min-height:150px;resize:vertical;line-height:1.5;}
+.btn{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg);font-weight:500;}
+.btn.p{background:var(--role);border-color:var(--role);color:#fff;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn.danger{color:var(--bad);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.muted{color:var(--muted-fg);}
+.sm{font-size:12px;}
+.accs{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;}
+.acc{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--bg);user-select:none;}
+.acc.on{border-color:var(--role);background:color-mix(in srgb,var(--role) 7%,var(--bg));}
+.acc input{display:none;}
+.acc .cnt{margin-left:auto;font-size:11px;color:var(--muted-fg);}
+.acc .cnt.over{color:var(--bad);font-weight:700;}
+.pi{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:12px;flex-shrink:0;}
+.pi.facebook{background:#1877F2;}.pi.instagram{background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af);}.pi.threads{background:#000;}
+.pi.x{background:#000;}.pi.tiktok{background:#111;box-shadow:inset 2px 0 #25F4EE,inset -2px 0 #FE2C55;}.pi.linkedin{background:#0A66C2;}
+.pi.youtube{background:#FF0000;}.pi.telegram{background:#229ED9;}
+.drop{border:1.5px dashed var(--border);border-radius:10px;padding:16px;text-align:center;color:var(--muted-fg);cursor:pointer;}
+.drop.over{border-color:var(--role);color:var(--role);}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.thumb{width:84px;height:84px;border-radius:9px;overflow:hidden;position:relative;background:var(--muted);}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover;}
+.thumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:11px;}
+.warn{padding:9px 12px;border-radius:9px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn);font-size:12.5px;margin-top:10px;}
+.note{padding:9px 12px;border-radius:9px;background:var(--muted);font-size:12.5px;margin-top:10px;}
+.err{padding:10px 12px;border-radius:9px;border:1px solid var(--bad);color:var(--bad);margin-top:10px;font-size:13px;}
+.book{display:flex;gap:10px;align-items:center;padding:8px;border-radius:9px;cursor:pointer;}
+.book:hover{background:var(--muted);}
+.book img,.book .ph{width:34px;height:46px;border-radius:5px;object-fit:cover;background:var(--role);flex-shrink:0;}
+.pv{border:1px solid var(--border);border-radius:12px;background:var(--bg);padding:12px;margin-bottom:10px;}
+.pv .h{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13px;margin-bottom:8px;}
+.pv .t{white-space:pre-wrap;font-size:13px;line-height:1.5;word-break:break-word;}
+.pv .t a{color:#1d9bf0;}
+.pv img,.pv video{width:100%;border-radius:10px;margin-top:8px;max-height:260px;object-fit:cover;}
+.st{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:var(--muted);color:var(--muted-fg);white-space:nowrap;}
+.st.published{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);}
+.st.failed,.st.rejected{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);}
+.st.partial,.st.pending_approval{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);}
+.st.scheduled,.st.publishing{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.post{border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;background:var(--card);}
+.post .meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted-fg);margin-bottom:8px;}
+.post .tx{white-space:pre-wrap;line-height:1.5;max-height:120px;overflow:hidden;}
+.tgts{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+.tgt{display:flex;align-items:center;gap:8px;font-size:12.5px;flex-wrap:wrap;}
+.tgt .e{color:var(--bad);font-size:12px;flex-basis:100%;padding-left:34px;}
+.subtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.subtabs button{border:1px solid var(--border);background:var(--bg);border-radius:20px;padding:5px 12px;font-size:12px;}
+.subtabs button.on{background:var(--role);border-color:var(--role);color:#fff;}
+.switch{position:relative;width:42px;height:24px;flex-shrink:0;}
+.switch input{display:none;}
+.switch span{position:absolute;inset:0;background:var(--border);border-radius:12px;transition:.2s;cursor:pointer;}
+.switch span::after{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.switch input:checked+span{background:var(--role);}
+.switch input:checked+span::after{transform:translateX(18px);}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:80;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-bg.on{display:flex;}
+.modal{background:var(--bg);border-radius:14px;width:min(640px,100%);max-height:90vh;overflow-y:auto;padding:20px;}
+.guide{font-size:13px;line-height:1.6;background:var(--muted);border-radius:10px;padding:12px 14px;margin-top:12px;}
+.guide ol{padding-left:18px;}
+.guide code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:100;display:none;font-size:13px;}
+.empty{padding:30px;text-align:center;color:var(--muted-fg);}
+.per{border-top:1px solid var(--border);padding-top:10px;margin-top:10px;}
+.per summary{cursor:pointer;font-size:12.5px;color:var(--muted-fg);}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><span class="lg">H</span>Social</div>
+  <div class="tabs" id="tabs">
+    <button data-p="compose" class="on">✎ Compose</button>
+    <button data-p="posts">Posts <span class="badge" id="pendBadge" style="display:none"></span></button>
+    <button data-p="accounts" class="admin-only">Accounts</button>
+    <button data-p="settings" class="admin-only">Settings</button>
+  </div>
+  <div class="r"><span>{{ me.username }}</span>
+    <button class="btn sm" onclick="document.documentElement.classList.toggle('dark');localStorage.setItem('nux_theme',document.documentElement.classList.contains('dark')?'dark':'light')">◐</button>
+    <a class="btn sm" href="/">Exit</a></div>
+</div>
+
+<div class="wrap">
+  <!-- Compose -->
+  <section class="page on" id="p-compose">
+    <div class="grid cmp">
+      <div>
+        <div class="card">
+          <h3>Post to <span class="sub" id="accHint"></span></h3>
+          <div class="accs" id="accList"></div>
+          <div class="row" style="margin-top:8px;"><button class="btn sm" id="selAll">Select all</button><button class="btn sm" id="selNone">Clear</button></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Write <span class="sub" id="mainCount">0</span></h3>
+          <textarea id="text" placeholder="What's new at HuxNovel?"></textarea>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn sm" id="bookBtn">📚 Promote a book</button>
+            <span class="sm muted" id="bookSel"></span>
+          </div>
+          <div id="bookPick" style="display:none;margin-top:10px;">
+            <input type="text" id="bookQ" placeholder="Search books…">
+            <div id="bookRes" style="max-height:260px;overflow-y:auto;margin-top:6px;"></div>
+          </div>
+          <label class="lbl">Link (optional)</label>
+          <input type="url" id="link" placeholder="https://huxnovel.com/explore/…">
+          <div id="titleWrap" style="display:none;"><label class="lbl">Video title (YouTube)</label><input type="text" id="title" maxlength="100"></div>
+          <label class="lbl">Pictures or a video</label>
+          <div class="drop" id="drop">Drop images or a video here, or click to choose<input type="file" id="files" multiple accept="image/*,video/*" style="display:none;"></div>
+          <label class="row sm" id="coverWrap" style="display:none;margin-top:8px;"><input type="checkbox" id="useCover" checked> Add the book cover as an image</label>
+          <div class="thumbs" id="thumbs"></div>
+          <div id="perNet"></div>
+          <div id="warns"></div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="row">
+            <button class="btn p" id="postNow">Post now</button>
+            <input type="datetime-local" id="when" style="width:auto;">
+            <button class="btn" id="schedule">Schedule</button>
+            <button class="btn" id="draft">Save draft</button>
+          </div>
+          <div class="note" id="approvalNote" style="display:none;">Posts need an admin's approval before they go out — yours will wait in <b>Posts → Waiting</b>.</div>
+          <div class="err" id="cErr" style="display:none;"></div>
+        </div>
+      </div>
+      <div>
+        <div class="card"><h3>Preview</h3><div id="previews"><div class="empty">Choose accounts to see how the post will look.</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Posts -->
+  <section class="page" id="p-posts">
+    <div class="subtabs" id="postTabs">
+      <button data-s="" class="on">All</button><button data-s="scheduled">Scheduled</button><button data-s="pending_approval">Waiting approval</button>
+      <button data-s="failed">Failed</button><button data-s="partial">Partly failed</button><button data-s="published">Published</button><button data-s="draft">Drafts</button>
+    </div>
+    <div id="postList"><div class="empty">Loading…</div></div>
+    <div class="row" id="postPager" style="justify-content:center;margin-top:10px;"></div>
+  </section>
+
+  <!-- Accounts -->
+  <section class="page" id="p-accounts">
+    <div class="card"><h3>Connected accounts <span class="sub"><button class="btn p sm" id="addAcc">+ Connect an account</button></span></h3>
+      <div id="accTable"></div>
+      <div class="note">Access keys are stored encrypted on the server and are never shown again after saving. Your team only ever sees the account names.</div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section class="page" id="p-settings">
+    <div class="card" style="max-width:640px;">
+      <h3>Posting rules</h3>
+      <div class="row" style="justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div><b>Require approval</b><div class="sm muted">When on, posts by editors wait for an admin to approve them. Admins' own posts always go out directly.</div></div>
+        <label class="switch"><input type="checkbox" id="setApproval"><span></span></label>
+      </div>
+      <div style="padding:10px 0;"><b>Who can post</b><div class="sm muted" style="margin-bottom:8px;">Admins always can.</div>
+        <label class="row"><input type="checkbox" class="role" value="se"> Senior editors</label>
+        <label class="row" style="margin-top:6px;"><input type="checkbox" class="role" value="ce"> Chief editors</label>
+        <label class="row" style="margin-top:6px;"><input type="checkbox" class="role" value="author"> Authors</label>
+      </div>
+      <button class="btn p" id="saveSettings">Save</button>
+    </div>
+  </section>
+</div>
+
+<!-- Connect / edit account -->
+<div class="modal-bg" id="accModal"><div class="modal" id="accModalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = {
+  token: document.querySelector('meta[name="nux-token"]').content,
+  base: document.querySelector('meta[name="nux-api"]').content || '/api',
+  async req(path, opts = {}, retry = true) {
+    const headers = { 'Authorization': 'Bearer ' + this.token, ...(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) };
+    const r = await fetch(this.base + path, { ...opts, headers });
+    if (r.status === 401 && retry) {
+      const t = await fetch('/master/token/', { credentials: 'same-origin' });
+      if (t.ok) { this.token = (await t.json()).access; return this.req(path, opts, false); }
+    }
+    if (r.status === 204) return null;
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw d;
+    return d;
+  },
+  get(p) { return this.req(p); },
+  post(p, b) { return this.req(p, { method: 'POST', body: b instanceof FormData ? b : JSON.stringify(b || {}) }); },
+  patch(p, b) { return this.req(p, { method: 'PATCH', body: JSON.stringify(b) }); },
+  del(p) { return this.req(p, { method: 'DELETE' }); },
+};
+const $ = s => document.querySelector(s);
+const _e = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _d = iso => iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+const toast = m => { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3500); };
+const ICON = { facebook: 'f', instagram: '◎', threads: '@', x: '𝕏', tiktok: '♪', linkedin: 'in', youtube: '▶', telegram: '✈' };
+const pi = p => `<span class="pi ${p}">${ICON[p] || '?'}</span>`;
+const NEEDS_MEDIA = { instagram: 'Instagram needs a picture or video', tiktok: 'TikTok needs a video or pictures', youtube: 'YouTube needs a video' };
+let ov = null, files = [], book = null, overrides = {};
+
+// ── Tabs ──
+function go(p) {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  document.querySelectorAll('.page').forEach(s => s.classList.toggle('on', s.id === 'p-' + p));
+  if (p === 'posts') loadPosts();
+  if (p === 'accounts') renderAccounts();
+  if (p === 'settings') renderSettings();
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => go(b.dataset.p));
+
+async function load() {
+  ov = await API.get('/social/overview/');
+  document.querySelectorAll('.admin-only').forEach(x => x.style.display = ov.can_manage ? '' : 'none');
+  $('#approvalNote').style.display = ov.needs_approval ? '' : 'none';
+  const pb = $('#pendBadge'); pb.textContent = ov.pending_count; pb.style.display = ov.pending_count && ov.can_manage ? '' : 'none';
+  renderAccPicker();
+  refresh();
+}
+
+// ── Compose ──
+function selected() { return ov.accounts.filter(a => a.is_active && document.querySelector(`#acc-${a.id}`)?.checked); }
+function renderAccPicker() {
+  const active = ov.accounts.filter(a => a.is_active);
+  $('#accList').innerHTML = active.map(a => `<label class="acc" id="accl-${a.id}"><input type="checkbox" id="acc-${a.id}">${pi(a.platform)}
+      <span style="min-width:0;"><b style="display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(a.name)}</b><span class="sm muted">${_e(a.platform_name)}</span></span>
+      <span class="cnt" id="cnt-${a.id}"></span></label>`).join('')
+    || `<div class="empty" style="grid-column:1/-1;">No accounts connected yet.${ov.can_manage ? ' Go to <b>Accounts</b> to connect one.' : ' Ask an admin to connect your social accounts.'}</div>`;
+  active.forEach(a => $(`#acc-${a.id}`).onchange = refresh);
+  $('#accHint').textContent = active.length ? `${active.length} connected` : '';
+}
+$('#selAll').onclick = () => { ov.accounts.forEach(a => { const c = $(`#acc-${a.id}`); if (c) c.checked = true; }); refresh(); };
+$('#selNone').onclick = () => { ov.accounts.forEach(a => { const c = $(`#acc-${a.id}`); if (c) c.checked = false; }); refresh(); };
+
+function fullText(a) {
+  const t = (overrides[a.id] || $('#text').value).trim(), link = $('#link').value.trim();
+  return link && !t.includes(link) ? (t + '\n\n' + link).trim() : t;
+}
+function refresh() {
+  const sel = selected();
+  ov.accounts.forEach(a => {
+    const l = $(`#accl-${a.id}`); if (!l) return;
+    const on = $(`#acc-${a.id}`).checked; l.classList.toggle('on', on);
+    const c = $(`#cnt-${a.id}`), n = fullText(a).length;
+    c.textContent = on ? `${n}/${a.text_limit}` : ''; c.classList.toggle('over', on && n > a.text_limit);
+  });
+  $('#mainCount').textContent = $('#text').value.length + ' characters';
+  $('#titleWrap').style.display = sel.some(a => a.platform === 'youtube') ? '' : 'none';
+  const hasVideo = files.some(f => f.type.startsWith('video')), hasMedia = files.length || (book && book.cover && $('#useCover').checked);
+  const w = [];
+  sel.forEach(a => {
+    if (NEEDS_MEDIA[a.platform] && !(a.platform === 'youtube' ? hasVideo : hasMedia)) w.push(`${a.name}: ${NEEDS_MEDIA[a.platform]}.`);
+    if (fullText(a).length > a.text_limit) w.push(`${a.name}: too long (${fullText(a).length}/${a.text_limit}). Shorten it or write a shorter version below.`);
+  });
+  if (hasVideo && files.some(f => f.type.startsWith('image'))) w.push('With a video, only the video is posted (pictures are ignored).');
+  $('#warns').innerHTML = w.map(x => `<div class="warn">${_e(x)}</div>`).join('');
+  // Per-network text
+  $('#perNet').innerHTML = sel.length ? `<details class="per"${Object.keys(overrides).length ? ' open' : ''}><summary>Different text for one network?</summary>
+    ${sel.map(a => `<label class="lbl">${pi(a.platform)} ${_e(a.name)} <span class="muted">(blank = main text)</span></label><textarea data-ov="${a.id}" style="min-height:70px;" placeholder="${_e($('#text').value.slice(0, 80))}">${_e(overrides[a.id] || '')}</textarea>`).join('')}</details>` : '';
+  document.querySelectorAll('[data-ov]').forEach(t => t.oninput = () => { overrides[t.dataset.ov] = t.value; refreshCounts(); renderPreviews(); });
+  renderPreviews();
+}
+function refreshCounts() {
+  ov.accounts.forEach(a => { const c = $(`#cnt-${a.id}`); if (c && $(`#acc-${a.id}`).checked) { const n = fullText(a).length; c.textContent = `${n}/${a.text_limit}`; c.classList.toggle('over', n > a.text_limit); } });
+}
+function mediaPreview() {
+  const v = files.find(f => f.type.startsWith('video'));
+  if (v) return `<video src="${URL.createObjectURL(v)}" muted></video>`;
+  const img = files.find(f => f.type.startsWith('image'));
+  if (img) return `<img src="${URL.createObjectURL(img)}">`;
+  if (book && book.cover && $('#useCover').checked) return `<img src="${_e(book.cover)}">`;
+  return '';
+}
+function renderPreviews() {
+  const sel = selected();
+  if (!sel.length) { $('#previews').innerHTML = '<div class="empty">Choose accounts to see how the post will look.</div>'; return; }
+  const media = mediaPreview();
+  $('#previews').innerHTML = sel.map(a => {
+    const t = _e(fullText(a)).replace(/(https?:\/\/\S+)/g, '<a>$1</a>');
+    return `<div class="pv"><div class="h">${pi(a.platform)} ${_e(a.name)} <span class="muted sm" style="margin-left:auto;font-weight:400;">${_e(a.handle || a.platform_name)}</span></div><div class="t">${t || '<span class="muted">No text</span>'}</div>${media}</div>`;
+  }).join('');
+}
+$('#text').oninput = () => { refreshCounts(); refresh(); };
+$('#link').oninput = refresh;
+$('#useCover').onchange = refresh;
+
+// Files
+const drop = $('#drop'), fileInput = $('#files');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); };
+fileInput.onchange = () => { addFiles(fileInput.files); fileInput.value = ''; };
+function addFiles(list) {
+  for (const f of list) if (f.type.startsWith('image') || f.type.startsWith('video')) files.push(f);
+  renderThumbs(); refresh();
+}
+function renderThumbs() {
+  $('#thumbs').innerHTML = files.map((f, i) => `<div class="thumb">${f.type.startsWith('video') ? `<video src="${URL.createObjectURL(f)}" muted></video>` : `<img src="${URL.createObjectURL(f)}">`}<button onclick="files.splice(${i},1);renderThumbs();refresh();">✕</button></div>`).join('');
+}
+
+// Promote a book
+let bTimer;
+$('#bookBtn').onclick = () => { const b = $('#bookPick'); b.style.display = b.style.display === 'none' ? '' : 'none'; if (b.style.display === '') { $('#bookQ').focus(); searchBooks(); } };
+$('#bookQ').oninput = () => { clearTimeout(bTimer); bTimer = setTimeout(searchBooks, 300); };
+async function searchBooks() {
+  const res = await API.get('/social/books/?q=' + encodeURIComponent($('#bookQ').value)).catch(() => []);
+  window._books = res;
+  $('#bookRes').innerHTML = res.map((b, i) => `<div class="book" onclick="pickBook(${i})">${b.cover ? `<img src="${_e(b.cover)}">` : '<span class="ph"></span>'}<div><b>${_e(b.title)}</b><div class="sm muted">by ${_e(b.author)}</div></div></div>`).join('') || '<div class="empty">No books found.</div>';
+}
+function pickBook(i) {
+  book = window._books[i];
+  $('#bookPick').style.display = 'none';
+  $('#bookSel').innerHTML = `Promoting <b>${_e(book.title)}</b> · <a href="#" style="color:var(--role)" onclick="event.preventDefault();book=null;$('#bookSel').textContent='';$('#coverWrap').style.display='none';refresh();">remove</a>`;
+  if (!$('#text').value.trim()) $('#text').value = `📖 ${book.title}\n\n${book.synopsis.slice(0, 220)}${book.synopsis.length > 220 ? '…' : ''}\n\nRead it free on HuxNovel 👇`;
+  $('#link').value = book.link;
+  $('#coverWrap').style.display = book.cover ? '' : 'none';
+  refresh();
+}
+
+async function submit(action) {
+  $('#cErr').style.display = 'none';
+  const sel = selected();
+  if (!sel.length && action !== 'draft') { showErr('Choose at least one account.'); return; }
+  const fd = new FormData();
+  fd.append('action', action);
+  fd.append('text', $('#text').value);
+  fd.append('link', $('#link').value);
+  fd.append('title', $('#title').value);
+  sel.forEach(a => fd.append('account_ids', a.id));
+  files.forEach(f => fd.append('files', f));
+  fd.append('overrides', JSON.stringify(overrides));
+  if (book) { fd.append('story_id', book.id); if ($('#useCover').checked) fd.append('use_cover', 'true'); }
+  if (action === 'schedule') {
+    if (!$('#when').value) { showErr('Pick a date and time first.'); return; }
+    fd.append('scheduled_at', new Date($('#when').value).toISOString());
+  }
+  document.querySelectorAll('#postNow,#schedule,#draft').forEach(b => b.disabled = true);
+  try {
+    const p = await API.post('/social/posts/', fd);
+    toast(p.status === 'pending_approval' ? 'Sent for approval' : action === 'schedule' ? 'Scheduled ✓' : action === 'draft' ? 'Draft saved' : 'Posting… check Posts for the result');
+    files = []; overrides = {}; book = null; $('#text').value = ''; $('#link').value = ''; $('#title').value = ''; $('#when').value = '';
+    $('#bookSel').textContent = ''; $('#coverWrap').style.display = 'none'; renderThumbs(); refresh();
+    if (action === 'publish') setTimeout(() => go('posts'), 600);
+  } catch (e) { showErr(e.detail || 'Something went wrong.'); }
+  finally { document.querySelectorAll('#postNow,#schedule,#draft').forEach(b => b.disabled = false); }
+}
+function showErr(m) { const e = $('#cErr'); e.textContent = m; e.style.display = ''; }
+$('#postNow').onclick = () => submit('publish');
+$('#schedule').onclick = () => submit('schedule');
+$('#draft').onclick = () => submit('draft');
+
+// ── Posts ──
+let postStatus = '', postPage = 1, postTimer;
+document.querySelectorAll('#postTabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#postTabs button').forEach(x => x.classList.toggle('on', x === b));
+  postStatus = b.dataset.s; postPage = 1; loadPosts();
+});
+const STATUS = { draft: 'Draft', pending_approval: 'Waiting approval', scheduled: 'Scheduled', publishing: 'Posting…', published: 'Published', partial: 'Partly failed', failed: 'Failed', rejected: 'Rejected' };
+async function loadPosts() {
+  clearTimeout(postTimer);
+  const d = await API.get(`/social/posts/?page=${postPage}${postStatus ? '&status=' + postStatus : ''}`).catch(e => ({ results: [], error: e.detail }));
+  $('#postList').innerHTML = d.results.map(p => {
+    const mine = p.author === '{{ me.username|escapejs }}';
+    const acts = [];
+    if (p.status === 'pending_approval' && ov.can_manage) acts.push(`<button class="btn p sm" onclick="act(${p.id},'approve')">Approve</button><button class="btn sm danger" onclick="act(${p.id},'reject')">Reject</button>`);
+    if (['failed', 'partial'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn p sm" onclick="act(${p.id},'retry')">Retry failed</button>`);
+    if (['scheduled', 'draft'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn sm" onclick="act(${p.id},'send_now')">Send now</button>`);
+    if (['scheduled', 'pending_approval'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn sm" onclick="act(${p.id},'cancel')">Cancel</button>`);
+    if (['draft', 'rejected', 'failed'].includes(p.status) && (mine || ov.can_manage)) acts.push(`<button class="btn sm danger" onclick="delPost(${p.id})">Delete</button>`);
+    return `<div class="post"><div class="meta"><span class="st ${p.status}">${STATUS[p.status] || p.status}</span>
+        <span>by <b>${_e(p.author || '—')}</b></span><span>${_d(p.created_at)}</span>
+        ${p.scheduled_at && p.status === 'scheduled' ? `<span>· goes out ${_d(p.scheduled_at)}</span>` : ''}
+        ${p.story ? `<span>· 📚 ${_e(p.story.title)}</span>` : ''}
+        ${p.approved_by ? `<span>· reviewed by ${_e(p.approved_by)}</span>` : ''}
+        <span style="margin-left:auto;" class="row">${acts.join('')}</span></div>
+      <div class="tx">${_e(p.text) || '<span class="muted">(no text)</span>'}</div>
+      ${p.media.length ? `<div class="thumbs">${p.media.map(m => m.kind === 'video' ? `<div class="thumb"><video src="${_e(m.url)}" muted></video></div>` : `<div class="thumb"><img src="${_e(m.url)}"></div>`).join('')}</div>` : ''}
+      ${p.review_note ? `<div class="note">Note: ${_e(p.review_note)}</div>` : ''}
+      <div class="tgts">${p.targets.map(t => `<div class="tgt">${pi(t.platform)} <b>${_e(t.account)}</b>
+        <span class="st ${t.status === 'published' ? 'published' : t.status === 'failed' ? 'failed' : ''}">${t.status === 'waiting' ? (p.status === 'publishing' ? 'posting…' : 'waiting') : t.status}</span>
+        ${t.url ? `<a href="${_e(t.url)}" target="_blank" style="color:var(--role);">View post ↗</a>` : ''}
+        ${t.error ? `<span class="e">${_e(t.error)}</span>` : ''}</div>`).join('')}</div></div>`;
+  }).join('') || `<div class="empty">${d.error ? _e(d.error) : 'No posts here yet.'}</div>`;
+  $('#postPager').innerHTML = d.pages > 1 ? `<button class="btn sm" ${postPage <= 1 ? 'disabled' : ''} onclick="postPage--;loadPosts()">← Prev</button><span class="sm muted">Page ${postPage} of ${d.pages}</span><button class="btn sm" ${postPage >= d.pages ? 'disabled' : ''} onclick="postPage++;loadPosts()">Next →</button>` : '';
+  // Keep refreshing while something is being posted
+  if (d.results.some(p => p.status === 'publishing')) postTimer = setTimeout(() => $('#p-posts').classList.contains('on') && loadPosts(), 4000);
+}
+async function act(id, action) {
+  let body = {};
+  if (action === 'reject') { const note = prompt('Why is it rejected? (shown to the author)'); if (note === null) return; body.note = note; }
+  if (action === 'approve') body.note = '';
+  try { await API.post(`/social/posts/${id}/${action}/`, body); toast('Done'); load(); loadPosts(); }
+  catch (e) { toast(e.detail || 'Could not do that'); }
+}
+async function delPost(id) {
+  if (!confirm('Delete this post?')) return;
+  try { await API.del(`/social/posts/${id}/`); loadPosts(); } catch (e) { toast(e.detail || 'Could not delete'); }
+}
+
+// ── Accounts (admins) ──
+const GUIDES = {
+  facebook: `<ol><li>Go to <b>developers.facebook.com</b> → My Apps → <b>Create app</b> (type: Business). You stay in development mode — posting to your own Page needs no Meta review while you're an app admin.</li>
+    <li>Open <b>Graph API Explorer</b>, pick your app, add the permissions <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code>, then <b>Generate Access Token</b>.</li>
+    <li>Exchange it for a long-lived token (Access Token Debugger → <b>Extend</b>), then call <code>me/accounts</code> in the Explorer. Copy your Page's <b>id</b> and <b>access_token</b> — that Page token doesn't expire.</li></ol>`,
+  instagram: `<ol><li>Make your Instagram a <b>Business or Creator</b> account and link it to your Facebook Page (Instagram → Settings → Account type / Linked accounts).</li>
+    <li>In the same Meta app, add permissions <code>instagram_basic</code> and <code>instagram_content_publish</code> and generate the token as for Facebook.</li>
+    <li>Call <code>{page-id}?fields=instagram_business_account</code> in the Graph Explorer — that id is the <b>Instagram account ID</b>. Use the <b>Page access token</b> as the token.</li></ol>`,
+  threads: `<ol><li>In your Meta app, add the <b>Threads API</b> use case with <code>threads_basic</code> and <code>threads_content_publish</code>.</li>
+    <li>Authorise your Threads account, then exchange the code for a <b>long-lived token</b> (60 days — the dashboard refreshes it automatically every time it posts).</li>
+    <li>Your <b>Threads user ID</b> comes from <code>graph.threads.net/v1.0/me?fields=id</code>.</li></ol>`,
+  x: `<ol><li>Create a project and app at <b>developer.x.com</b>. Posting needs an API plan that allows writing posts (check current X API pricing).</li>
+    <li>In the app's <b>User authentication settings</b>, set permissions to <b>Read and write</b>.</li>
+    <li>Under <b>Keys and tokens</b>, copy the <b>API key &amp; secret</b>, then generate the <b>Access token &amp; secret</b> for your account (generate them <i>after</i> setting Read and write).</li></ol>`,
+  tiktok: `<ol><li>Create an app at <b>developers.tiktok.com</b>, add the <b>Content Posting API</b> with scopes <code>video.publish</code> (and <code>video.upload</code>).</li>
+    <li>Authorise your TikTok account with Login Kit and exchange the code for an <b>access token</b> and <b>refresh token</b> (the dashboard refreshes them itself).</li>
+    <li>Until TikTok <b>audits</b> your app, posts can only be <code>SELF_ONLY</code> (private). After approval, set privacy to <code>PUBLIC_TO_EVERYONE</code>. Photo posts also need your media domain verified in the TikTok app settings.</li></ol>`,
+  linkedin: `<ol><li>Create an app at <b>linkedin.com/developers</b> and link it to your <b>company page</b>.</li>
+    <li>Request the <b>Community Management API</b> product (LinkedIn reviews this) — it gives <code>w_organization_social</code>.</li>
+    <li>Generate a token with that scope (Developer portal → Auth → OAuth token tools). The <b>organization ID</b> is the number in your company page admin URL. Tokens last 60 days — come back and paste a new one when it expires.</li></ol>`,
+  youtube: `<ol><li>In <b>Google Cloud Console</b>, create a project, enable <b>YouTube Data API v3</b> and create an <b>OAuth client</b> (Web application) with redirect <code>https://developers.google.com/oauthplayground</code>.</li>
+    <li>In the <b>OAuth Playground</b> (settings ⚙ → use your own client ID/secret), authorise <code>https://www.googleapis.com/auth/youtube.upload</code> with your channel's Google account and exchange for a <b>refresh token</b>.</li>
+    <li>Paste the client ID, client secret and refresh token. Until Google verifies your app, uploads may be locked to private — publish your OAuth consent screen to avoid that.</li></ol>`,
+  telegram: `<ol><li>In Telegram, talk to <b>@BotFather</b> → <code>/newbot</code> → copy the <b>bot token</b>.</li>
+    <li>Add the bot to your channel as an <b>administrator</b> with permission to post.</li>
+    <li>The channel is <code>@yourchannel</code> (or its <code>-100…</code> id for private channels).</li></ol>`,
+};
+function renderAccounts() {
+  $('#accTable').innerHTML = ov.accounts.length ? ov.accounts.map(a => `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--border);">
+      ${pi(a.platform)}<div style="min-width:0;flex:1;"><b>${_e(a.name)}</b> <span class="sm muted">${_e(a.platform_name)}${a.handle ? ' · ' + _e(a.handle) : ''}</span>
+        <div class="sm ${a.last_error ? '' : 'muted'}" style="${a.last_error ? 'color:var(--bad)' : ''}">${a.last_error ? '⚠ ' + _e(a.last_error) : a.last_checked ? '✓ Connected · checked ' + _d(a.last_checked) : 'Not tested yet'}</div></div>
+      <label class="switch" title="On/off"><input type="checkbox" ${a.is_active ? 'checked' : ''} onchange="toggleAcc(${a.id},this.checked)"><span></span></label>
+      <button class="btn sm" onclick="testAcc(${a.id})">Test</button><button class="btn sm" onclick="accForm(${a.id})">Edit</button>
+      <button class="btn sm danger" onclick="removeAcc(${a.id})">Remove</button></div>`).join('') : '<div class="empty">No accounts yet — connect your first one.</div>';
+}
+$('#addAcc').onclick = () => accForm(null);
+function accForm(id) {
+  const a = id ? ov.accounts.find(x => x.id === id) : null;
+  const plat = a ? a.platform : (window._newPlat || 'facebook');
+  const P = ov.platforms.find(p => p.id === plat);
+  $('#accModalBody').innerHTML = `<h3 style="margin-bottom:12px;">${a ? 'Edit' : 'Connect'} account</h3>
+    ${a ? '' : `<label class="lbl">Network</label><select id="fPlat">${ov.platforms.map(p => `<option value="${p.id}" ${p.id === plat ? 'selected' : ''}>${_e(p.name)}</option>`).join('')}</select>`}
+    <label class="lbl">Name (shown to your team)</label><input type="text" id="fName" value="${_e(a ? a.name : 'HuxNovel ' + P.name)}">
+    ${P.fields.map(f => `<label class="lbl">${_e(f.label)}${f.secret && a && a.secrets_set.includes(f.key) ? ' <span class="muted">(saved — leave blank to keep)</span>' : ''}</label>
+      <input type="${f.secret ? 'password' : 'text'}" data-f="${f.key}" autocomplete="off" value="${!f.secret && a ? _e(a.config[f.key] || '') : ''}">`).join('')}
+    <div class="guide"><b>How to get these</b>${GUIDES[plat]}</div>
+    <div class="err" id="fErr" style="display:none;"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="$('#accModal').classList.remove('on')">Cancel</button><button class="btn p" id="fSave">Save &amp; test</button></div>`;
+  $('#accModal').classList.add('on');
+  if (!a) $('#fPlat').onchange = e => { window._newPlat = e.target.value; accForm(null); };
+  $('#fSave').onclick = async () => {
+    const values = {}; document.querySelectorAll('[data-f]').forEach(i => values[i.dataset.f] = i.value);
+    try {
+      const saved = a ? await API.patch(`/social/accounts/${a.id}/`, { name: $('#fName').value, values })
+                      : await API.post('/social/accounts/', { platform: plat, name: $('#fName').value, values });
+      const t = await API.post(`/social/accounts/${saved.id}/test/`);
+      await load(); renderAccounts();
+      if (t.ok) { $('#accModal').classList.remove('on'); toast('Connected ✓ ' + t.message); }
+      else { const e = $('#fErr'); e.textContent = 'Saved, but the test failed: ' + t.message; e.style.display = ''; }
+    } catch (e) { const el = $('#fErr'); el.textContent = e.detail || 'Could not save.'; el.style.display = ''; }
+  };
+}
+$('#accModal').onclick = e => { if (e.target.id === 'accModal') $('#accModal').classList.remove('on'); };
+async function testAcc(id) { const t = await API.post(`/social/accounts/${id}/test/`).catch(e => ({ ok: false, message: e.detail })); toast(t.ok ? '✓ ' + t.message : '⚠ ' + t.message); await load(); renderAccounts(); }
+async function toggleAcc(id, on) { await API.patch(`/social/accounts/${id}/`, { is_active: on }); await load(); renderAccounts(); }
+async function removeAcc(id) { if (!confirm('Remove this account? Its saved keys are deleted.')) return; await API.del(`/social/accounts/${id}/`); await load(); renderAccounts(); }
+
+// ── Settings ──
+function renderSettings() {
+  $('#setApproval').checked = ov.settings.require_approval;
+  document.querySelectorAll('.role').forEach(c => c.checked = ov.settings.poster_roles.includes(c.value));
+}
+$('#saveSettings').onclick = async () => {
+  try {
+    await API.patch('/social/settings/', { require_approval: $('#setApproval').checked, poster_roles: [...document.querySelectorAll('.role:checked')].map(c => c.value) });
+    await load(); toast('Saved');
+  } catch (e) { toast(e.detail || 'Could not save'); }
+};
+
+load().catch(e => { document.querySelector('.wrap').innerHTML = `<div class="err">${_e(e.detail || 'Could not load.')}</div>`; });
+</script>
+</body>
+</html>

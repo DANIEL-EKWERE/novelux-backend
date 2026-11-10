@@ -32,6 +32,7 @@ JOBS = [
     ('expire_bonus_coins',       'apps.coins.tasks.expire_bonus_coins',         3600),
     ('send_promotion_reminders', 'apps.editorial.tasks.send_promotion_reminders', 86400),
     ('vip_payout',               'apps.chapters.tasks.run_monthly_vip_payout',  86400),
+    ('social_scheduled_posts',   'apps.social.tasks.publish_due_social_posts',  60),
 ]
 
 GRACE = timedelta(minutes=5)  # an hourly call that's a little early still counts
@@ -53,7 +54,10 @@ def _claim(name, every):
     """Mark the job as started if it's due. True if this call should run it."""
     now = timezone.now()
     ScheduledJobRun.objects.get_or_create(name=name)
-    due_before = now - timedelta(seconds=every) + GRACE
+    # A call slightly early still counts — but never more than a quarter of
+    # the interval, so a once-a-minute job can't run on every call
+    grace = min(GRACE, timedelta(seconds=every / 4))
+    due_before = now - timedelta(seconds=every) + grace
     from django.db.models import Q
     claimed = (ScheduledJobRun.objects
                .filter(name=name)

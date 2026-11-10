@@ -56,6 +56,7 @@ urlpatterns = [
     path('api/editorial/',    include('apps.editorial.urls')),  # AE/SE/CE editorial workflow
     path('api/blog/',         include('apps.blog.urls')),       # SE-authored blog / learning content
     path('api/master/',       include('apps.analytics.urls')),  # owner's master dashboard (admins only)
+    path('api/social/',       include('apps.social.urls')),     # team posting to social media
     # Scheduled jobs without a Celery worker (called by an outside scheduler)
     path('api/cron/run/',     analytics_cron.cron_run),
     path('api/cron/ping/',    analytics_cron.cron_ping),

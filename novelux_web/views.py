@@ -2599,6 +2599,45 @@ def _set_auth_cookies(response, access_token, refresh_token, username='', email=
     return response
 
 
+def _home_for(user):
+    """The one dashboard this account belongs on, from its *current* role in
+    the database (never from a cookie or an old token)."""
+    if user is None:
+        return '/login/'
+    if user.role == 'se':
+        return '/editorial/se/'
+    if user.role == 'ce':
+        return '/editorial/ce/'
+    if user.role == 'author':
+        return '/dashboard/'
+    if user.is_superuser or user.role == 'admin':
+        return '/master/'
+    return '/welcome/'
+
+
+def _safe_next(user, next_url):
+    """Where to go after signing in: the ?next= page if it's on this site and
+    this account may open it, otherwise the account's own dashboard."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+    home = _home_for(user)
+    if (not next_url or next_url in ('/', '/dashboard/') or not next_url.startswith('/')
+            or next_url.startswith('//')
+            or not url_has_allowed_host_and_scheme(next_url, allowed_hosts=None)):
+        return home
+    path = next_url.split('?')[0]
+    if path.startswith(('/login', '/register', '/logout')):
+        return home
+    if path.startswith('/master') and not (user.is_superuser or user.role == 'admin'):
+        return home
+    if path.startswith('/editorial/se') and user.role != 'se':
+        return home
+    if path.startswith('/editorial/ce') and user.role != 'ce':
+        return home
+    if path.startswith('/dashboard') and user.role != 'author':
+        return home
+    return next_url
+
+
 def _clear_auth_cookies(response):
     for name in ('nux_access', 'nux_refresh', 'nux_username', 'nux_email', 'nux_role'):
         response.delete_cookie(name)
@@ -2651,8 +2690,10 @@ def login_page(request):
     GET  → show login form
     The actual auth is done by the AJAX endpoint /auth/login-web/ below.
     """
-    if _is_authenticated(request):
-        return redirect('novelux:dashboard')
+    user = _user_from_request(request)
+    if user is not None:
+        # Already signed in: go to this account's own dashboard (or a safe ?next=)
+        return redirect(_safe_next(user, request.GET.get('next', '')))
 
     from django.conf import settings as _s
     next_url = request.GET.get('next', '/dashboard/')
@@ -2798,11 +2839,8 @@ def ajax_login(request):
     access_token['role']     = user.role
     access_token['username'] = user.username
 
-    EDITOR_ROUTES = {'se': '/editorial/se/', 'ce': '/editorial/ce/'}
-    if user.role in EDITOR_ROUTES:
-        next_url = EDITOR_ROUTES[user.role]
-    elif user.role == 'author' and next_url in ('', '/dashboard/', '/'):
-        next_url = '/dashboard/'
+    # Always the account's own dashboard, unless ?next= is a page it may open
+    next_url = _safe_next(user, next_url)
 
     response = JsonResponse({
         'ok': True, 'next': next_url,
@@ -2869,7 +2907,11 @@ def ajax_register(request):
     username    = body.get('username', '').strip()
     email       = body.get('email', '').strip()
     password    = body.get('password1', '').strip()
+    # Only readers and authors can sign up — never trust a role like 'se',
+    # 'ce' or 'admin' sent by the browser.
     role        = body.get('role', 'reader')
+    if role not in ('reader', 'author'):
+        role = 'reader'
     editor_code = body.get('editor_code', '').strip().upper()
 
     # ── Validate ──────────────────────────────────────────────────────────
@@ -2924,7 +2966,7 @@ def ajax_register(request):
     if user.role == 'author':
         next_url = '/author/kyc/'
     else:
-        next_url = '/'
+        next_url = _home_for(user)
     response = JsonResponse({'ok': True, 'username': user.username, 'next': next_url})
     _set_auth_cookies(
         response,
@@ -2932,6 +2974,7 @@ def ajax_register(request):
         refresh_token = str(refresh),
         username      = user.username,
         email         = user.email,
+        role          = user.role,
     )
     return response
 
@@ -3101,8 +3144,7 @@ def ajax_google_auth(request):
     access_tok['role']     = role
     access_tok['username'] = user.username
 
-    EDITOR_ROUTES = {'se': '/editorial/se/', 'ce': '/editorial/ce/'}
-    next_url = EDITOR_ROUTES.get(role, '/dashboard/')
+    next_url = _safe_next(user, body.get('next', '') if isinstance(body, dict) else '')
 
     response = JsonResponse({
         'ok':      True,
@@ -3192,8 +3234,7 @@ def author_dashboard(request):
     # The author dashboard is for authors only. Editors go to their own
     # dashboards; readers (and anyone else) get the welcome page.
     if user is not None and user.role != 'author':
-        editor_routes = {'se': '/editorial/se/', 'ce': '/editorial/ce/'}
-        return redirect(editor_routes.get(user.role, '/welcome/'))
+        return redirect(_home_for(user))
 
     # ── Story queryset for this author ────────────────────────────────────────
     stories_qs = (
@@ -3593,9 +3634,10 @@ def _editor_required(roles):
             user = _user_from_request(request)
             if user is None:
                 return redirect(f'/login/?next={request.path}')
-            # Role comes from the database, not the editable nux_role cookie
+            # Role comes from the database, not the editable nux_role cookie.
+            # Wrong dashboard → straight to this account's own one.
             if user.role not in roles:
-                return redirect('/login/?error=access_denied')
+                return redirect(_home_for(user))
             return fn(request, *args, **kwargs)
         return wrapper
     return decorator
@@ -4037,24 +4079,12 @@ def master_token(request):
 
 
 def editor_login_redirect(request):
-    """
-    After login, redirect editors to the correct dashboard based on their role.
-    Called when an editor visits /dashboard/ but their role is not 'author'.
-    """
-    from rest_framework_simplejwt.tokens import AccessToken as AT
-    token = _jwt_from_request(request)
-    role  = 'reader'
-    try:
-        tok  = AT(token)
-        role = tok.payload.get('role', 'reader')
-    except Exception:
-        pass
-
-    routes = {
-        'se': '/editorial/se/',
-        'ce': '/editorial/ce/',
-    }
-    return redirect(routes.get(role, '/'))
+    """/editorial/ — send the signed-in account to its own dashboard (from its
+    current role in the database, not the role baked into an old token)."""
+    user = _user_from_request(request)
+    if user is None:
+        return redirect('/login/?next=/editorial/')
+    return redirect(_home_for(user))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

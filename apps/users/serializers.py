@@ -53,7 +53,11 @@ class NoveluXTokenObtainPairView(TokenObtainPairView):
 
 class RegisterSerializer(BaseRegisterSerializer):
     username    = serializers.CharField(required=True)
-    role        = serializers.ChoiceField(choices=User.ROLE_CHOICES, default=User.ROLE_READER)
+    # Sign-up can only make readers or authors. Editor and admin roles come
+    # from the editor-invite flow or the Django admin — never from the form.
+    role        = serializers.ChoiceField(
+        choices=[(User.ROLE_READER, 'Reader'), (User.ROLE_AUTHOR, 'Author')],
+        default=User.ROLE_READER)
     date_of_birth = serializers.DateField(
         required=True,
         help_text='Required for age-appropriate content filtering. Format: YYYY-MM-DD.',

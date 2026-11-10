@@ -81,6 +81,7 @@ MIDDLEWARE = [
     'config.ratelimit.AuthRateLimitMiddleware',   # login / sign-up / reset limits
     'novelux_web.middleware.CanonicalHostRedirectMiddleware',
     'novelux_web.middleware.FreshAccessCookieMiddleware',
+    'novelux_web.middleware.NoStoreDashboardsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

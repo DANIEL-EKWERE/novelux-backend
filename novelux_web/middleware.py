@@ -57,3 +57,21 @@ class FreshAccessCookieMiddleware:
             response.set_cookie('nux_access', fresh, max_age=3600, httponly=True,
                                 samesite='Lax', secure=os.environ.get('RENDER') == 'true')
         return response
+
+
+class NoStoreDashboardsMiddleware:
+    """Dashboards are personal pages (and carry a login token). Mark them
+    "never store" so the browser's back button, page cache or any proxy can't
+    show one account's dashboard to the next person who signs in."""
+    PREFIXES = ('/dashboard', '/editorial/', '/master', '/welcome', '/author/')
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if request.path.startswith(self.PREFIXES):
+            response['Cache-Control'] = 'no-store, no-cache, must-revalidate, private'
+            response['Pragma'] = 'no-cache'
+            response['Vary'] = 'Cookie'
+        return response

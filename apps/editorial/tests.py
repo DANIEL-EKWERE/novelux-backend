@@ -217,7 +217,8 @@ class WebCookieAuthTests(TestCase):
 
     def test_real_user_with_forged_role_is_denied(self):
         res = self._get('/editorial/ce/', nux_access=self.reader_access, nux_role='ce')
-        self.assertIn('access_denied', res['Location'])
+        # Still kept out — sent to their own page instead of the CE dashboard
+        self.assertEqual((res.status_code, res['Location']), (302, '/welcome/'))
 
     def test_username_cookie_cannot_impersonate_author(self):
         res = self._get('/my-books/secret/contract/', nux_access=self.reader_access, nux_username='victim')

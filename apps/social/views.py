@@ -57,7 +57,8 @@ def _post(request, p):
         'media': [{'id': m.pk, 'kind': m.kind, 'url': request.build_absolute_uri(m.file.url)} for m in p.media.all()],
         'targets': [{'id': t.pk, 'account_id': t.account_id, 'account': t.account.name,
                      'platform': t.account.platform, 'status': t.status, 'url': t.url, 'error': t.error,
-                     'text': t.text, 'published_at': _iso(t.published_at)} for t in p.targets.all()],
+                     'text': t.text, 'published_at': _iso(t.published_at), 'metrics': t.metrics or {},
+                     'metrics_at': _iso(t.metrics_at), 'sync_error': t.sync_error} for t in p.targets.all()],
     }
 
 

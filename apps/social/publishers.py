@@ -84,10 +84,34 @@ class Facebook:
         r = requests.get(f"{GRAPH}/{acc.config.get('page_id')}",
                          params={'fields': 'name,link', 'access_token': acc.secrets.get('page_token')}, timeout=TIMEOUT)
         d = _check(r, 'Facebook')
+        page, token = str(acc.config.get('page_id') or ''), acc.secrets.get('page_token')
+        # The most common mix-up: pasting the personal token instead of the Page's own token
+        me = _json(requests.get(f'{GRAPH}/me', params={'fields': 'id', 'access_token': token}, timeout=TIMEOUT))
+        if me.get('id') and me['id'] != page and me['id'] != d.get('id'):
+            raise PublishError('This is your personal token, not the Page token. In Graph API Explorer run '
+                               '"me/accounts" and copy the access_token listed next to your Page.')
+        info = _json(requests.get(f'{GRAPH}/debug_token', params={'input_token': token, 'access_token': token},
+                                  timeout=TIMEOUT)).get('data') or {}
+        scopes = set(info.get('scopes') or [])
+        missing = [p for p in ('pages_manage_posts', 'pages_read_engagement') if scopes and p not in scopes]
+        if missing:
+            raise PublishError(f"The token is missing {', '.join(missing)}. Add it in Graph API Explorer, "
+                               'generate a new token (tick your Page), then copy the Page token from "me/accounts".')
         return f"Page: {d.get('name')}"
 
     @staticmethod
     def publish(acc, ctx):
+        try:
+            return Facebook._publish(acc, ctx)
+        except PublishError as e:
+            if 'publish_actions' in str(e) or 'pages_manage_posts' in str(e):
+                raise PublishError('Facebook rejected the token: it is your personal token, not the Page token. '
+                                   'In Graph API Explorer run "me/accounts", copy the access_token listed next to '
+                                   'your Page, and paste it in Accounts → Edit.') from e
+            raise
+
+    @staticmethod
+    def _publish(acc, ctx):
         page, token = acc.config.get('page_id'), acc.secrets.get('page_token')
         if ctx.video:
             d = _check(requests.post(f'{GRAPH}/{page}/videos', data={

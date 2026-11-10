@@ -488,11 +488,18 @@ async function loadPosts() {
       <div class="tgts">${p.targets.map(t => `<div class="tgt">${pi(t.platform)} <b>${_e(t.account)}</b>
         <span class="st ${t.status === 'published' ? 'published' : t.status === 'failed' ? 'failed' : ''}">${t.status === 'waiting' ? (p.status === 'publishing' ? 'posting…' : 'waiting') : t.status}</span>
         ${t.url ? `<a href="${_e(t.url)}" target="_blank" style="color:var(--role);">View post ↗</a>` : ''}
+        ${t.status === 'published' ? numbers(t) : ''}
         ${t.error ? `<span class="e">${_e(t.error)}</span>` : ''}</div>`).join('')}</div></div>`;
   }).join('') || `<div class="empty">${d.error ? _e(d.error) : 'No posts here yet.'}</div>`;
   $('#postPager').innerHTML = d.pages > 1 ? `<button class="btn sm" ${postPage <= 1 ? 'disabled' : ''} onclick="postPage--;loadPosts()">← Prev</button><span class="sm muted">Page ${postPage} of ${d.pages}</span><button class="btn sm" ${postPage >= d.pages ? 'disabled' : ''} onclick="postPage++;loadPosts()">Next →</button>` : '';
   // Keep refreshing while something is being posted
   if (d.results.some(p => p.status === 'publishing')) postTimer = setTimeout(() => $('#p-posts').classList.contains('on') && loadPosts(), 4000);
+}
+function numbers(t) {
+  const m = t.metrics || {};
+  if (t.sync_error) return `<span class="e" style="color:var(--warn);">Couldn't read the numbers: ${_e(t.sync_error)}</span>`;
+  if (!t.metrics_at) return `<span class="sm muted">· numbers come in within the hour</span>`;
+  return `<span class="sm muted">· 👁 ${fmt(m.views || m.impressions || 0)} · ♥ ${fmt(m.likes || 0)} · 💬 ${fmt(m.comments || 0)} · ↗ ${fmt((m.shares || 0) + (m.quotes || 0))} <span title="Updated ${_d(t.metrics_at)}">(${_d(t.metrics_at)})</span></span>`;
 }
 async function act(id, action) {
   let body = {};
@@ -556,7 +563,8 @@ async function loadAnalytics() {
   const sum = (p, k) => p.networks.reduce((a, n) => a + (n.metrics[k] || 0), 0);
   $('#anPosts').innerHTML = d.posts.length ? `<table class="t"><thead><tr><th>Post</th><th>Where</th><th style="text-align:right">Views</th><th style="text-align:right">Likes</th><th style="text-align:right">Comments</th><th style="text-align:right">Shares</th><th style="text-align:right">Clicks</th></tr></thead><tbody>
     ${d.posts.map(p => `<tr><td style="max-width:340px;"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_e(p.text) || '<span class="muted">(no text)</span>'}</div><div class="sm muted">${_d(p.published_at)}${p.author ? ' · ' + _e(p.author) : ''}</div>
-        ${p.networks.filter(n => n.sync_error).map(n => `<div class="sm" style="color:var(--warn);" title="${_e(n.sync_error)}">⚠ ${_e(n.account)}: couldn't read numbers</div>`).join('')}</td>
+        ${p.networks.filter(n => n.sync_error).map(n => `<div class="sm" style="color:var(--warn);">⚠ ${_e(n.account)}: couldn't read numbers — ${_e(n.sync_error)}</div>`).join('')}
+        ${p.networks.some(n => !n.metrics_at && !n.sync_error) ? '<div class="sm muted">Numbers come in within the hour.</div>' : ''}</td>
       <td style="white-space:nowrap;">${netLinks(p)}</td>
       <td class="n">${fmt(sum(p, 'views') || sum(p, 'impressions'))}</td><td class="n">${fmt(sum(p, 'likes'))}</td><td class="n">${fmt(sum(p, 'comments'))}</td>
       <td class="n">${fmt(sum(p, 'shares') + sum(p, 'quotes'))}</td><td class="n">${fmt(sum(p, 'clicks'))}</td></tr>`).join('')}</tbody></table>`
@@ -608,7 +616,8 @@ async function markHandled(id, handled) {
 
 // ── Accounts (admins) ──
 const GUIDES = {
-  facebook: `<ol><li>Go to <b>developers.facebook.com</b> → My Apps → <b>Create app</b> (type: Business). You stay in development mode — posting to your own Page needs no Meta review while you're an app admin.</li>
+  facebook: `<ol><li>Go to <b>developers.facebook.com</b> → My Apps → <b>Create app</b> (choose <b>Other</b> → <b>Business</b>). You stay in development mode — posting to your own Page needs no Meta review while you're an app admin.</li>
+    <li>In the app, open <b>Use cases</b> → <b>Manage everything on your Page</b> (add it if missing) → <b>Customize</b>, and add the permissions below. If you skip this, Facebook says <i>"pages_manage_posts are not available"</i>.</li>
     <li>Open <b>Graph API Explorer</b>, pick your app, add the permissions <code>pages_show_list</code>, <code>pages_read_engagement</code>, <code>pages_manage_posts</code> — and for Analytics/Inbox also <code>read_insights</code> and <code>pages_manage_engagement</code> — then <b>Generate Access Token</b>.</li>
     <li>Exchange it for a long-lived token (Access Token Debugger → <b>Extend</b>), then call <code>me/accounts</code> in the Explorer. Copy your Page's <b>id</b> and <b>access_token</b> — that Page token doesn't expire.</li></ol>`,
   instagram: `<ol><li>Make your Instagram a <b>Business or Creator</b> account and link it to your Facebook Page (Instagram → Settings → Account type / Linked accounts).</li>

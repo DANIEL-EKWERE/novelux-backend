@@ -226,6 +226,34 @@ class PublisherRequestTests(TestCase):
                 publishers.Instagram.verify(acc)
         self.assertIn('Invalid OAuth access token', str(e.exception))
 
+    def test_instagram_login_token_needs_no_facebook_page(self):
+        acc = self.acc('instagram', {}, {'access_token': 'IGAAtoken'})
+        acc.save()
+        calls = []
+
+        def get(url, params=None, **kw):
+            calls.append(url)
+            r = mock.Mock(status_code=200)
+            r.json.return_value = ({'access_token': 'IGAAnew'} if 'refresh_access_token' in url else
+                                   {'user_id': '777', 'username': 'huxnovel'} if url.endswith('/me') else
+                                   {'username': 'huxnovel', 'permalink': 'https://instagram.com/p/x'})
+            return r
+
+        def post(url, data=None, **kw):
+            calls.append(url)
+            r = mock.Mock(status_code=200)
+            r.json.return_value = {'id': 'm1'}
+            return r
+        img = publishers.Media('https://cdn/x.jpg', lambda: b'', 'x.jpg', 'image/jpeg')
+        with mock.patch('apps.social.publishers.requests.get', get), \
+                mock.patch('apps.social.publishers.requests.post', post):
+            self.assertEqual(publishers.Instagram.verify(acc), '@huxnovel')
+            publishers.Instagram.publish(acc, publishers.PostContext('Hi', images=[img]))
+        acc.refresh_from_db()
+        self.assertEqual(acc.config['ig_user_id'], '777')
+        self.assertEqual(acc.secrets['access_token'], 'IGAAnew')       # renewed
+        self.assertTrue(all(u.startswith('https://graph.instagram.com') for u in calls), calls)
+
     def test_linkedin_escapes_reserved_characters(self):
         self.assertEqual(publishers._li_escape('Hi (new) #book @me'), 'Hi \\(new\\) \\#book \\@me')
 

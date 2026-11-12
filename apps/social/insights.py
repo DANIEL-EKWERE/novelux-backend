@@ -14,7 +14,7 @@ from urllib.parse import quote
 import requests
 from django.utils.dateparse import parse_datetime
 
-from .publishers import (GRAPH, THREADS, TIMEOUT, LinkedIn as _LinkedIn, PublishError, Telegram as _Telegram,
+from .publishers import (GRAPH, THREADS, Instagram as _Instagram, TIMEOUT, LinkedIn as _LinkedIn, PublishError, Telegram as _Telegram,
                          TikTok as _TikTok, X as _X, YouTube as _YouTube, _check, _json)
 
 
@@ -89,13 +89,14 @@ class Facebook:
 class Instagram:
     @staticmethod
     def metrics(acc, t):
+        _Instagram.refresh(acc)
         token = acc.secrets.get('access_token')
-        d = _check(requests.get(f'{GRAPH}/{t.external_id}', params={
+        d = _check(requests.get(f'{_Instagram.base(acc)}/{t.external_id}', params={
             'fields': 'like_count,comments_count,media_type', 'access_token': token}, timeout=TIMEOUT), 'Instagram')
         out = {'likes': _int(d.get('like_count')), 'comments': _int(d.get('comments_count'))}
         # Available metrics differ by media type — ask for a set, fall back to reach
         for metric_set in ('reach,saved,shares,views', 'reach,saved', 'reach'):
-            r = requests.get(f'{GRAPH}/{t.external_id}/insights', params={'metric': metric_set, 'access_token': token},
+            r = requests.get(f'{_Instagram.base(acc)}/{t.external_id}/insights', params={'metric': metric_set, 'access_token': token},
                              timeout=TIMEOUT)
             if r.status_code < 400:
                 for m in _json(r).get('data') or []:
@@ -105,13 +106,13 @@ class Instagram:
 
     @staticmethod
     def followers(acc):
-        d = _check(requests.get(f"{GRAPH}/{acc.config.get('ig_user_id')}", params={
+        d = _check(requests.get(f"{_Instagram.base(acc)}/{_Instagram.user_id(acc)}", params={
             'fields': 'followers_count', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT), 'Instagram')
         return _int(d.get('followers_count'))
 
     @staticmethod
     def comments(acc, t):
-        d = _check(requests.get(f'{GRAPH}/{t.external_id}/comments', params={
+        d = _check(requests.get(f'{_Instagram.base(acc)}/{t.external_id}/comments', params={
             'fields': 'id,text,username,timestamp,replies{id,text,username,timestamp}', 'limit': 100,
             'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT), 'Instagram comments')
         me = (acc.handle or '').lstrip('@')
@@ -128,7 +129,7 @@ class Instagram:
 
     @staticmethod
     def reply(acc, comment, text):
-        d = _check(requests.post(f'{GRAPH}/{comment.external_id}/replies', data={
+        d = _check(requests.post(f'{_Instagram.base(acc)}/{comment.external_id}/replies', data={
             'message': text, 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT), 'Instagram reply')
         return d['id'], ''
 

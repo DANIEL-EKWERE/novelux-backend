@@ -14,6 +14,7 @@ import requests
 
 GRAPH = 'https://graph.facebook.com/v21.0'
 THREADS = 'https://graph.threads.net/v1.0'
+IG_GRAPH = 'https://graph.instagram.com/v21.0'   # "Instagram API with Instagram Login" (no Facebook Page)
 TIMEOUT = 60
 
 
@@ -152,40 +153,83 @@ def _wait_container(base, cid, token, field='status_code', minutes=6):
 
 
 class Instagram:
-    fields = [('ig_user_id', 'Instagram account ID', False), ('access_token', 'Access token', True)]
+    """Works with either kind of Instagram token:
+    • Facebook Login (EAA…): Instagram linked to a Facebook Page — needs the account ID;
+    • Instagram Login (IG…): no Facebook Page needed — the account ID is found automatically."""
+    fields = [('ig_user_id', 'Instagram account ID (leave blank with an Instagram Login token)', False),
+              ('access_token', 'Access token', True)]
+
+    @staticmethod
+    def base(acc):
+        return IG_GRAPH if (acc.secrets.get('access_token') or '').startswith('IG') else GRAPH
+
+    @staticmethod
+    def refresh(acc):
+        """Instagram Login tokens last 60 days; refresh them (at most daily) so they never run out."""
+        import datetime
+        if Instagram.base(acc) != IG_GRAPH:
+            return
+        today = datetime.date.today().isoformat()
+        if acc.config.get('token_refreshed') == today:
+            return
+        r = requests.get('https://graph.instagram.com/refresh_access_token', params={
+            'grant_type': 'ig_refresh_token', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT)
+        if r.status_code < 400 and _json(r).get('access_token'):
+            acc.update_secrets(access_token=_json(r)['access_token'])
+        acc.config['token_refreshed'] = today
+        acc.save(update_fields=['_secrets', 'config'])
+
+    @staticmethod
+    def user_id(acc):
+        if not acc.config.get('ig_user_id') and Instagram.base(acc) == IG_GRAPH:
+            d = _check(requests.get(f'{IG_GRAPH}/me', params={
+                'fields': 'user_id,username', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT),
+                'Instagram')
+            acc.config['ig_user_id'] = str(d.get('user_id') or d.get('id'))
+            acc.save(update_fields=['config'])
+        if not acc.config.get('ig_user_id'):
+            raise PublishError('Add the Instagram account ID (or use an Instagram Login token that starts with "IG").')
+        return acc.config['ig_user_id']
 
     @staticmethod
     def verify(acc):
-        r = requests.get(f"{GRAPH}/{acc.config.get('ig_user_id')}",
+        G = Instagram.base(acc)
+        r = requests.get(f"{G}/{Instagram.user_id(acc)}",
                          params={'fields': 'username', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT)
-        return f"@{_check(r, 'Instagram').get('username')}"
+        name = _check(r, 'Instagram').get('username')
+        if name and not acc.handle:
+            acc.handle = f'@{name}'
+            acc.save(update_fields=['handle'])
+        return f"@{name}"
 
     @staticmethod
     def publish(acc, ctx):
-        ig, token = acc.config.get('ig_user_id'), acc.secrets.get('access_token')
+        Instagram.refresh(acc)
+        G = Instagram.base(acc)
+        ig, token = Instagram.user_id(acc), acc.secrets.get('access_token')
         caption = ctx.text_with_link()   # links aren't clickable on Instagram, but readable
         if ctx.video:
-            c = _check(requests.post(f'{GRAPH}/{ig}/media', data={
+            c = _check(requests.post(f'{G}/{ig}/media', data={
                 'media_type': 'REELS', 'video_url': ctx.video.url, 'caption': caption, 'access_token': token},
                 timeout=TIMEOUT), 'Instagram reel')
-            _wait_container(GRAPH, c['id'], token)
+            _wait_container(G, c['id'], token)
             creation = c['id']
         elif len(ctx.images) == 1:
-            creation = _check(requests.post(f'{GRAPH}/{ig}/media', data={
+            creation = _check(requests.post(f'{G}/{ig}/media', data={
                 'image_url': ctx.images[0].url, 'caption': caption, 'access_token': token},
                 timeout=TIMEOUT), 'Instagram photo')['id']
         elif ctx.images:
-            children = [_check(requests.post(f'{GRAPH}/{ig}/media', data={
+            children = [_check(requests.post(f'{G}/{ig}/media', data={
                 'image_url': img.url, 'is_carousel_item': 'true', 'access_token': token},
                 timeout=TIMEOUT), 'Instagram carousel item')['id'] for img in ctx.images[:10]]
-            creation = _check(requests.post(f'{GRAPH}/{ig}/media', data={
+            creation = _check(requests.post(f'{G}/{ig}/media', data={
                 'media_type': 'CAROUSEL', 'children': ','.join(children), 'caption': caption,
                 'access_token': token}, timeout=TIMEOUT), 'Instagram carousel')['id']
         else:
             raise PublishError('Instagram needs an image or a video.')
-        d = _check(requests.post(f'{GRAPH}/{ig}/media_publish', data={
+        d = _check(requests.post(f'{G}/{ig}/media_publish', data={
             'creation_id': creation, 'access_token': token}, timeout=TIMEOUT), 'Instagram publish')
-        link = _json(requests.get(f"{GRAPH}/{d['id']}", params={'fields': 'permalink', 'access_token': token},
+        link = _json(requests.get(f"{G}/{d['id']}", params={'fields': 'permalink', 'access_token': token},
                                   timeout=TIMEOUT)).get('permalink', '')
         return d['id'], link
 

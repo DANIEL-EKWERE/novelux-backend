@@ -115,11 +115,12 @@ def _apply_account_fields(acc, data):
         if not val:
             continue  # blank = keep what's stored
         (secrets if secret else config).__setitem__(key, val)
-    if (acc.platform == 'instagram' and secrets.get('access_token', '').startswith('IG')
-            and not str(incoming.get('ig_user_id') or '').strip()):
-        # New Instagram Login token: look its account ID up again instead of keeping an old one
-        config.pop('ig_user_id', None)
+    if acc.platform == 'instagram' and secrets.get('access_token'):
+        # New token: work out its server again (and its account ID, if none was given)
+        config.pop('api_host', None)
         config.pop('token_refreshed', None)
+        if secrets['access_token'].startswith('IG') and not str(incoming.get('ig_user_id') or '').strip():
+            config.pop('ig_user_id', None)
     acc.config = config
     if secrets:
         acc.update_secrets(**secrets)

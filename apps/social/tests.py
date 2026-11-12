@@ -254,6 +254,21 @@ class PublisherRequestTests(TestCase):
         self.assertEqual(acc.secrets['access_token'], 'IGAAnew')       # renewed
         self.assertTrue(all(u.startswith('https://graph.instagram.com') for u in calls), calls)
 
+    def test_unified_login_token_finds_its_server(self):
+        # An EAA… token from "API setup with Unified login" that graph.facebook.com rejects
+        acc = self.acc('instagram', {'ig_user_id': '1784'}, {'access_token': 'EAAXunified'})
+        acc.save()
+
+        def get(url, params=None, **kw):
+            ok = url.startswith('https://graph.instagram.com')
+            r = mock.Mock(status_code=200 if ok else 400)
+            r.json.return_value = {'username': 'huxnovel'} if ok else {'error': {'message': 'Invalid OAuth'}}
+            return r
+        with mock.patch('apps.social.publishers.requests.get', get):
+            self.assertEqual(publishers.Instagram.verify(acc), '@huxnovel')
+        acc.refresh_from_db()
+        self.assertEqual(acc.config['api_host'], publishers.IG_GRAPH)
+
     def test_linkedin_escapes_reserved_characters(self):
         self.assertEqual(publishers._li_escape('Hi (new) #book @me'), 'Hi \\(new\\) \\#book \\@me')
 

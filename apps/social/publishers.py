@@ -156,12 +156,41 @@ class Instagram:
     """Works with either kind of Instagram token:
     • Facebook Login (EAA…): Instagram linked to a Facebook Page — needs the account ID;
     • Instagram Login (IG…): no Facebook Page needed — the account ID is found automatically."""
-    fields = [('ig_user_id', 'Instagram account ID (leave blank with an Instagram Login token)', False),
+    fields = [('ig_user_id', 'Instagram account ID (the number under your username when you generate the token)', False),
               ('access_token', 'Access token', True)]
 
     @staticmethod
     def base(acc):
+        if acc.config.get('api_host') in (IG_GRAPH, GRAPH):
+            return acc.config['api_host']
         return IG_GRAPH if (acc.secrets.get('access_token') or '').startswith('IG') else GRAPH
+
+    @staticmethod
+    def detect(acc):
+        """Find which server accepts this token (Instagram Login / Unified login tokens use
+        graph.instagram.com, Facebook Page tokens use graph.facebook.com) and the account ID."""
+        token, ig = acc.secrets.get('access_token'), acc.config.get('ig_user_id')
+        hosts = (IG_GRAPH, GRAPH) if token and not token.startswith('EAA') else (GRAPH, IG_GRAPH)
+        last = None
+        for G in hosts:
+            if ig:
+                r = requests.get(f'{G}/{ig}', params={'fields': 'username', 'access_token': token}, timeout=TIMEOUT)
+            elif G == IG_GRAPH:
+                r = requests.get(f'{G}/me', params={'fields': 'user_id,username', 'access_token': token},
+                                 timeout=TIMEOUT)
+            else:
+                continue   # a Facebook Page token always needs the account ID
+            if r.status_code < 400:
+                d = _json(r)
+                acc.config['api_host'] = G
+                if not ig:
+                    acc.config['ig_user_id'] = str(d.get('user_id') or d.get('id'))
+                acc.save(update_fields=['config'])
+                return d.get('username')
+            last = r
+        if last is None:
+            raise PublishError('Add the Instagram account ID.')
+        _check(last, 'Instagram')
 
     @staticmethod
     def refresh(acc):
@@ -181,22 +210,14 @@ class Instagram:
 
     @staticmethod
     def user_id(acc):
-        if not acc.config.get('ig_user_id') and Instagram.base(acc) == IG_GRAPH:
-            d = _check(requests.get(f'{IG_GRAPH}/me', params={
-                'fields': 'user_id,username', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT),
-                'Instagram')
-            acc.config['ig_user_id'] = str(d.get('user_id') or d.get('id'))
-            acc.save(update_fields=['config'])
         if not acc.config.get('ig_user_id'):
-            raise PublishError('Add the Instagram account ID (or use an Instagram Login token that starts with "IG").')
+            Instagram.detect(acc)
         return acc.config['ig_user_id']
 
     @staticmethod
     def verify(acc):
-        G = Instagram.base(acc)
-        r = requests.get(f"{G}/{Instagram.user_id(acc)}",
-                         params={'fields': 'username', 'access_token': acc.secrets.get('access_token')}, timeout=TIMEOUT)
-        name = _check(r, 'Instagram').get('username')
+        acc.config.pop('api_host', None)     # re-check after the token changes
+        name = Instagram.detect(acc)
         if name and not acc.handle:
             acc.handle = f'@{name}'
             acc.save(update_fields=['handle'])

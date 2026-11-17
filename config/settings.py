@@ -69,7 +69,8 @@ LOCAL_APPS = [
     'apps.editorial',      # Editorial hierarchy — AE / SE / CE
     'apps.blog',           # SE-authored blog / learning content
     'apps.analytics',
-    'apps.social',         # Posting to HuxNovel's social accounts      # Visitor tracking
+    'apps.social',
+    'apps.promos',         # Book promotions shown when the app opens         # Posting to HuxNovel's social accounts      # Visitor tracking
     'novelux_web',
 
 ]

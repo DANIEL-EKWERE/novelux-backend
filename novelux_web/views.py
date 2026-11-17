@@ -4083,6 +4083,21 @@ def social_dashboard(request):
     })
 
 
+def promos_dashboard(request):
+    """/promotions/ — book promotions shown when the app opens (admins, CEs, SEs)."""
+    from apps.promos.views import can_manage
+    user = _user_from_request(request)
+    if user is None:
+        return redirect(f'/login/?next={request.path}')
+    if not can_manage(user):
+        return redirect(_home_for(user))
+    return render(request, 'novelux/promos_dashboard.html', {
+        'access_token': _jwt_from_request(request),
+        'api_url': _get_api_base(request),
+        'me': user,
+    })
+
+
 def master_token(request):
     """/master/token/ — a fresh access token for an open dashboard (master,
     social…), so it keeps working past the 1-hour access-token lifetime. It

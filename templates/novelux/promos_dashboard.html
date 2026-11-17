@@ -1,0 +1,305 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');})()</script>
+<meta charset="UTF-8"/>
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api" content="{{ api_url|default:'/api' }}">
+<meta name="robots" content="noindex,nofollow">
+<title>App promotions – HuxNovel</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@1,600&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fff;--fg:#171717;--primary:hsl(14 62% 38%);--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--card:#fafafa;--role:hsl(14 62% 42%);--ok:hsl(142 60% 38%);--bad:hsl(0 70% 48%);--warn:hsl(38 92% 42%);}
+html.dark{--bg:#0f0f11;--fg:#e5e5e5;--muted:#1c1c20;--muted-fg:#8a8a90;--border:#2a2a30;--card:#141417;--ok:hsl(142 60% 55%);--bad:hsl(0 70% 62%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+button{cursor:pointer;}
+a{color:inherit;text-decoration:none;}
+.top{position:sticky;top:0;z-index:30;height:56px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:14px;padding:0 18px;}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;}
+.brand .lg{width:24px;height:24px;border-radius:7px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+.top .r{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted-fg);}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 80px;}
+.grid{display:grid;gap:16px;grid-template-columns:1fr;}
+@media(min-width:960px){.grid{grid-template-columns:1.2fr 1fr;}}
+.card{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:16px;min-width:0;}
+.card h3{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.card h3 .sub{margin-left:auto;font-weight:400;font-size:12px;color:var(--muted-fg);}
+label.lbl{display:block;font-size:12px;color:var(--muted-fg);margin:12px 0 6px;}
+input[type=text],input[type=number],input[type=datetime-local],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg);}
+textarea{min-height:64px;resize:vertical;line-height:1.5;}
+.btn{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:var(--bg);font-weight:500;}
+.btn.p{background:var(--role);border-color:var(--role);color:#fff;}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn.danger{color:var(--bad);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.muted{color:var(--muted-fg);}.sm{font-size:12px;}
+.kinds{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.kind{border:1.5px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;background:var(--bg);}
+.kind.on{border-color:var(--role);background:color-mix(in srgb,var(--role) 7%,var(--bg));}
+.kind b{display:block;margin-bottom:3px;}
+.kind span{font-size:12px;color:var(--muted-fg);line-height:1.4;}
+.book{display:flex;gap:10px;align-items:center;padding:8px;border-radius:9px;cursor:pointer;}
+.book:hover{background:var(--muted);}
+.book img,.book .ph{width:34px;height:46px;border-radius:5px;object-fit:cover;background:var(--role);flex-shrink:0;}
+.chosen{display:flex;gap:10px;align-items:center;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg);}
+.chosen img{width:40px;height:54px;border-radius:5px;object-fit:cover;}
+.drop{border:1.5px dashed var(--border);border-radius:10px;padding:14px;text-align:center;color:var(--muted-fg);cursor:pointer;}
+.err{padding:10px 12px;border-radius:9px;border:1px solid var(--bad);color:var(--bad);margin-top:10px;font-size:13px;}
+.note{padding:9px 12px;border-radius:9px;background:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.5;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:100;display:none;font-size:13px;}
+/* Phone preview */
+.phone{width:270px;height:560px;margin:0 auto;border-radius:34px;border:9px solid #111;background:#f4f1ee;position:relative;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+.phone .home{position:absolute;inset:0;padding:30px 12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;align-content:start;}
+.phone .home div{aspect-ratio:3/4;border-radius:6px;background:linear-gradient(160deg,#c9b8ab,#8f7b6d);}
+.splash{position:absolute;inset:0;background:#222 center/cover no-repeat;}
+.splash .skip{position:absolute;top:14px;right:12px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:4px 10px;border-radius:12px;}
+.splash .vm,.pop .vm{position:absolute;left:50%;transform:translateX(-50%);bottom:54px;padding:8px 26px;border-radius:22px;border:2px solid;border-image:linear-gradient(90deg,#e84393,#f39c12) 1;color:#fff;font-weight:600;font-size:12px;letter-spacing:.5px;background:rgba(0,0,0,.35);white-space:nowrap;}
+.splash .vm{border:2px solid #e84393;border-radius:22px;}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55);}
+.pop{position:absolute;left:22px;right:22px;top:92px;height:310px;border-radius:14px;background:#5a3b2a center/cover no-repeat;overflow:hidden;}
+.pop .cv{position:absolute;left:50%;top:22px;transform:translateX(-50%);width:104px;height:140px;border-radius:6px;background:#333 center/cover;box-shadow:0 8px 20px rgba(0,0,0,.4);}
+.pop .tg{position:absolute;left:14px;right:14px;top:176px;color:#fff;text-align:center;font-weight:600;font-size:12.5px;line-height:1.35;text-shadow:0 1px 6px rgba(0,0,0,.7);}
+.pop .vm{bottom:18px;border:2px solid #d4a017;border-radius:22px;background:linear-gradient(180deg,#9b1c1c,#5c0e0e);}
+.closeX{position:absolute;left:50%;top:420px;transform:translateX(-50%);width:30px;height:30px;border-radius:50%;border:2px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;}
+/* List */
+.subtabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
+.subtabs button{border:1px solid var(--border);background:var(--bg);border-radius:20px;padding:5px 12px;font-size:12px;}
+.subtabs button.on{background:var(--role);border-color:var(--role);color:#fff;}
+.pr{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.pr img,.pr .ph{width:46px;height:62px;border-radius:6px;object-fit:cover;background:var(--muted);flex-shrink:0;}
+.st{display:inline-flex;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:var(--muted);color:var(--muted-fg);}
+.st.live{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);}
+.st.scheduled{background:color-mix(in srgb,var(--role) 12%,transparent);color:var(--role);}
+.nums{display:flex;gap:14px;font-size:12px;color:var(--muted-fg);}
+.nums b{color:var(--fg);font-size:14px;display:block;}
+.empty{padding:30px;text-align:center;color:var(--muted-fg);}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand"><span class="lg">H</span>App promotions</div>
+  <div class="r"><span>{{ me.username }}</span>
+    <button class="btn sm" onclick="document.documentElement.classList.toggle('dark');localStorage.setItem('nux_theme',document.documentElement.classList.contains('dark')?'dark':'light')">◐</button>
+    <a class="btn sm" href="/editorial/">Back</a></div>
+</div>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <h3 id="formTitle">New promotion <span class="sub"><button class="btn sm" id="resetBtn" style="display:none">+ New instead</button></span></h3>
+      <div class="kinds">
+        <div class="kind on" data-k="popup"><b>Pop-up card</b><span>A card over the home screen: artwork, the cover, a hook line and "View more".</span></div>
+        <div class="kind" data-k="splash"><b>Full screen</b><span>A poster that fills the screen when the app opens, with a "Skip" countdown.</span></div>
+      </div>
+
+      <label class="lbl">Book</label>
+      <div id="chosen"></div>
+      <input type="text" id="bookQ" placeholder="Search a book or author…">
+      <div id="bookRes" style="max-height:230px;overflow-y:auto;margin-top:4px;"></div>
+
+      <label class="lbl" id="imgLbl">Background artwork (optional — the cover is used otherwise)</label>
+      <div class="drop" id="drop">Click to choose a picture (JPG, PNG or WebP, up to 8 MB)<input type="file" id="img" accept="image/*" style="display:none"></div>
+      <div class="row sm" id="imgInfo" style="margin-top:6px;display:none"><span id="imgName" class="muted"></span><button class="btn sm" id="imgClear">Remove</button></div>
+
+      <div id="popupOnly">
+        <label class="lbl">Hook line <span class="muted" id="tgCount">0/140</span></label>
+        <textarea id="tagline" maxlength="140" placeholder="Moon Goddess granted me the King as my mate, but my ex was killing me"></textarea>
+      </div>
+      <div class="row" style="gap:12px;">
+        <div style="flex:1;min-width:140px;"><label class="lbl">Button text</label><input type="text" id="btnText" maxlength="30" value="View more"></div>
+        <div style="flex:1;min-width:140px;" id="skipWrap"><label class="lbl">Countdown (seconds)</label><input type="number" id="skip" min="1" max="15" value="3"></div>
+      </div>
+      <div class="row" style="gap:12px;">
+        <div style="flex:1;min-width:180px;"><label class="lbl">Starts</label><input type="datetime-local" id="starts"></div>
+        <div style="flex:1;min-width:180px;"><label class="lbl">Ends (optional)</label><input type="datetime-local" id="ends"></div>
+      </div>
+      <div class="row" style="gap:12px;">
+        <div style="flex:1;min-width:140px;"><label class="lbl">Priority (higher shows first)</label><input type="number" id="priority" value="0"></div>
+        <div style="flex:1;min-width:140px;"><label class="lbl">Name (for the team)</label><input type="text" id="name" maxlength="120" placeholder="e.g. Spare Luna launch"></div>
+      </div>
+      <div class="err" id="fErr" style="display:none"></div>
+      <div class="row" style="margin-top:14px;"><button class="btn p" id="save">Publish promotion</button><span class="sm muted" id="saving"></span></div>
+      <div class="note">Each reader sees a promotion <b>once</b>, and the app shows <b>at most one</b> per launch — when it opens on the home screen. Several live promotions take turns: the next one shows on the next launch.</div>
+    </div>
+
+    <div class="card">
+      <h3>Preview <span class="sub">how it looks in the app</span></h3>
+      <div class="phone" id="phone"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3>Promotions</h3>
+    <div class="subtabs" id="tabs">
+      <button data-s="" class="on">All</button><button data-s="live">Live</button><button data-s="scheduled">Scheduled</button><button data-s="ended">Ended / paused</button>
+    </div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = {
+  token: document.querySelector('meta[name="nux-token"]').content,
+  base: document.querySelector('meta[name="nux-api"]').content || '/api',
+  async req(path, opts = {}, retry = true) {
+    const headers = { 'Authorization': 'Bearer ' + this.token, ...(opts.body && !(opts.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) };
+    const r = await fetch(this.base + path, { ...opts, headers });
+    if (r.status === 401 && retry) {
+      const t = await fetch('/master/token/', { credentials: 'same-origin' });
+      if (t.ok) { this.token = (await t.json()).access; return this.req(path, opts, false); }
+    }
+    if (r.status === 204) return null;
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw d;
+    return d;
+  },
+};
+const $ = s => document.querySelector(s);
+const _e = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _d = iso => iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+const toast = m => { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3200); };
+const localInput = iso => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+let kind = 'popup', book = null, file = null, fileUrl = null, editing = null, removeImage = false, status = '', items = [];
+
+// ── Form ──
+document.querySelectorAll('.kind').forEach(k => k.onclick = () => { kind = k.dataset.k; syncKind(); });
+function syncKind() {
+  document.querySelectorAll('.kind').forEach(k => k.classList.toggle('on', k.dataset.k === kind));
+  $('#popupOnly').style.display = kind === 'popup' ? '' : 'none';
+  $('#skipWrap').style.display = kind === 'splash' ? '' : 'none';
+  $('#imgLbl').textContent = kind === 'splash'
+    ? 'Poster (required — tall, about 1080×1920; keep the title and faces away from the bottom where the button sits)'
+    : 'Background artwork (optional — the cover is used otherwise)';
+  preview();
+}
+let qTimer;
+$('#bookQ').oninput = () => { clearTimeout(qTimer); qTimer = setTimeout(searchBooks, 250); };
+$('#bookQ').onfocus = () => { if (!$('#bookRes').innerHTML) searchBooks(); };
+async function searchBooks() {
+  const r = await API.req('/promos/manage/books/?q=' + encodeURIComponent($('#bookQ').value)).catch(() => []);
+  $('#bookRes').innerHTML = r.map(b => `<div class="book" data-id="${b.id}">${b.cover ? `<img src="${_e(b.cover)}">` : '<span class="ph"></span>'}
+    <div><b>${_e(b.title)}</b><div class="sm muted">by ${_e(b.author)}</div></div></div>`).join('') || '<div class="sm muted" style="padding:8px">No books found.</div>';
+  $('#bookRes').querySelectorAll('.book').forEach(el => el.onclick = () => { setBook(r.find(b => b.id == el.dataset.id)); });
+}
+function setBook(b) {
+  book = b; $('#bookRes').innerHTML = ''; $('#bookQ').value = '';
+  $('#chosen').innerHTML = b ? `<div class="chosen">${b.cover ? `<img src="${_e(b.cover)}">` : ''}<div style="flex:1"><b>${_e(b.title)}</b><div class="sm muted">by ${_e(b.author)}</div></div><button class="btn sm" id="chg">Change</button></div>` : '';
+  $('#bookQ').style.display = b ? 'none' : '';
+  if (b) $('#chg').onclick = () => { setBook(null); $('#bookQ').focus(); };
+  preview();
+}
+$('#drop').onclick = () => $('#img').click();
+$('#img').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (f.size > 8 * 1024 * 1024) { toast('That picture is over 8 MB.'); return; }
+  file = f; removeImage = false; if (fileUrl) URL.revokeObjectURL(fileUrl); fileUrl = URL.createObjectURL(f);
+  $('#imgName').textContent = f.name; $('#imgInfo').style.display = ''; preview();
+};
+$('#imgClear').onclick = () => { file = null; fileUrl = null; $('#img').value = ''; $('#imgInfo').style.display = 'none'; if (editing) removeImage = true; preview(); };
+['#tagline', '#btnText', '#skip'].forEach(s => $(s).oninput = () => { $('#tgCount').textContent = $('#tagline').value.length + '/140'; preview(); });
+
+function currentImage() { return fileUrl || (!removeImage && editing && editing.image) || null; }
+function preview() {
+  const img = currentImage(), cover = book && book.cover, btn = _e(($('#btnText').value || 'View more').toUpperCase());
+  const home = '<div class="home">' + '<div></div>'.repeat(12) + '</div>';
+  if (kind === 'splash') {
+    $('#phone').innerHTML = home + `<div class="splash" style="background-image:url('${_e(img || '')}')">
+      ${img ? '' : '<div style="color:#bbb;position:absolute;top:45%;width:100%;text-align:center;font-size:12px">Upload a poster</div>'}
+      <span class="skip">Skip ${_e($('#skip').value || 3)}</span><span class="vm">${btn} ›</span></div>`;
+  } else {
+    $('#phone').innerHTML = home + `<div class="dim"></div><div class="pop" style="background-image:url('${_e(img || cover || '')}')">
+      ${img ? '' : '<div style="position:absolute;inset:0;backdrop-filter:blur(14px);background:rgba(0,0,0,.25)"></div>'}
+      <div class="cv" style="background-image:url('${_e(cover || '')}')"></div>
+      <div class="tg">${_e($('#tagline').value || (book ? book.title : 'Your hook line'))}</div>
+      <span class="vm">${_e($('#btnText').value || 'View more')} ›</span></div><span class="closeX">✕</span>`;
+  }
+}
+function resetForm() {
+  editing = null; file = null; fileUrl = null; removeImage = false; $('#img').value = '';
+  $('#imgInfo').style.display = 'none'; kind = 'popup'; setBook(null);
+  ['#tagline', '#name', '#ends'].forEach(s => $(s).value = '');
+  $('#btnText').value = 'View more'; $('#skip').value = 3; $('#priority').value = 0;
+  $('#starts').value = localInput(new Date().toISOString());
+  $('#formTitle').firstChild.textContent = 'New promotion '; $('#resetBtn').style.display = 'none';
+  $('#save').textContent = 'Publish promotion'; $('#fErr').style.display = 'none'; syncKind();
+}
+$('#resetBtn').onclick = resetForm;
+function edit(id) {
+  const p = items.find(x => x.id === id); if (!p) return;
+  resetForm(); editing = p; kind = p.kind; setBook(p.story);
+  $('#tagline').value = p.tagline; $('#btnText').value = p.button_text; $('#skip').value = p.skip_seconds;
+  $('#priority').value = p.priority; $('#name').value = p.name || '';
+  $('#starts').value = localInput(p.starts_at); $('#ends').value = localInput(p.ends_at);
+  if (p.image) { $('#imgName').textContent = 'Current picture'; $('#imgInfo').style.display = ''; }
+  $('#formTitle').firstChild.textContent = 'Edit promotion '; $('#resetBtn').style.display = '';
+  $('#save').textContent = 'Save changes'; syncKind(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#save').onclick = async () => {
+  const err = $('#fErr'); err.style.display = 'none';
+  if (!book) { err.textContent = 'Choose a book to promote.'; err.style.display = ''; return; }
+  if (kind === 'splash' && !currentImage()) { err.textContent = 'A full-screen promotion needs a poster.'; err.style.display = ''; return; }
+  const fd = new FormData();
+  fd.append('kind', kind); fd.append('story_id', book.id);
+  fd.append('tagline', $('#tagline').value); fd.append('button_text', $('#btnText').value || 'View more');
+  fd.append('skip_seconds', $('#skip').value || 3); fd.append('priority', $('#priority').value || 0);
+  fd.append('name', $('#name').value);
+  fd.append('starts_at', $('#starts').value ? new Date($('#starts').value).toISOString() : '');
+  fd.append('ends_at', $('#ends').value ? new Date($('#ends').value).toISOString() : '');
+  if (file) fd.append('image', file); else if (removeImage) fd.append('remove_image', '1');
+  $('#save').disabled = true; $('#saving').textContent = 'Saving…';
+  try {
+    if (editing) await API.req(`/promos/manage/${editing.id}/`, { method: 'PATCH', body: fd });
+    else await API.req('/promos/manage/', { method: 'POST', body: fd });
+    toast(editing ? 'Saved' : 'Promotion published ✓'); resetForm(); load();
+  } catch (e) { err.textContent = e.detail || 'Could not save.'; err.style.display = ''; }
+  $('#save').disabled = false; $('#saving').textContent = '';
+};
+
+// ── List ──
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); status = b.dataset.s; load();
+});
+function state(p) {
+  if (!p.is_active) return ['ended', 'Paused'];
+  if (p.ends_at && new Date(p.ends_at) <= new Date()) return ['ended', 'Ended'];
+  if (new Date(p.starts_at) > new Date()) return ['scheduled', 'Starts ' + _d(p.starts_at)];
+  return ['live', 'Live'];
+}
+async function load() {
+  const d = await API.req('/promos/manage/' + (status ? '?status=' + status : '')).catch(e => ({ results: [], error: e.detail }));
+  items = d.results;
+  $('#list').innerHTML = items.map(p => {
+    const [cls, label] = state(p), ctr = p.impressions ? Math.round(p.clicks / p.impressions * 1000) / 10 : 0;
+    const thumb = p.image || p.story.cover;
+    return `<div class="pr">${thumb ? `<img src="${_e(thumb)}">` : '<span class="ph"></span>'}
+      <div style="flex:1;min-width:200px;"><div class="row"><b>${_e(p.story.title)}</b><span class="st ${cls}">${_e(label)}</span>
+        <span class="st">${p.kind === 'splash' ? 'Full screen' : 'Pop-up'}</span></div>
+        <div class="sm muted">${p.name ? _e(p.name) + ' · ' : ''}${p.ends_at ? 'until ' + _d(p.ends_at) : 'no end date'}${p.created_by ? ' · by ' + _e(p.created_by) : ''}</div></div>
+      <div class="nums"><div><b>${p.impressions.toLocaleString()}</b>shown</div><div><b>${p.clicks.toLocaleString()}</b>tapped</div><div><b>${ctr}%</b>tap rate</div></div>
+      ${p.can_edit ? `<div class="row"><button class="btn sm" onclick="edit(${p.id})">Edit</button>
+        <button class="btn sm" onclick="toggle(${p.id}, ${!p.is_active})">${p.is_active ? 'Pause' : 'Resume'}</button>
+        <button class="btn sm danger" onclick="del(${p.id})">Delete</button></div>` : ''}</div>`;
+  }).join('') || `<div class="empty">${d.error ? _e(d.error) : 'No promotions yet — create the first one above.'}</div>`;
+}
+async function toggle(id, on) {
+  try { await API.req(`/promos/manage/${id}/`, { method: 'PATCH', body: JSON.stringify({ is_active: on }) }); load(); }
+  catch (e) { toast(e.detail || 'Could not update'); }
+}
+async function del(id) {
+  if (!confirm('Delete this promotion and its numbers?')) return;
+  try { await API.req(`/promos/manage/${id}/`, { method: 'DELETE' }); if (editing && editing.id === id) resetForm(); load(); }
+  catch (e) { toast(e.detail || 'Could not delete'); }
+}
+
+resetForm(); load();
+</script>
+</body>
+</html>

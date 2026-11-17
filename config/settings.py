@@ -475,6 +475,14 @@ CELERY_BEAT_SCHEDULE = {
         'task':     'apps.coins.tasks.expire_bonus_coins',
         'schedule': 3600,   # bonus coins are valid for 7 days
     },
+    'engagement-pushes': {
+        'task':     'apps.notifications.tasks.send_engagement_pushes',
+        'schedule': 900,    # check-in / rewards / VIP pushes at each reader's local hour
+    },
+    'continue-reading-reminders': {
+        'task':     'apps.notifications.tasks.send_continue_reading_reminders',
+        'schedule': 300,    # "continue reading" push ~30 min after a reader stops
+    },
     'social-insights-hourly': {
         'task':     'apps.social.tasks.sync_social_insights',
         'schedule': 3600,   # post numbers, follower counts and new comments

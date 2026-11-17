@@ -159,3 +159,17 @@ def _fcm_send(tokens: list, title: str, body: str, data: dict):
         resp.raise_for_status()
     except Exception as e:
         logger.error(f'FCM push failed: {e}')
+
+
+@shared_task
+def send_continue_reading_reminders():
+    """Push readers who stopped mid-book ~30 min ago back to their next chapter."""
+    from .reading_reminders import send_due
+    return send_due()
+
+
+@shared_task
+def send_engagement_pushes():
+    """Check-in streak, tasks / ad rewards and VIP pushes (one a day per reader)."""
+    from .engagement import send_due
+    return send_due()

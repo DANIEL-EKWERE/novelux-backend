@@ -362,6 +362,12 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
             if getattr(request.user, 'is_vip', False) and chapter.is_locked:
                 from .models import record_vip_read
                 record_vip_read(request.user, chapter)
+            # Remembered for the "continue reading" push (never blocks reading)
+            try:
+                from apps.notifications.reading_reminders import record_reading
+                record_reading(request.user, chapter)
+            except Exception:
+                pass
         serializer = self.get_serializer(chapter)
         return Response(serializer.data)
 

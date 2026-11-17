@@ -145,3 +145,41 @@ class NotificationAdmin(admin.ModelAdmin):
 #     list_display  = ['user', 'platform', 'is_active', 'created_at']
 #     list_filter   = ['platform', 'is_active']
 #     search_fields = ['user__username']
+
+
+from .models import ReadingReminder, ReadingReminderSettings
+
+
+@admin.register(ReadingReminderSettings)
+class ReadingReminderSettingsAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'enabled', 'delay_minutes', 'quiet_start_hour', 'quiet_end_hour')
+
+    def has_add_permission(self, request):
+        return not ReadingReminderSettings.objects.exists()
+
+
+@admin.register(ReadingReminder)
+class ReadingReminderAdmin(admin.ModelAdmin):
+    list_display  = ('user', 'story', 'chapter_number', 'last_read_at', 'sent_at', 'sent_count', 'returned_count')
+    search_fields = ('user__username', 'user__email', 'story__title')
+    raw_id_fields = ('user', 'story')
+    readonly_fields = ('last_read_at', 'handled_read_at', 'sent_at', 'sent_count', 'returned_count')
+
+
+from .models import EngagementPush, EngagementPushSettings
+
+
+@admin.register(EngagementPushSettings)
+class EngagementPushSettingsAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'checkin_enabled', 'rewards_enabled', 'vip_enabled')
+
+    def has_add_permission(self, request):
+        return not EngagementPushSettings.objects.exists()
+
+
+@admin.register(EngagementPush)
+class EngagementPushAdmin(admin.ModelAdmin):
+    list_display  = ('user', 'kind', 'title', 'sent_at')
+    list_filter   = ('kind', 'sent_at')
+    search_fields = ('user__username', 'user__email')
+    raw_id_fields = ('user',)

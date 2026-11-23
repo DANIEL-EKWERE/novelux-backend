@@ -1297,6 +1297,9 @@ class ExploreTabPin(models.Model):
     is_active      = models.BooleanField(default=True, db_index=True)
     order          = models.PositiveSmallIntegerField(default=0, help_text='Lower = higher in section')
     pinned_at      = models.DateTimeField(auto_now_add=True)
+    # Timeline: the pin shows only between these dates, then frees the spot
+    starts_at      = models.DateTimeField(null=True, blank=True, help_text='Blank = from when it was pinned.')
+    expires_at     = models.DateTimeField(null=True, blank=True, help_text='Blank = until removed.')
 
     class Meta:
         db_table  = 'explore_tab_pins'
@@ -1469,3 +1472,19 @@ class SystemNotice(models.Model):
 
     def __str__(self):
         return f'[{self.notice_type.upper()}] {self.message[:60]}'
+
+
+class AuthorContact(models.Model):
+    """A message the chief editor sent an author (in-app), or a note that she
+    reached out by email / WhatsApp / phone — the author's contact history."""
+    CHANNELS = [('in_app', 'In-app message'), ('email', 'Email'), ('whatsapp', 'WhatsApp'), ('call', 'Phone call')]
+    author     = models.ForeignKey(User, on_delete=models.CASCADE, related_name='editor_contacts')
+    sent_by    = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='+')
+    channel    = models.CharField(max_length=10, choices=CHANNELS)
+    subject    = models.CharField(max_length=150, blank=True)
+    body       = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'author_contacts'
+        ordering = ['-created_at']

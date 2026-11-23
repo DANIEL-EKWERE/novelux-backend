@@ -313,3 +313,291 @@ class EarningReaderFraudTests(TestCase):
         self.assertEqual(res.data['processed'], 1)
         self.author.refresh_from_db()
         self.assertEqual(self.author.coin_balance, 30)
+
+
+class CEPhaseOneTests(TestCase):
+    """Chief-editor fixes: real take-downs and bans, deleting announcements,
+    transferring authors, deactivating editors, issue counts, cancelling
+    contracts."""
+
+    def setUp(self):
+        from unittest import mock
+        self.ce = User.objects.create_user(email='ce@x.com', username='chief', password='x', role='ce')
+        self.se = User.objects.create_user(email='se@x.com', username='vora', password='x', role='se')
+        self.se2 = User.objects.create_user(email='se2@x.com', username='kay', password='x', role='se')
+        self.author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        self.author2 = User.objects.create_user(email='b@x.com', username='bola', password='x', role='author')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=self.se)
+        AuthorEditorLink.objects.create(author=self.author2, assigned_se=self.se)
+        self.story = Story.objects.create(author=self.author, title='Copied Tale', slug='copied', status='ongoing')
+        self.story2 = Story.objects.create(author=self.author, title='Second', slug='second', status='ongoing')
+        self.ch = Chapter.objects.create(story=self.story, title='One', chapter_number=1, is_published=True)
+        self.c = APIClient()
+        self.c.force_authenticate(self.ce)
+        self.push = mock.patch('apps.notifications.services.notify_user')
+        self.push.start()
+        self.addCleanup(self.push.stop)
+
+    def public_slugs(self):
+        r = APIClient().get('/api/stories/')
+        rows = r.data['results'] if isinstance(r.data, dict) else r.data
+        return {s['slug'] for s in rows}
+
+    def notes(self, user):
+        from apps.notifications.models import Notification
+        return list(Notification.objects.filter(recipient=user).values_list('title', flat=True))
+
+    def test_take_down_flag_hides_the_book_and_tells_the_author(self):
+        from .models import ContentFlag
+        flag = ContentFlag.objects.create(chapter=self.ch, flagged_by=self.se, flag_type='plagiarism', description='x')
+        self.assertIn('copied', self.public_slugs())
+        r = self.c.post(f'/api/editorial/ce/flags/{flag.pk}/resolve/', {'action': 'take_down', 'note': 'Copied'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertNotIn('copied', self.public_slugs())
+        self.assertIn('second', self.public_slugs())                       # only that book
+        self.assertEqual(APIClient().get('/api/stories/copied/').status_code, 404)
+        self.assertIn('Your book was taken down', self.notes(self.author))
+        flag.refresh_from_db()
+        self.assertTrue(flag.resolved)
+
+    def test_ban_from_reader_report_removes_all_books(self):
+        from apps.stories.models import ContentReport
+        rep = ContentReport.objects.create(story=self.story, reason='copyright', details='stolen')
+        d = self.c.get('/api/editorial/ce/reader-reports/').data['results'][0]
+        self.assertEqual(d['author'], 'amaka')
+        r = self.c.post(f'/api/editorial/ce/reader-reports/{rep.pk}/action/', {'action': 'ban', 'note': 'Plagiarism'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.author.refresh_from_db()
+        self.assertTrue(self.author.is_banned)
+        self.assertFalse({'copied', 'second'} & self.public_slugs())
+        self.assertIn('Your account has been banned', self.notes(self.author))
+        self.assertEqual(self.c.get('/api/editorial/ce/reader-reports/').data['results'], [])
+
+    def test_delete_announcement_removes_it_from_inboxes(self):
+        from apps.notifications.models import Notification
+        r = self.c.post('/api/editorial/ce/announcements/', {'title': 'Oops', 'body': 'Wrong text', 'target': 'authors'}, format='json')
+        self.assertEqual(Notification.objects.filter(title='📢 Oops').count(), 2)
+        r = self.c.delete(f'/api/editorial/ce/announcements/{r.data["id"]}/')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(Notification.objects.filter(title='📢 Oops').count(), 0)
+        self.assertEqual(self.c.get('/api/editorial/ce/announcements/').data['results'], [])
+
+    def test_transfer_then_deactivate(self):
+        r = self.c.post(f'/api/editorial/ce/editors/{self.se.pk}/active/', {'active': False}, format='json')
+        self.assertEqual(r.status_code, 400)                                 # still has authors
+        self.assertEqual(len(self.c.get(f'/api/editorial/ce/editors/{self.se.pk}/authors/').data['results']), 2)
+        r = self.c.post('/api/editorial/ce/transfer-authors/', {'from_se': self.se.pk, 'to_se': self.se2.pk,
+                                                                'author_ids': [self.author.pk]}, format='json')
+        self.assertEqual(r.data['moved'], 1)
+        self.assertEqual(AuthorEditorLink.objects.get(author=self.author).assigned_se, self.se2)
+        self.assertIn('You have a new editor', self.notes(self.author))
+        self.c.post('/api/editorial/ce/transfer-authors/', {'from_se': self.se.pk, 'to_se': self.se2.pk}, format='json')
+        r = self.c.post(f'/api/editorial/ce/editors/{self.se.pk}/active/', {'active': False}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.se.refresh_from_db()
+        self.assertFalse(self.se.is_active)
+        # SEs can't use these
+        self.c.force_authenticate(self.se2)
+        self.assertEqual(self.c.post('/api/editorial/ce/transfer-authors/', {}, format='json').status_code, 403)
+
+    def test_issue_counts_and_cancelling_an_se_contract(self):
+        from .models import ContentFlag
+        from apps.stories.models import ContentReport
+        ContentFlag.objects.create(chapter=self.ch, flagged_by=self.se, flag_type='plagiarism', description='x')
+        ContentReport.objects.create(story=self.story, reason='spam')
+        Story.objects.filter(pk=self.story2.pk).update(contract_status='awaiting_signature')
+        c = self.c.get('/api/editorial/ce/issue-counts/').data
+        self.assertEqual((c['flags'], c['reader_reports'], c['reports'], c['awaiting_sign']), (1, 1, 2, 1))
+        r = self.c.post('/api/editorial/ce-story-queue/second/reject/', {'action': 'send_back', 'reason': 'Weak'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(self.c.get('/api/editorial/ce/issue-counts/').data['awaiting_sign'], 0)
+        self.assertTrue(any('sent back' in t for t in self.notes(self.se)))   # the SE is told
+
+
+class CEPromotionCenterTests(TestCase):
+    """Promotions in the CE dashboard: timelines on every spot + book insights."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.td, self.now = timedelta, timezone.now
+        self.ce = User.objects.create_user(email='ce@x.com', username='chief', password='x', role='ce')
+        self.se = User.objects.create_user(email='se@x.com', username='kay', password='x', role='se')
+        self.author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        self.reader = User.objects.create_user(email='r@x.com', username='ada', password='x')
+        self.story = Story.objects.create(author=self.author, title='Spare Luna', slug='spare-luna', status='ongoing',
+                                          total_views=500, total_likes=40, total_comments=10)
+        for n in (1, 2, 3):
+            Chapter.objects.create(story=self.story, title=f'C{n}', chapter_number=n, is_published=True)
+        self.c = APIClient()
+        self.c.force_authenticate(self.ce)
+
+    def test_approving_a_request_pins_for_the_chosen_days_then_frees_the_spot(self):
+        from .models import ExploreTabPin, SEPromotionRequest
+        req = SEPromotionRequest.objects.create(se=self.se, story=self.story, tab='werewolf',
+                                                section='fresh-reads', message='Hot book')
+        r = self.c.post(f'/api/editorial/ce/promotion-requests/{req.pk}/review/', {'action': 'approved', 'days': 3}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        pin = ExploreTabPin.objects.get()
+        self.assertAlmostEqual((pin.expires_at - self.now()).total_seconds(), 3 * 86400, delta=60)
+        from apps.stories.views import ExploreTabView
+        self.assertEqual(ExploreTabView()._pinned_ids('werewolf', 'fresh-reads'), [self.story.pk])
+        ExploreTabPin.objects.update(expires_at=self.now() - self.td(minutes=1))
+        self.assertEqual(ExploreTabView()._pinned_ids('werewolf', 'fresh-reads'), [])      # spot freed
+        rows = self.c.get('/api/editorial/ce/promo-center/placements/?type=pins&state=ended').data['results']
+        self.assertEqual(rows[0]['state'], 'ended')
+
+    def test_ce_places_books_extends_and_ends(self):
+        r = self.c.post('/api/editorial/ce/promo-center/slots/', {'story_id': self.story.pk, 'category': 'trending', 'days': 7}, format='json')
+        self.assertEqual(r.status_code, 201, r.data)
+        rows = self.c.get('/api/editorial/ce/promo-center/placements/?type=slots').data['results']
+        self.assertEqual((rows[0]['spot_label'], rows[0]['state']), ('Trending Now', 'live'))
+        pid = rows[0]['id']
+        trending = APIClient().get('/api/stories/trending/')
+        self.assertIn('spare-luna', str(trending.data))
+        self.c.patch(f'/api/editorial/ce/promo-center/slots/{pid}/', {'end_now': True}, format='json')
+        self.assertEqual(self.c.get('/api/editorial/ce/promo-center/placements/?type=slots').data['results'], [])
+        self.c.patch(f'/api/editorial/ce/promo-center/slots/{pid}/', {'extend_days': 7}, format='json')
+        self.assertEqual(self.c.get('/api/editorial/ce/promo-center/placements/?type=slots').data['results'][0]['state'], 'live')
+
+    def test_banners_follow_their_dates(self):
+        r = self.c.post('/api/editorial/ce/promo-center/banners/', {'title': 'Werewolf week', 'slug': 'spare-luna',
+                         'starts_at': (self.now() + self.td(days=1)).isoformat(), 'days': 5}, format='multipart')
+        self.assertEqual(r.status_code, 201, r.data)
+        titles = lambda: [b['title'] for b in APIClient().get('/api/stories/banners/').data]
+        self.assertNotIn('Werewolf week', titles())                                   # not started yet
+        from apps.stories.models import PromoBanner
+        PromoBanner.objects.update(starts_at=self.now() - self.td(hours=1))
+        self.assertIn('Werewolf week', titles())
+
+    def test_book_insights(self):
+        from apps.coins.models import ReadingHistory
+        ReadingHistory.objects.create(user=self.reader, story=self.story, chapter_number=3)
+        ReadingHistory.objects.create(user=self.ce, story=self.story, chapter_number=1)
+        d = self.c.get('/api/editorial/ce/promo-center/insights/spare-luna/').data
+        self.assertEqual(d['reach']['readers'], 2)
+        self.assertEqual(d['reading']['completion_pct'], 50.0)
+        self.assertEqual([f['readers'] for f in d['reading']['funnel']], [2, 1])
+        self.assertTrue(0 <= d['score'] <= 100)
+        self.assertIn(d['verdict'], ('Strong', 'Good', 'Weak'))
+        self.c.force_authenticate(self.se)
+        self.assertEqual(self.c.get('/api/editorial/ce/promo-center/insights/spare-luna/').status_code, 403)
+
+
+class CEInsightsTests(TestCase):
+    """SE activity, revenue per SE, how readers unlock, contracts by type."""
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.td, self.now = timedelta, timezone.now
+        self.ce = User.objects.create_user(email='ce@x.com', username='chief', password='x', role='ce')
+        self.se = User.objects.create_user(email='se@x.com', username='kay', password='x', role='se')
+        self.author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        self.reader = User.objects.create_user(email='r@x.com', username='ada', password='x')
+        AuthorEditorLink.objects.create(author=self.author, assigned_se=self.se)
+        self.story = Story.objects.create(author=self.author, title='Luna', slug='luna', status='ongoing')
+        self.ch = [Chapter.objects.create(story=self.story, title=f'C{n}', chapter_number=n, is_published=True,
+                                          is_locked=n > 1, coin_cost=20) for n in (1, 2, 3, 4)]
+        self.c = APIClient()
+        self.c.force_authenticate(self.ce)
+
+    def test_unlock_records_bonus_vs_purchased_coins(self):
+        from apps.chapters.models import ChapterUnlock
+        User.objects.filter(pk=self.reader.pk).update(coin_balance=100, bonus_balance=0)
+        from apps.users.models import BonusGrant
+        self.reader.refresh_from_db()
+        BonusGrant.objects.create(user=self.reader, amount=10, remaining=10, expires_at=self.now() + self.td(days=5))
+        User.objects.filter(pk=self.reader.pk).update(bonus_balance=10)
+        r = APIClient()
+        r.force_authenticate(User.objects.get(pk=self.reader.pk))
+        self.assertEqual(r.post('/api/chapters/luna/chapters/2/unlock/').status_code, 200)
+        r.force_authenticate(User.objects.get(pk=self.reader.pk))
+        r.post('/api/chapters/luna/chapters/3/unlock/')
+        u2, u3 = ChapterUnlock.objects.order_by('chapter__chapter_number')
+        self.assertEqual((u2.coins_spent, u2.bonus_spent), (20, 10))      # 10 bonus + 10 purchased
+        self.assertEqual((u3.coins_spent, u3.bonus_spent), (20, 0))       # all purchased
+
+        d = self.c.get('/api/editorial/ce/insights/unlocks/').data
+        m = {x['key']: x['count'] for x in d['methods']}
+        self.assertEqual((m['mixed'], m['paid']), (1, 1))
+        self.assertEqual((d['coins']['paid'], d['coins']['bonus']), (30, 10))
+
+        rev = self.c.get('/api/editorial/ce/insights/se-revenue/').data
+        row = rev['by_se'][0]
+        self.assertEqual((row['se'], row['unlocks'], row['reader_coins']), ('kay', 2, 40))
+        self.assertEqual(row['top_authors'][0]['username'], 'amaka')
+        self.assertEqual(rev['top_authors'][0]['se'], 'kay')
+
+    def test_se_activity_time_and_actions(self):
+        from apps.analytics.models import PageVisit
+        base = self.now() - self.td(hours=3)
+        for minutes in (0, 5, 12, 20, 90):          # 0→20 = one 20-min session; 90 = a lone 1-min burst
+            v = PageVisit.objects.create(user=self.se, path='/api/editorial/x/')
+            PageVisit.objects.filter(pk=v.pk).update(created_at=base + self.td(minutes=minutes))
+        Chapter.objects.filter(pk=self.ch[1].pk).update(reviewed_by_se=self.se, reviewed_at=self.now())
+        d = self.c.get('/api/editorial/ce/insights/se-activity/?days=7').data['results'][0]
+        self.assertEqual(d['username'], 'kay')
+        self.assertEqual(d['active_minutes'], 21)
+        self.assertEqual(d['chapters_reviewed'], 1)
+        self.assertEqual(d['authors'], 1)
+        self.assertEqual(len(d['daily']), 7)
+
+    def test_contracts_by_type(self):
+        from .models import ContractApplication
+        ContractApplication.objects.create(story=self.story, author=self.author, assigned_se=self.se,
+                                           status='signed', contract_type='non_exclusive')
+        s2 = Story.objects.create(author=self.author, title='B', slug='b')
+        ContractApplication.objects.create(story=s2, author=self.author, status='contract_sent', contract_type='exclusive')
+        d = self.c.get('/api/editorial/ce/insights/contracts/').data
+        t = {x['key']: x for x in d['types']}
+        self.assertEqual((t['non_exclusive']['signed'], t['exclusive']['contract_sent'], t['buyout']['total']), (1, 1, 0))
+        self.assertEqual(d['signed_by_se'][0]['se'], 'kay')
+        self.c.force_authenticate(self.se)
+        self.assertEqual(self.c.get('/api/editorial/ce/insights/contracts/').status_code, 403)
+
+
+class CEContactAndHomeTests(TestCase):
+    def setUp(self):
+        from unittest import mock
+        from apps.users.models import AuthorKYC
+        self.ce = User.objects.create_user(email='ce@x.com', username='chief', password='x', role='ce')
+        self.author = User.objects.create_user(email='amaka@x.com', username='amaka', password='x', role='author',
+                                               first_name='Amaka')
+        self.kyc_phone = '08031234567'
+        try:
+            AuthorKYC.objects.create(user=self.author, full_name='Amaka Obi', phone=self.kyc_phone,
+                                     contact_address='x', country='Nigeria')
+        except Exception:
+            self.kyc_phone = ''
+        Story.objects.create(author=self.author, title='Moonlit Vows', slug='moonlit', status='ongoing')
+        self.c = APIClient()
+        self.c.force_authenticate(self.ce)
+        p = mock.patch('apps.notifications.services.notify_user')
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_directory_search_and_contact(self):
+        from apps.notifications.models import Notification
+        d = self.c.get('/api/editorial/ce/author-directory/?q=moonlit').data
+        self.assertEqual(d['total'], 1)
+        row = d['results'][0]
+        self.assertEqual((row['email'], row['books']), ('amaka@x.com', 1))
+        self.assertEqual(row['phone'], self.kyc_phone)
+        url = f'/api/editorial/ce/authors/{self.author.pk}/contact/'
+        self.assertEqual(self.c.post(url, {'channel': 'in_app', 'message': ''}, format='json').status_code, 400)
+        r = self.c.post(url, {'channel': 'in_app', 'subject': 'Plagiarism', 'message': 'Please call me.'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        n = Notification.objects.get(recipient=self.author)
+        self.assertIn('Chief Editor', n.title)
+        self.c.post(url, {'channel': 'whatsapp'}, format='json')
+        hist = self.c.get(url).data['results']
+        self.assertEqual([h['channel'] for h in hist], ['WhatsApp', 'In-app message'])
+
+    def test_home_summary(self):
+        d = self.c.get('/api/editorial/ce/home-summary/').data
+        self.assertEqual(d['live_books'], 1)
+        self.assertIn('revenue_month_usd', d)
+        se = User.objects.create_user(email='s@x.com', username='s', password='x', role='se')
+        self.c.force_authenticate(se)
+        self.assertEqual(self.c.get('/api/editorial/ce/home-summary/').status_code, 403)

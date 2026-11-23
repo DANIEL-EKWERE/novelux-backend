@@ -980,6 +980,8 @@ class User(AbstractUser):
             CoinTransaction.objects.create(
                 user=self, amount=amount, transaction_type='debit', reason=reason
             )
+            # How much of this came from bonus coins (read by chapter unlocks)
+            self.last_bonus_spent = amount - remaining
         return True
 
     def deduct_paid_coins(self, amount: int, reason: str = '') -> bool:

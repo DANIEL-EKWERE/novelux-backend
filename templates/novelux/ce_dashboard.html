@@ -191,18 +191,19 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     <button class="nbtn active" onclick="gp('dashboard',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>Dashboard</button>
     <span class="nlbl">Decisions</span>
     <button class="nbtn" id="nb-esc" onclick="gp('escalations',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Story Queue {% if pending_stories_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ pending_stories_count }}</span>{% endif %}</button>
-    <button class="nbtn" onclick="gp('policies',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/><line x1="15" x2="15" y1="9" y2="21"/></svg>Policy Board {% if pending_policies_count %}<span class="bdg byw" style="margin-left:auto;font-size:10px;">{{ pending_policies_count }}</span>{% endif %}</button>
+    <button class="nbtn" id="nb-policies" onclick="gp('policies',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="3" x2="21" y1="15" y2="15"/><line x1="9" x2="9" y1="9" y2="21"/><line x1="15" x2="15" y1="9" y2="21"/></svg>Policy Board {% if pending_policies_count %}<span class="bdg byw" style="margin-left:auto;font-size:10px;">{{ pending_policies_count }}</span>{% endif %}</button>
     <button class="nbtn" onclick="gp('audit',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>SE Audit Log</button>
     <span class="nlbl">Organisation</span>
-    <button class="nbtn" onclick="gp('team',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Editorial Team</button>
-    <button class="nbtn" onclick="gp('authors',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Authors</button>
-    <button class="nbtn" onclick="gp('kyc',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/><circle cx="17" cy="17" r="3"/><path d="m19.5 19.5 1.5 1.5"/></svg>KYC Review {% if kyc_pending_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ kyc_pending_count }}</span>{% endif %}</button>
+    <button class="nbtn" id="nb-team" onclick="gp('team',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Editorial Team</button>
+    <button class="nbtn" id="nb-authors" onclick="gp('authors',this);ceDir(1);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>Authors</button>
+    <button class="nbtn" id="nb-kyc" onclick="gp('kyc',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M8 10h8"/><path d="M8 14h5"/><circle cx="17" cy="17" r="3"/><path d="m19.5 19.5 1.5 1.5"/></svg>KYC Review {% if kyc_pending_count %}<span class="bdg brd" style="margin-left:auto;font-size:10px;">{{ kyc_pending_count }}</span>{% endif %}</button>
     <button class="nbtn" onclick="gp('guidelines',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>Role Guidelines</button>
     <button class="nbtn" onclick="gp('invites',this)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.6a16 16 0 0 0 6 6l.96-.96a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>Invites</button>
     <button class="nbtn" id="nb-moderation" onclick="gp('moderation',this);loadModeration();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Moderation</button>
     <span class="nlbl">Content</span>
     <button class="nbtn" id="nb-books" onclick="gp('books',this);loadBooks(1,'','');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Books Browser</button>
     <button class="nbtn" id="nb-contracts" onclick="gp('contracts',this);loadContracts('');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>Contracts</button>
+    <button class="nbtn" id="nb-promo" onclick="gp('promo',this);pcInit();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>Promotions</button>
     <button class="nbtn" id="nb-ctemplates" onclick="gp('ctemplates',this);loadTemplates();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" x2="16" y1="13" y2="13"/><line x1="8" x2="13" y1="17" y2="17"/></svg>Contract Templates</button>
     <button class="nbtn" id="nb-reports" onclick="gp('reports',this);loadReports('flags');"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>Reports &amp; Flags</button>
     <button class="nbtn" id="nb-announcements" onclick="gp('announcements',this);loadAnnouncements();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>Announcements</button>
@@ -212,6 +213,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     <button class="nbtn" id="nb-revenue" onclick="gp('revenue',this);loadRevenue();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="1" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>Revenue &amp; Payouts</button>
     <span class="nlbl">Performance</span>
     <button class="nbtn" id="nb-se-perf" onclick="gp('se-perf',this);loadSEPerf();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>SE Performance</button>
+    <button class="nbtn" id="nb-insights" onclick="gp('insights',this);inLoad();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Team &amp; Money Insights</button>
     <button class="nbtn" id="nb-analytics" onclick="gp('analytics',this);loadAnalytics();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Platform Analytics</button>
     <a class="nbtn" href="/social/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Social posting ↗</a>
     <a class="nbtn" href="/promotions/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6"/><path d="M12 17h.01"/></svg>App promotions ↗</a>
@@ -250,6 +252,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
         <div class="notif-list" id="notifList"><div class="notif-empty">Loading…</div></div>
         <div class="notif-footer" onclick="closeNotifPanel()">Close</div>
       </div>
+      <button class="themb" title="Dashboard colour" onclick="ceThemeMenu(event)" style="margin-right:4px;"><span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--role);"></span></button>
       <button class="themb" id="thb">
         <svg class="isun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         <svg class="imoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -279,6 +282,8 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
       <div class="sc"><div class="sl">Awaiting Signature</div><div class="sv">{{ awaiting_sign_count|default:"0" }}</div><div class="ss">Author yet to sign</div></div>
       <div class="sc"><div class="sl">Policy Updates</div><div class="sv">{{ pending_policies_count|default:"0" }}</div><div class="ss">Pending approval</div></div>
     </div>
+
+    <div id="ce-home-live"><p style="padding:12px 0;color:var(--muted-fg);font-size:13px;">Loading your overview…</p></div>
 
     <div class="two-col">
       <div style="display:flex;flex-direction:column;gap:20px;">
@@ -510,11 +515,12 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
 
     {% if awaiting_sign_stories %}
     <div style="margin-top:28px;">
-      <h2 style="font-size:14px;font-weight:600;margin-bottom:14px;">Awaiting Author Signature</h2>
+      <h2 style="font-size:14px;font-weight:600;margin-bottom:4px;">Contracts sent — awaiting author signature</h2>
+      <p style="font-size:12px;color:var(--muted-fg);margin-bottom:14px;">Includes contracts senior editors sent from their own dashboards. You can cancel any of them.</p>
       <div class="card">
         <div style="overflow-x:auto;">
           <table class="tbl">
-            <thead><tr><th>Story</th><th>Author</th><th>Chapters</th><th>CE Signed</th><th>Action</th></tr></thead>
+            <thead><tr><th>Story</th><th>Author</th><th>Chapters</th><th>Sent by</th><th>Contract</th><th>Action</th></tr></thead>
             <tbody>
             {% for s in awaiting_sign_stories %}
               <tr id="ce-await-{{ s.slug }}">
@@ -522,21 +528,23 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
                 <td style="color:var(--muted-fg);">{{ s.author.get_full_name|default:s.author.username }}<span style="display:block;font-size:11px;color:var(--muted-fg);">{{ s.author.email }}</span></td>
                 <td style="color:var(--muted-fg);">{{ s.chapters.count }}</td>
                 <td>
-                  {% if s.contract_app and s.contract_app.ce_signed_at %}
-                    <span class="bdg bgr" style="font-size:10px;">Signed {{ s.contract_app.ce_signed_at|timesince }} ago</span>
+                  {% if s.contract_app and s.contract_app.ce_signed_by %}
+                    <span style="font-weight:500;">{{ s.contract_app.ce_signed_by.username }}</span>
+                    <span class="bdg {% if s.contract_app.ce_signed_by.role == 'se' %}bpu{% else %}bbl{% endif %}" style="font-size:9px;">{{ s.contract_app.ce_signed_by.role|upper }}</span>
+                    {% if s.contract_app.ce_signed_at %}<span style="display:block;font-size:11px;color:var(--muted-fg);">{{ s.contract_app.ce_signed_at|timesince }} ago</span>{% endif %}
                   {% else %}
                     <span class="bdg byw" style="font-size:10px;">Pending CE sign</span>
                   {% endif %}
                 </td>
-                <td>
+                <td style="font-size:12px;">{% if s.contract_app %}{{ s.contract_app.get_contract_type_display|default:s.contract_app.contract_type }}{% else %}—{% endif %}</td>
+                <td><div style="display:flex;gap:4px;flex-wrap:wrap;">
                   {% if not s.contract_app or not s.contract_app.ce_signed_at %}
-                  <button class="btn brl bsm" onclick="ceEditorialSign('{{ s.slug }}','{{ s.title|escapejs }}')">
-                    Sign Contract
-                  </button>
+                  <button class="btn brl bsm" onclick="ceEditorialSign('{{ s.slug }}','{{ s.title|escapejs }}')">Sign Contract</button>
                   {% else %}
                   <span style="font-size:12px;color:var(--muted-fg);">Waiting for author</span>
                   {% endif %}
-                </td>
+                  <button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="ceCancelContract('{{ s.slug }}','{{ s.title|escapejs }}')">Cancel contract</button>
+                </div></td>
               </tr>
             {% endfor %}
             </tbody>
@@ -679,7 +687,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
       <div class="ch"><h2>Full Directory</h2></div>
       <div style="overflow-x:auto;">
         <table class="tbl">
-          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Queue / Decisions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Authors</th><th></th></tr></thead>
           <tbody>
           {% for e in all_editors %}
             <tr>
@@ -687,12 +695,50 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
               <td><span class="bdg {% if e.role == 'se' %}bpu{% else %}bbl{% endif %}" style="font-size:10px;">{{ e.role|upper }}</span></td>
               <td style="color:var(--muted-fg);font-size:12px;">{{ e.email }}</td>
               <td style="color:var(--muted-fg);">{{ e.sourced_authors.count|default:"0" }} author{{ e.sourced_authors.count|pluralize }}</td>
+              <td><div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button class="btn bsm" style="font-size:11px;" onclick="openTransfer({{ e.id }},'{{ e.username|escapejs }}')">Transfer authors</button>
+                <button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="setEditorActive({{ e.id }},'{{ e.username|escapejs }}',false)">Deactivate</button>
+              </div></td>
             </tr>
           {% empty %}
-          <tr><td colspan="4" style="text-align:center;color:var(--muted-fg);padding:24px;">No editors yet.</td></tr>
+          <tr><td colspan="5" style="text-align:center;color:var(--muted-fg);padding:24px;">No editors yet.</td></tr>
           {% endfor %}
           </tbody>
         </table>
+      </div>
+    </div>
+    {% if inactive_editors %}
+    <div class="card" style="margin-top:20px;">
+      <div class="ch"><h2>Deactivated editors</h2></div>
+      <div style="overflow-x:auto;"><table class="tbl"><tbody>
+        {% for e in inactive_editors %}
+        <tr><td class="ttl">{{ e.get_full_name|default:e.username }}</td><td style="color:var(--muted-fg);font-size:12px;">{{ e.email }}</td>
+          <td><button class="btn bsm" style="font-size:11px;" onclick="setEditorActive({{ e.id }},'{{ e.username|escapejs }}',true)">Re-activate</button></td></tr>
+        {% endfor %}
+      </tbody></table></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Transfer authors -->
+  <div id="transfer-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:min(560px,100%);max-height:88vh;overflow-y:auto;background:var(--bg);">
+      <div class="ch"><h2>Transfer authors from <span id="tr-from-name"></span></h2></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:12px;">
+        <label style="font-size:12px;color:var(--muted-fg);">Move to
+          <select id="tr-to" class="form-sel" style="margin-top:6px;">
+            {% for e in all_editors %}<option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>{% endfor %}
+          </select></label>
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;">
+          <label><input type="checkbox" id="tr-all" checked onchange="document.querySelectorAll('.tr-a').forEach(c=>c.checked=this.checked)"> All authors</label>
+          <span id="tr-count" style="color:var(--muted-fg);"></span>
+        </div>
+        <div id="tr-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;">Loading…</div>
+        <input id="tr-reason" class="form-in" placeholder="Reason (optional)"/>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn bol bsm" onclick="document.getElementById('transfer-modal').style.display='none'">Cancel</button>
+          <button class="btn brl bsm" onclick="doTransfer()">Transfer</button>
+        </div>
       </div>
     </div>
   </div>
@@ -736,27 +782,15 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     </div>
     {% endif %}
 
-    {% if author_overview %}
     <div class="card">
-      <div class="ch"><h2>All Authors</h2></div>
-      <div style="overflow-x:auto;">
-        <table class="tbl">
-          <thead><tr><th>Author</th><th>Email</th><th>Assigned SE</th></tr></thead>
-          <tbody>
-          {% for a in author_overview %}
-            <tr>
-              <td class="ttl">{{ a.get_full_name|default:a.username }}</td>
-              <td style="color:var(--muted-fg);font-size:12px;">{{ a.email }}</td>
-              <td style="color:var(--muted-fg)">{% if a.editor_link and a.editor_link.assigned_se %}{{ a.editor_link.assigned_se.get_full_name|default:a.editor_link.assigned_se.username }}{% else %}<span class="bdg byw">Unassigned</span>{% endif %}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      <div class="ch"><h2>All Authors</h2><input id="ce-dir-q" class="form-in" placeholder="Search name, email or book…" oninput="ceDirSearch()" style="width:min(280px,100%);margin-left:auto;"></div>
+      <div id="ce-dir" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div>
     </div>
-    {% else %}
-    <div class="empty"><h3>No authors yet</h3></div>
-    {% endif %}
+  </div>
+
+  <!-- Contact an author -->
+  <div id="ce-contact" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:220;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:min(560px,100%);max-height:90vh;overflow-y:auto;background:var(--bg);"></div>
   </div>
 
   <!-- KYC REVIEW -->
@@ -1109,6 +1143,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     <div class="hero"><div><h1>Reports &amp; Flags</h1><p>Content flags, author warnings, messages and SE promotion requests.</p></div></div>
     <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
       <button class="btn bol bsm reports-tab" style="background:var(--muted);" onclick="switchReportsTab('flags',this)">Content Flags</button>
+      <button class="btn bol bsm reports-tab" onclick="switchReportsTab('readerreports',this)">Reader Reports <span class="bdg brd" id="rr-count" style="display:none;font-size:10px;margin-left:4px;"></span></button>
       <button class="btn bol bsm reports-tab" onclick="switchReportsTab('warnings',this)">Warnings</button>
       <button class="btn bol bsm reports-tab" onclick="switchReportsTab('messages',this)">Author Messages</button>
       <button class="btn bol bsm reports-tab" onclick="switchReportsTab('promotions',this)">Promotion Requests</button>
@@ -1121,6 +1156,16 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
           </select>
         </div>
         <div id="flags-body" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div>
+      </div>
+    </div>
+    <div id="reports-readerreports" class="reports-panel" style="display:none;">
+      <div class="card">
+        <div class="ch"><h2>Reader Reports</h2>
+          <select id="rr-filter" class="form-sel" style="width:auto;font-size:12px;" onchange="loadReaderReports()">
+            <option value="pending">Open</option><option value="reviewed">Closed</option><option value="all">All</option>
+          </select>
+        </div>
+        <div id="rr-body" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div>
       </div>
     </div>
     <div id="reports-warnings" class="reports-panel" style="display:none;">
@@ -1164,6 +1209,50 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     </div>
   </div>
 
+
+  <!-- INSIGHTS -->
+  <div class="page" id="page-insights">
+    <div class="hero"><div class="hrow"><div><h1>Team &amp; Money Insights</h1><p>How active your senior editors are, what their authors earn, how readers unlock chapters, and contracts by type.</p></div>
+      <select id="in-days" class="form-sel" style="width:auto;" onchange="inLoad()"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></div></div>
+    <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
+      <button class="btn bol bsm in-tab" data-t="activity" style="background:var(--muted);">SE activity</button>
+      <button class="btn bol bsm in-tab" data-t="revenue">Revenue by SE &amp; top authors</button>
+      <button class="btn bol bsm in-tab" data-t="unlocks">How readers unlock chapters</button>
+      <button class="btn bol bsm in-tab" data-t="contracts">Contracts by type</button>
+    </div>
+    <div id="in-body"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div>
+  </div>
+
+  <!-- PROMOTIONS -->
+  <div class="page" id="page-promo">
+    <div class="hero"><div><h1>Promotions</h1><p>Every promotional spot in the app. Each book holds a spot for a set time, then the spot frees up for the next book.</p></div></div>
+    <div id="pc-tabs" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:18px;"></div>
+    <div class="card" id="pc-add" style="margin-bottom:18px;display:none;">
+      <div class="ch"><h2 id="pc-add-title">Add</h2></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:10px;">
+        <div id="pc-book-chosen"></div>
+        <div id="pc-book-pick"><input id="pc-q" class="form-in" placeholder="Search a book or author…" oninput="pcSearch()"/><div id="pc-res" style="max-height:220px;overflow-y:auto;"></div></div>
+        <div id="pc-add-fields" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="btn bol bsm" onclick="pcAddHide()">Cancel</button><button class="btn brl bsm" onclick="pcAddSave()">Add</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ch"><h2 id="pc-list-title">Promotions</h2>
+        <div style="display:flex;gap:6px;align-items:center;margin-left:auto;">
+          <select id="pc-state" class="form-sel" style="width:auto;font-size:12px;" onchange="pcLoad()">
+            <option value="current">Live &amp; upcoming</option><option value="live">Live</option><option value="upcoming">Upcoming / queued</option><option value="ended">Ended (30 days)</option><option value="all">All</option>
+          </select>
+          <button class="btn brl bsm" id="pc-add-btn" onclick="pcAddShow()">+ Add</button>
+        </div>
+      </div>
+      <div id="pc-body" style="overflow-x:auto;"><p style="padding:20px;color:var(--muted-fg);">Loading…</p></div>
+    </div>
+  </div>
+
+  <!-- Book insights -->
+  <div id="pc-ins" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:210;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.style.display='none'">
+    <div class="card" style="width:min(720px,100%);max-height:90vh;overflow-y:auto;background:var(--bg);" id="pc-ins-body"></div>
+  </div>
   <!-- ANNOUNCEMENTS -->
   <div class="page" id="page-announcements">
     <div class="hero"><div><h1>Announcements</h1><p>Broadcast platform-wide messages to authors, SEs, or everyone.</p></div></div>
@@ -1670,14 +1759,22 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
 <div class="toast"  id="toast"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span id="tmsg"></span></div>
 <script>
 const NUX={token:document.querySelector('meta[name="nux-token"]')?.content||'',apiBase:document.querySelector('meta[name="nux-api"]')?.content||'/api',
-async call(p,o={}){const r=await fetch(this.apiBase+p,{headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.token,...(o.headers||{})},...o});if(!r.ok)throw new Error(p+'→'+r.status);return r.json();},
+async call(p,o={},retry=true){const h={'Authorization':'Bearer '+this.token,...(o.headers||{})};if(!(o.body instanceof FormData))h['Content-Type']=h['Content-Type']||'application/json';else delete h['Content-Type'];
+  const r=await fetch(this.apiBase+p,{...o,headers:h});
+  // Access tokens last an hour: fetch a fresh one and try once more
+  if(r.status===401&&retry){const t=await fetch('/master/token/',{credentials:'same-origin'});if(t.ok){this.token=(await t.json()).access;return this.call(p,o,false);}}
+  if(r.status===204)return {};
+  if(!r.ok){const d=await r.json().catch(()=>({}));const e=new Error(d.detail||(p+'→'+r.status));e.detail=d.detail;e.status=r.status;throw e;}
+  return r.json();},
 post(p,b){return this.call(p,{method:'POST',body:JSON.stringify(b)});},
+patch(p,b){return this.call(p,{method:'PATCH',body:JSON.stringify(b)});},
+del(p){return this.call(p,{method:'DELETE'});},
 get(p){return this.call(p);},
 };
 document.getElementById('thb').onclick=()=>{const d=document.documentElement.classList.toggle('dark');document.documentElement.classList.toggle('light',!d);localStorage.setItem('nux_theme',d?'dark':'light');};
 function openSb(){document.getElementById('sb').classList.add('open');document.getElementById('ovl').classList.add('show');}
 function closeSb(){document.getElementById('sb').classList.remove('open');document.getElementById('ovl').classList.remove('show');}
-const ptitles={dashboard:'Dashboard',escalations:'Story Queue',policies:'Policy Board',audit:'SE Audit Log',team:'Editorial Team',invites:'Invites',authors:'Authors',kyc:'KYC Review',guidelines:'Role Guidelines',profile:'Profile',moderation:'User Moderation','se-perf':'SE Performance',books:'Books Browser',contracts:'Contracts',ctemplates:'Contract Templates',reports:'Reports & Flags',announcements:'Announcements',revenue:'Revenue & Payouts',analytics:'Platform Analytics',blog:'Articles','blog-edit':'Article Editor','blog-read':'Article'};
+const ptitles={dashboard:'Dashboard',escalations:'Story Queue',policies:'Policy Board',audit:'SE Audit Log',team:'Editorial Team',invites:'Invites',authors:'Authors',kyc:'KYC Review',guidelines:'Role Guidelines',profile:'Profile',moderation:'User Moderation','se-perf':'SE Performance',books:'Books Browser',contracts:'Contracts',ctemplates:'Contract Templates',reports:'Reports & Flags',promo:'Promotions',insights:'Team & Money Insights',announcements:'Announcements',revenue:'Revenue & Payouts',analytics:'Platform Analytics',blog:'Articles','blog-edit':'Article Editor','blog-read':'Article'};
 var gp = function(id, btn) {document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+id).classList.add('active');document.querySelectorAll('.nbtn').forEach(b=>b.classList.remove('active'));if(btn)btn.classList.add('active');document.getElementById('ptitle').textContent=ptitles[id]||id;closeSb();}
 let _tt;
 function toast(m){clearTimeout(_tt);document.getElementById('tmsg').textContent=m;document.getElementById('toast').classList.add('show');_tt=setTimeout(()=>document.getElementById('toast').classList.remove('show'),2800);}
@@ -2632,6 +2729,7 @@ function switchReportsTab(tab, btn) {
   document.querySelectorAll('.reports-panel').forEach(p => p.style.display = 'none');
   document.getElementById('reports-' + tab).style.display = '';
   if (tab === 'flags')     loadFlags();
+  else if (tab === 'readerreports') loadReaderReports();
   else if (tab === 'warnings')   loadWarnings();
   else if (tab === 'messages')   loadMessages();
   else if (tab === 'promotions') loadPromotions();
@@ -2654,29 +2752,70 @@ async function loadFlags() {
     const d = await NUX.get('/editorial/ce/flags/?resolved=' + resolved);
     if (!d.results.length) { body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">No flags found.</p>'; return; }
     body.innerHTML = `<table class="tbl">
-      <thead><tr><th>Story</th><th>Chapter</th><th>Type</th><th>Flagged By</th><th>Date</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Story</th><th>Author</th><th>Chapter</th><th>Type</th><th>Flagged By</th><th>Date</th><th>Status</th><th></th></tr></thead>
       <tbody>${d.results.map(f => `<tr id="flag-row-${f.id}">
         <td class="ttl">${f.story_title}</td>
+        <td style="font-weight:500;">${f.author}</td>
         <td style="color:var(--muted-fg);">Ch.${f.chapter_num||'—'}</td>
         <td><span class="bdg ${f.flag_type==='plagiarism'?'brd':f.flag_type==='ai_content'?'bpu':'byw'}" style="font-size:10px;">${f.flag_type.replace('_',' ')}</span></td>
         <td style="color:var(--muted-fg);font-size:12px;">${f.flagged_by}</td>
         <td style="color:var(--muted-fg);font-size:12px;">${new Date(f.created_at).toLocaleDateString()}</td>
         <td>${f.resolved ? '<span class="bdg bgr">Resolved</span>' : '<span class="bdg byw">Open</span>'}</td>
         <td>${!f.resolved
-          ? `<button class="btn bsm" style="font-size:11px;" onclick="ceResolveFlag(${f.id})">Resolve</button>`
-          : `<span style="font-size:11px;color:var(--muted-fg);">${f.resolved_by||''}</span>`}</td>
+          ? modButtons(`ceResolveFlag(${f.id},'ACT')`, f.story_slug)
+          : `<span style="font-size:11px;color:var(--muted-fg);">${f.resolution_note ? f.resolution_note + ' · ' : ''}${f.resolved_by||''}</span>`}</td>
       </tr>`).join('')}</tbody>
     </table>`;
   } catch(e) { body.innerHTML = '<p style="padding:20px;color:hsl(0 68% 44%);">Failed to load flags.</p>'; }
 }
 
-async function ceResolveFlag(id) {
-  const note = prompt('Resolution note (optional):') ?? '';
+// Resolve / take the book down / ban the author — for flags and reader reports
+function modButtons(call, hasBook) {
+  const b = (act, label, style) => `<button class="btn bsm" style="font-size:11px;${style}" onclick="${call.replace('ACT', act)}">${label}</button>`;
+  return `<div style="display:flex;gap:4px;flex-wrap:wrap;">${b('resolve', 'Resolve', '')}${hasBook ? b('take_down', 'Take down book', 'color:hsl(38 92% 38%);') + b('ban', 'Ban author', 'background:hsl(0 68% 50%/.1);color:hsl(0 68% 44%);border:1px solid hsl(0 68% 50%/.25);') : ''}</div>`;
+}
+function modPrompt(action) {
+  if (action === 'resolve') return prompt('Resolution note (optional):');
+  const what = action === 'ban'
+    ? 'BAN this author? Their account is blocked and ALL their books disappear from the app at once.'
+    : 'Take this book down? It disappears from the app (you can restore it from Books Browser).';
+  if (!confirm(what + ' The author is notified.')) return null;
+  return prompt('Reason (shown to the author):') ?? '';
+}
+async function ceResolveFlag(id, action = 'resolve') {
+  const note = modPrompt(action); if (note === null) return;
   try {
-    await NUX.post('/editorial/ce/flags/' + id + '/resolve/', { note });
-    toast('Flag resolved.');
-    loadFlags();
-  } catch(e) { toast('Failed to resolve flag.'); }
+    const r = await NUX.post('/editorial/ce/flags/' + id + '/resolve/', { note, action });
+    toast(r.detail || 'Done.');
+    loadFlags(); refreshIssueCounts();
+  } catch(e) { toast(e.detail || 'Failed.'); }
+}
+async function loadReaderReports() {
+  const body = document.getElementById('rr-body'); if (!body) return;
+  body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">Loading…</p>';
+  try {
+    const d = await NUX.get('/editorial/ce/reader-reports/?status=' + (document.getElementById('rr-filter')?.value || 'pending'));
+    if (!d.results.length) { body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">No reports.</p>'; return; }
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    body.innerHTML = `<table class="tbl"><thead><tr><th>Story</th><th>Author</th><th>Reason</th><th>Details</th><th>Reported by</th><th>Date</th><th></th></tr></thead>
+      <tbody>${d.results.map(r => `<tr>
+        <td class="ttl">${esc(r.story_title)}${r.chapter_num ? ` <span style="color:var(--muted-fg);font-weight:400;">· Ch.${r.chapter_num}</span>` : ''}
+          ${r.story_status === 'rejected' ? '<span class="bdg brd" style="font-size:10px;">Taken down</span>' : ''}</td>
+        <td style="font-weight:500;">${esc(r.author)} ${r.author_banned ? '<span class="bdg brd" style="font-size:10px;">Banned</span>' : ''}</td>
+        <td><span class="bdg byw" style="font-size:10px;">${esc(r.reason)}</span></td>
+        <td style="color:var(--muted-fg);font-size:12px;max-width:240px;">${esc(r.details) || '—'}</td>
+        <td style="color:var(--muted-fg);font-size:12px;">${esc(r.reporter)}</td>
+        <td style="color:var(--muted-fg);font-size:12px;">${new Date(r.created_at).toLocaleDateString()}</td>
+        <td>${r.status === 'pending' ? modButtons(`ceReaderReport(${r.id},'ACT')`, true) : '<span class="bdg bgr">Closed</span>'}</td>
+      </tr>`).join('')}</tbody></table>`;
+  } catch(e) { body.innerHTML = '<p style="padding:20px;color:hsl(0 68% 44%);">Failed to load reports.</p>'; }
+}
+async function ceReaderReport(id, action) {
+  const note = modPrompt(action); if (note === null) return;
+  try {
+    const r = await NUX.post('/editorial/ce/reader-reports/' + id + '/action/', { note, action });
+    toast(r.detail || 'Done.'); loadReaderReports(); refreshIssueCounts();
+  } catch(e) { toast(e.detail || 'Failed.'); }
 }
 
 async function loadWarnings() {
@@ -2822,16 +2961,590 @@ async function loadAnnouncements() {
     if (!d.results.length) { body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">No announcements yet.</p>'; return; }
     const fmt = iso => iso ? new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}) : '—';
     body.innerHTML = `<table class="tbl">
-      <thead><tr><th>Title</th><th>Target</th><th>Sent By</th><th>Status</th><th>Date</th></tr></thead>
+      <thead><tr><th>Title</th><th>Target</th><th>Sent By</th><th>Status</th><th>Date</th><th></th></tr></thead>
       <tbody>${d.results.map(a => `<tr>
         <td class="ttl">${a.title}</td>
         <td><span class="bdg bbl" style="font-size:10px;">${a.target}</span></td>
         <td style="color:var(--muted-fg);font-size:12px;">${a.sent_by}</td>
         <td>${a.is_sent ? '<span class="bdg bgr">Sent</span>' : '<span class="bdg byw">Draft</span>'}</td>
         <td style="color:var(--muted-fg);font-size:12px;">${fmt(a.created_at)}</td>
+        <td><button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="deleteAnnouncement(${a.id})">Delete</button></td>
       </tr>`).join('')}</tbody>
     </table>`;
   } catch(e) { body.innerHTML = '<p style="padding:20px;color:hsl(0 68% 44%);">Failed to load announcements.</p>'; }
+}
+
+
+// ── Promotions centre ─────────────────────────────────────────────────────────
+const PC_SECTIONS = [['featured','Featured For You'],['best-novel','Best Novel'],['trending','Trending Now'],['short-stories','Short Stories'],['ranking','Ranking'],['editors-pick',"Editor's Pick"],['werewolf','Werewolf'],['billionaire','Billionaire'],['short-fics','Short Fics'],['for-her','For Her'],['for-him','For Him'],['suspense','Suspense']];
+const PC_TABS = [
+  ['requests', 'SE requests', 'requests'], ['slots', 'Home sections', 'slots'], ['pins', 'Explore tabs', 'pins'],
+  ['banners', 'Home banners', 'banners'], ['library', 'Library carousel', 'library'], ['popups', 'Pop-ups & full screen', 'popups']];
+let pcTab = 'requests', pcBook = null, pcExplore = null, pcCounts = {};
+const pcE = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pcD = iso => iso ? new Date(iso).toLocaleDateString('en-GB', {day:'numeric', month:'short'}) : '—';
+function pcLeft(iso) {
+  if (!iso) return 'no end date';
+  const d = (new Date(iso) - new Date()) / 864e5;
+  return d <= 0 ? 'ended' : d < 1 ? 'ends today' : `${Math.ceil(d)} day${Math.ceil(d) === 1 ? '' : 's'} left`;
+}
+function pcBar(starts, ends) {
+  if (!starts || !ends) return '';
+  const a = new Date(starts), b = new Date(ends), now = new Date();
+  const pct = Math.max(0, Math.min(100, (now - a) / (b - a) * 100));
+  return `<div style="height:4px;background:var(--muted);border-radius:2px;margin-top:4px;width:140px;"><div style="height:4px;width:${pct}%;background:var(--role);border-radius:2px;"></div></div>`;
+}
+const PC_STATE = {live:['bgr','Live'], upcoming:['bbl','Upcoming'], queued:['byw','Queued'], ended:['', 'Ended']};
+async function pcInit() {
+  try { pcCounts = await NUX.get('/editorial/ce/promo-center/overview/'); } catch (e) {}
+  const n = {requests: pcCounts.requests, slots: pcCounts.slots, pins: pcCounts.pins, banners: pcCounts.banners, library: pcCounts.library, popups: pcCounts.popups};
+  document.getElementById('pc-tabs').innerHTML = PC_TABS.map(([k, label]) => `<div class="card" style="padding:12px 14px;cursor:pointer;${k === pcTab ? 'border-color:var(--role);background:color-mix(in srgb,var(--role) 7%,var(--card));' : ''}" onclick="pcGo('${k}')">
+      <div style="font-size:12px;color:var(--muted-fg);">${label}</div>
+      <div style="font-size:22px;font-weight:700;">${n[k] ?? '—'}${k === 'requests' && n[k] ? ' <span class="bdg brd" style="font-size:10px;vertical-align:middle;">to review</span>' : ''}</div>
+      ${k === 'slots' && pcCounts.ending_soon ? `<div style="font-size:11px;color:hsl(38 92% 38%);">${pcCounts.ending_soon} ending in 2 days</div>` : k === 'slots' && pcCounts.queued ? `<div style="font-size:11px;color:var(--muted-fg);">${pcCounts.queued} queued</div>` : ''}
+    </div>`).join('');
+  pcLoad();
+}
+function pcGo(k) { pcTab = k; pcAddHide(); pcInit(); }
+async function pcLoad() {
+  const body = document.getElementById('pc-body');
+  const label = PC_TABS.find(t => t[0] === pcTab)[1];
+  document.getElementById('pc-list-title').textContent = label;
+  document.getElementById('pc-add-btn').style.display = ['requests', 'popups'].includes(pcTab) ? 'none' : '';
+  document.getElementById('pc-state').style.display = ['requests', 'popups', 'library'].includes(pcTab) ? 'none' : '';
+  body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">Loading…</p>';
+  try {
+    if (pcTab === 'requests') return pcRequests(body);
+    if (pcTab === 'popups') return pcPopups(body);
+    const d = await NUX.get(`/editorial/ce/promo-center/placements/?type=${pcTab}&state=${document.getElementById('pc-state').value}`);
+    if (!d.results.length) { body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">Nothing here yet.</p>'; return; }
+    body.innerHTML = `<table class="tbl"><thead><tr><th>Book</th><th>Spot</th><th>Timeline</th><th>Status</th><th>By</th><th></th></tr></thead><tbody>${d.results.map(r => {
+      const b = r.book, [cls, st] = PC_STATE[r.state] || ['', r.state];
+      const acts = pcTab === 'library'
+        ? `<button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="pcLibrary(${b.id},false)">Remove</button>`
+        : `${r.state !== 'ended' ? `<button class="btn bsm" style="font-size:11px;" onclick="pcEdit('${r.type}',${r.id},{extend_days:7})">+7 days</button>
+           <button class="btn bsm" style="font-size:11px;" onclick="pcEdit('${r.type}',${r.id},{end_now:true})">End now</button>` :
+           `<button class="btn bsm" style="font-size:11px;" onclick="pcEdit('${r.type}',${r.id},{extend_days:7})">Run 7 more days</button>`}
+           <button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="pcRemove('${r.type}',${r.id})">Remove</button>`;
+      return `<tr>
+        <td><div style="display:flex;gap:10px;align-items:center;">${(r.image || (b && b.cover)) ? `<img src="${pcE(r.image || b.cover)}" style="width:${r.image ? 64 : 34}px;height:46px;object-fit:cover;border-radius:5px;">` : ''}
+          <div><div class="ttl">${pcE(r.title || (b ? b.title : r.slug || '—'))}</div><div style="font-size:11px;color:var(--muted-fg);">${b ? 'by ' + pcE(b.author) + ' · ' + (b.views || 0).toLocaleString() + ' views' : ''}</div>
+          ${b ? `<a href="#" style="font-size:11px;color:var(--role);" onclick="event.preventDefault();pcInsights('${b.slug}')">Insights ›</a>` : ''}</div></div></td>
+        <td style="font-size:12px;">${pcE(r.spot_label)}</td>
+        <td style="font-size:12px;">${r.starts_at ? pcD(r.starts_at) + ' → ' + pcD(r.ends_at) : '—'}<div style="font-size:11px;color:var(--muted-fg);">${r.ends_at ? pcLeft(r.ends_at) : (pcTab === 'library' ? 'until removed' : 'no end date')}</div>${pcBar(r.starts_at, r.ends_at)}</td>
+        <td><span class="bdg ${cls}" style="font-size:10px;">${st}</span></td>
+        <td style="font-size:12px;color:var(--muted-fg);">${pcE(r.by || '')}</td>
+        <td><div style="display:flex;gap:4px;flex-wrap:wrap;">${acts}</div></td></tr>`;
+    }).join('')}</tbody></table>`;
+  } catch (e) { body.innerHTML = `<p style="padding:20px;color:hsl(0 68% 44%);">${pcE(e.detail || 'Could not load.')}</p>`; }
+}
+async function pcRequests(body) {
+  const d = await NUX.get('/editorial/ce/promotion-requests/?status=pending');
+  if (!d.results.length) { body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">No requests waiting. Senior editors\' requests to feature a book appear here.</p>'; return; }
+  body.innerHTML = `<table class="tbl"><thead><tr><th>Book</th><th>Spot</th><th>From</th><th>Why</th><th>Decision</th></tr></thead><tbody>${d.results.map(r => `<tr>
+    <td><div class="ttl">${pcE(r.story_title)}</div><a href="#" style="font-size:12px;color:var(--role);font-weight:600;" onclick="event.preventDefault();pcInsights('${r.story_slug}')">See book insights ›</a></td>
+    <td style="font-size:12px;">${pcE(r.tab)} → ${pcE(r.section)}</td>
+    <td style="font-size:12px;">${pcE(r.se)}<div style="color:var(--muted-fg);font-size:11px;">${pcD(r.created_at)}</div></td>
+    <td style="font-size:12px;color:var(--muted-fg);max-width:220px;">${pcE(r.message)}</td>
+    <td><div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;">
+      <select id="pc-days-${r.id}" class="form-sel" style="width:auto;font-size:11px;padding:4px 6px;">
+        <option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select>
+      <button class="btn brl bsm" style="font-size:11px;" onclick="pcReview(${r.id},'approved')">Approve</button>
+      <button class="btn bsm" style="font-size:11px;color:hsl(0 68% 44%);" onclick="pcReview(${r.id},'rejected')">Reject</button></div></td></tr>`).join('')}</tbody></table>`;
+}
+async function pcReview(id, action) {
+  const body = { action };
+  if (action === 'approved') body.days = document.getElementById('pc-days-' + id).value;
+  else { const n = prompt('Reason (sent to the senior editor):'); if (n === null) return; body.note = n; }
+  try { await NUX.post(`/editorial/ce/promotion-requests/${id}/review/`, body); toast(action === 'approved' ? `Approved for ${body.days} days.` : 'Rejected.'); pcInit(); refreshIssueCounts(); }
+  catch (e) { toast(e.detail || 'Failed.'); }
+}
+async function pcPopups(body) {
+  let d = { results: [] };
+  try { d = await NUX.get('/promos/manage/'); } catch (e) {}
+  body.innerHTML = `<div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;color:var(--muted-fg);">Shown once per reader when the app opens. Design and schedule them in the promotion designer.</span>
+      <a class="btn brl bsm" href="/promotions/" target="_blank">Open designer ↗</a></div>` +
+    (d.results.length ? `<table class="tbl"><thead><tr><th>Book</th><th>Style</th><th>Timeline</th><th>Shown</th><th>Tapped</th></tr></thead><tbody>${d.results.map(p => `<tr>
+      <td><div class="ttl">${pcE(p.story.title)}</div><a href="#" style="font-size:11px;color:var(--role);" onclick="event.preventDefault();pcInsights('${p.story.slug}')">Insights ›</a></td>
+      <td><span class="bdg ${p.live ? 'bgr' : ''}" style="font-size:10px;">${p.kind === 'splash' ? 'Full screen' : 'Pop-up'}${p.live ? ' · live' : p.is_active ? '' : ' · paused'}</span></td>
+      <td style="font-size:12px;">${pcD(p.starts_at)} → ${pcD(p.ends_at)}<div style="font-size:11px;color:var(--muted-fg);">${pcLeft(p.ends_at)}</div>${pcBar(p.starts_at, p.ends_at)}</td>
+      <td>${p.impressions.toLocaleString()}</td><td>${p.clicks.toLocaleString()}${p.impressions ? ` <span style="color:var(--muted-fg);font-size:11px;">(${Math.round(p.clicks / p.impressions * 1000) / 10}%)</span>` : ''}</td></tr>`).join('')}</tbody></table>`
+      : '<p style="padding:20px;color:var(--muted-fg);">No pop-ups yet.</p>');
+}
+async function pcEdit(type, id, body) {
+  try { await NUX.patch(`/editorial/ce/promo-center/${type}/${id}/`, body); toast(body.end_now ? 'Ended — the spot is free.' : 'Extended by 7 days.'); pcInit(); }
+  catch (e) { toast(e.detail || 'Failed.'); }
+}
+async function pcRemove(type, id) {
+  if (!confirm('Remove this promotion?')) return;
+  try { await NUX.del(`/editorial/ce/promo-center/${type}/${id}/`); toast('Removed.'); pcInit(); } catch (e) { toast(e.detail || 'Failed.'); }
+}
+async function pcLibrary(id, on) {
+  try { const r = await NUX.post(`/editorial/ce/promo-center/library/${id}/`, { on }); toast(r.detail); pcAddHide(); pcInit(); } catch (e) { toast(e.detail || 'Failed.'); }
+}
+
+// Add form
+let pcSearchT;
+function pcSearch() { clearTimeout(pcSearchT); pcSearchT = setTimeout(async () => {
+  const r = await NUX.get('/editorial/ce/promo-center/books/?q=' + encodeURIComponent(document.getElementById('pc-q').value)).catch(() => []);
+  document.getElementById('pc-res').innerHTML = r.map(b => `<div style="display:flex;gap:10px;align-items:center;padding:6px;border-radius:6px;cursor:pointer;" onmouseover="this.style.background='var(--muted)'" onmouseout="this.style.background=''" onclick='pcPick(${JSON.stringify(b).replace(/'/g, "&#39;")})'>
+    ${b.cover ? `<img src="${pcE(b.cover)}" style="width:30px;height:42px;object-fit:cover;border-radius:4px;">` : ''}<div><b>${pcE(b.title)}</b><div style="font-size:11px;color:var(--muted-fg);">by ${pcE(b.author)} · ${b.views.toLocaleString()} views</div></div></div>`).join('') || '<p style="font-size:12px;color:var(--muted-fg);padding:6px;">No books found.</p>';
+}, 250); }
+function pcPick(b) {
+  pcBook = b;
+  document.getElementById('pc-book-pick').style.display = b ? 'none' : '';
+  document.getElementById('pc-book-chosen').innerHTML = b ? `<div style="display:flex;gap:10px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:8px;">
+    ${b.cover ? `<img src="${pcE(b.cover)}" style="width:34px;height:46px;object-fit:cover;border-radius:4px;">` : ''}<div style="flex:1;"><b>${pcE(b.title)}</b><div style="font-size:11px;color:var(--muted-fg);">by ${pcE(b.author)}</div></div>
+    <a href="#" style="font-size:12px;color:var(--role);" onclick="event.preventDefault();pcInsights('${b.slug}')">Insights ›</a><button class="btn bsm" onclick="pcPick(null)">Change</button></div>` : '';
+}
+async function pcAddShow() {
+  const f = document.getElementById('pc-add-fields'), today = new Date(Date.now() - new Date().getTimezoneOffset() * 6e4).toISOString().slice(0, 16);
+  const days = `<label style="font-size:12px;color:var(--muted-fg);">Starts<input type="datetime-local" id="pc-start" class="form-in" value="${today}"></label>
+    <label style="font-size:12px;color:var(--muted-fg);">For<select id="pc-days" class="form-sel"><option value="3">3 days</option><option value="7" selected>7 days</option><option value="14">14 days</option><option value="30">30 days</option></select></label>`;
+  if (pcTab === 'slots') f.innerHTML = `<label style="font-size:12px;color:var(--muted-fg);">Section<select id="pc-cat" class="form-sel">${PC_SECTIONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>` + days;
+  else if (pcTab === 'pins') {
+    if (!pcExplore) pcExplore = (await NUX.get('/editorial/tab-sections/')).tabs;
+    f.innerHTML = `<label style="font-size:12px;color:var(--muted-fg);">Explore tab → section<select id="pc-sec" class="form-sel">${pcExplore.map(t => t.sections.map(s => `<option value="${t.slug}|${s.slug}">${pcE(t.name)} → ${pcE(s.name)}</option>`).join('')).join('')}</select></label>` + days;
+  } else if (pcTab === 'banners') f.innerHTML = `<label style="font-size:12px;color:var(--muted-fg);flex:1;">Banner title<input id="pc-title" class="form-in" placeholder="e.g. Top Romance Picks"></label>
+    <label style="font-size:12px;color:var(--muted-fg);">Picture (wide, about 1200×500)<input type="file" id="pc-img" accept="image/*" class="form-in"></label>` + days;
+  else f.innerHTML = '<span style="font-size:12px;color:var(--muted-fg);">The book shows in the library screen\'s top carousel until you remove it.</span>';
+  document.getElementById('pc-add-title').textContent = 'Add to ' + PC_TABS.find(t => t[0] === pcTab)[1] + (pcTab === 'banners' ? ' (book optional)' : '');
+  pcPick(null); document.getElementById('pc-q').value = ''; document.getElementById('pc-res').innerHTML = '';
+  document.getElementById('pc-add').style.display = '';
+}
+function pcAddHide() { const a = document.getElementById('pc-add'); if (a) a.style.display = 'none'; }
+async function pcAddSave() {
+  const start = document.getElementById('pc-start'), daysEl = document.getElementById('pc-days');
+  const when = { starts_at: start && start.value ? new Date(start.value).toISOString() : '', days: daysEl ? daysEl.value : '' };
+  if (pcTab !== 'banners' && !pcBook) { toast('Choose a book first.'); return; }
+  try {
+    let r;
+    if (pcTab === 'slots') r = await NUX.post('/editorial/ce/promo-center/slots/', { story_id: pcBook.id, category: document.getElementById('pc-cat').value, ...when });
+    else if (pcTab === 'pins') { const [tab, section] = document.getElementById('pc-sec').value.split('|');
+      r = await NUX.post('/editorial/ce/promo-center/pins/', { story_id: pcBook.id, tab, section, ...when }); }
+    else if (pcTab === 'library') return pcLibrary(pcBook.id, true);
+    else {
+      const fd = new FormData(); fd.append('title', document.getElementById('pc-title').value);
+      if (pcBook) fd.append('slug', pcBook.slug);
+      const img = document.getElementById('pc-img').files[0]; if (img) fd.append('image', img);
+      Object.entries(when).forEach(([k, v]) => fd.append(k, v));
+      r = await NUX.call('/editorial/ce/promo-center/banners/', { method: 'POST', body: fd });
+    }
+    toast(r.detail || 'Added.'); pcAddHide(); pcInit();
+  } catch (e) { toast(e.detail || 'Could not add.'); }
+}
+
+// Book insights
+async function pcInsights(slug) {
+  const m = document.getElementById('pc-ins'), b = document.getElementById('pc-ins-body');
+  m.style.display = 'flex'; b.innerHTML = '<p style="padding:24px;color:var(--muted-fg);">Loading…</p>';
+  try {
+    const d = await NUX.get('/editorial/ce/promo-center/insights/' + slug + '/');
+    const k = (label, v, sub) => `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;"><div style="font-size:11px;color:var(--muted-fg);">${label}</div><div style="font-size:18px;font-weight:700;">${v}</div>${sub ? `<div style="font-size:11px;color:var(--muted-fg);">${sub}</div>` : ''}</div>`;
+    const col = d.score >= 65 ? 'hsl(142 60% 38%)' : d.score >= 45 ? 'hsl(38 92% 42%)' : 'hsl(0 68% 48%)';
+    const max = Math.max(1, ...d.reading.funnel.map(f => f.readers));
+    b.innerHTML = `<div class="ch" style="display:flex;gap:12px;align-items:center;">
+        ${d.book.cover ? `<img src="${pcE(d.book.cover)}" style="width:46px;height:62px;object-fit:cover;border-radius:6px;">` : ''}
+        <div style="flex:1;"><h2>${pcE(d.book.title)}</h2><div style="font-size:12px;color:var(--muted-fg);">by ${pcE(d.book.author)} · ${pcE(d.book.genre)} · ${d.book.chapters} chapters · ${(d.book.words || 0).toLocaleString()} words · ${pcE(d.book.contract_status || '')}</div></div>
+        <div style="text-align:center;"><div style="font-size:28px;font-weight:800;color:${col};">${d.score}</div><div style="font-size:11px;color:${col};font-weight:600;">${d.verdict}</div></div>
+        <button class="btn bsm" onclick="document.getElementById('pc-ins').style.display='none'">✕</button></div>
+      <div class="cb">
+        ${d.notes.length ? `<div style="background:hsl(38 92% 50%/.1);border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px;">${d.notes.map(n => '⚠ ' + pcE(n)).join('<br>')}</div>` : ''}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px;">
+          ${k('Views', d.reach.views.toLocaleString())}${k('Readers', d.reach.readers.toLocaleString(), d.reach.active_30d + ' active in 30 days')}
+          ${k('Finish rate', d.reading.completion_pct + '%', d.reading.finished + ' reached the latest chapter')}
+          ${k('Rating', d.quality.ratings ? d.quality.rating.toFixed(1) + ' ★' : '—', d.quality.ratings + ' ratings')}
+          ${k('Engagement', d.reach.engagement_pct + '%', d.reach.likes + ' likes · ' + d.reach.comments + ' comments')}
+          ${k('Paid unlocks', d.money.unlocks.toLocaleString(), (d.money.coins || 0).toLocaleString() + ' coins spent')}
+          ${k('Last update', d.reading.days_since_update == null ? '—' : d.reading.days_since_update + ' days ago')}
+          ${k('Open issues', d.quality.reports_open + d.quality.flags_open, 'reports + flags')}
+        </div>
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">How far readers get</div>
+        ${d.reading.funnel.map(f => `<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:4px;"><span style="width:70px;color:var(--muted-fg);">Chapter ${f.chapter}</span>
+          <div style="flex:1;background:var(--muted);border-radius:3px;height:10px;"><div style="width:${f.readers / max * 100}%;background:var(--role);height:10px;border-radius:3px;"></div></div><span style="width:50px;text-align:right;">${f.readers}</span></div>`).join('') || '<p style="font-size:12px;color:var(--muted-fg);">No readers yet.</p>'}
+        ${d.history.length ? `<div style="font-size:12px;font-weight:600;margin:14px 0 6px;">Promoted before</div>${d.history.map(h => `<div style="font-size:12px;color:var(--muted-fg);">${pcE(h.spot)} · ${pcD(h.starts_at)} → ${pcD(h.ends_at)}</div>`).join('')}` : ''}
+        <p style="font-size:11px;color:var(--muted-fg);margin-top:14px;">Score (0–100) weighs finish rate, rating, likes &amp; comments per view, paid unlocks per reader, recent updates and open issues. It's a guide, not a verdict.</p>
+      </div>`;
+  } catch (e) { b.innerHTML = `<p style="padding:24px;color:hsl(0 68% 44%);">${pcE(e.detail || 'Could not load insights.')}</p>`; }
+}
+
+
+// ── Team & money insights ─────────────────────────────────────────────────────
+let inTab = 'activity';
+document.querySelectorAll('.in-tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.in-tab').forEach(x => x.style.background = x === b ? 'var(--muted)' : '');
+  inTab = b.dataset.t; inLoad();
+});
+const inN = v => (v || 0).toLocaleString();
+const inHM = m => m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
+const inBar = (v, max) => `<div style="background:var(--muted);border-radius:3px;height:8px;min-width:60px;"><div style="width:${max ? Math.max(2, v / max * 100) : 0}%;height:8px;border-radius:3px;background:var(--role);"></div></div>`;
+const inKpi = (l, v, sub) => `<div class="card" style="padding:12px 14px;"><div style="font-size:12px;color:var(--muted-fg);">${l}</div><div style="font-size:22px;font-weight:700;">${v}</div>${sub ? `<div style="font-size:11px;color:var(--muted-fg);">${sub}</div>` : ''}</div>`;
+const inEmpty = (cols, msg) => `<tr><td colspan="${cols}" style="text-align:center;color:var(--muted-fg);padding:24px;">${msg}</td></tr>`;
+
+async function inLoad() {
+  const body = document.getElementById('in-body'), days = document.getElementById('in-days').value;
+  document.getElementById('in-days').style.display = inTab === 'contracts' ? 'none' : '';
+  body.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">Loading…</p>';
+  try {
+    if (inTab === 'activity') body.innerHTML = inActivity(await NUX.get('/editorial/ce/insights/se-activity/?days=' + days));
+    else if (inTab === 'revenue') body.innerHTML = inRevenue(await NUX.get('/editorial/ce/insights/se-revenue/?days=' + days));
+    else if (inTab === 'unlocks') body.innerHTML = inUnlocks(await NUX.get('/editorial/ce/insights/unlocks/?days=' + days));
+    else body.innerHTML = inContracts(await NUX.get('/editorial/ce/insights/contracts/'));
+  } catch (e) { body.innerHTML = `<p style="padding:20px;color:hsl(0 68% 44%);">${pcE(e.detail || 'Could not load.')}</p>`; }
+}
+
+function inSpark(daily) {
+  const mx = Math.max(1, ...daily.map(y => y.minutes));
+  return `<div style="display:flex;align-items:flex-end;gap:2px;height:30px;">${daily.map(x =>
+    `<div title="${x.date}: ${x.minutes} min" style="width:5px;height:${Math.max(2, x.minutes / mx * 30)}px;background:${x.minutes ? 'var(--role)' : 'var(--border)'};border-radius:1px;"></div>`).join('')}</div>`;
+}
+
+function inActivity(d) {
+  const maxM = Math.max(1, ...d.results.map(r => r.active_minutes));
+  const rows = d.results.map(r => `<tr>
+    <td class="ttl">${pcE(r.name)}<div style="font-size:11px;color:var(--muted-fg);font-weight:400;">${r.authors} authors</div></td>
+    <td style="min-width:120px;"><b>${inHM(r.active_minutes)}</b>${inBar(r.active_minutes, maxM)}
+      <div style="font-size:11px;color:var(--muted-fg);">${r.avg_minutes_per_active_day ? '≈ ' + inHM(r.avg_minutes_per_active_day) + ' per day worked' : ''}</div></td>
+    <td>${r.active_days} / ${d.days}</td>
+    <td style="font-size:12px;${r.idle_days >= 3 ? 'color:hsl(0 68% 44%);font-weight:600;' : ''}">${r.last_seen ? (r.idle_days ? r.idle_days + ' days ago' : 'today') : 'never'}</td>
+    <td>${r.chapters_reviewed}</td><td>${r.contract_reviews}</td><td>${r.contracts_sent}</td><td>${r.earnings_released}</td>
+    <td>${r.waiting_reviews ? `<span class="bdg byw">${r.waiting_reviews}</span>` : '0'}</td>
+    <td>${inSpark(r.daily)}</td></tr>`).join('') || inEmpty(10, 'No senior editors.');
+  return `<div class="card"><div style="overflow-x:auto;"><table class="tbl"><thead><tr><th>Senior editor</th><th>Time active</th><th>Days worked</th><th>Last seen</th>
+      <th>Chapters reviewed</th><th>Contract reviews</th><th>Contracts sent</th><th>Earnings released</th><th>Waiting on them</th><th>Daily activity</th></tr></thead>
+      <tbody>${rows}</tbody></table></div></div>
+    <p style="font-size:11px;color:var(--muted-fg);margin-top:8px;">Time active comes from their dashboard activity: continuous work counts in full, and a pause of more than 15 minutes ends a session. Red "last seen" = no activity for 3+ days.</p>`;
+}
+
+function inRevenue(d) {
+  const tot = k => d.by_se.reduce((a, r) => a + (r[k] || 0), 0);
+  const maxC = Math.max(1, ...d.by_se.map(r => r.reader_coins));
+  const seRows = d.by_se.map(r => `<tr>
+    <td class="ttl">${pcE(r.se)}${r.se_active ? '' : ' <span class="bdg" style="font-size:9px;">inactive</span>'}<div style="font-size:11px;color:var(--muted-fg);font-weight:400;">${r.authors_earning} earning author(s)</div></td>
+    <td style="min-width:130px;"><b>$${inN(r.reader_usd)}</b> <span style="font-size:11px;color:var(--muted-fg);">${inN(r.reader_coins)} coins</span>${inBar(r.reader_coins, maxC)}</td>
+    <td>${inN(r.unlocks)}</td><td>${inN(r.tips_coins)}</td><td>${inN(r.vip_reads)}</td><td>$${inN(r.author_earned_usd)}</td>
+    <td style="font-size:12px;">${r.top_authors.slice(0, 3).map(a => `${pcE(a.username)} <span style="color:var(--muted-fg);">$${inN(a.reader_usd)}</span>`).join('<br>')}</td></tr>`).join('')
+    || inEmpty(7, 'No reader spending in this period.');
+  const topRows = d.top_authors.map((a, i) => `<tr><td>${i + 1}</td><td class="ttl">${pcE(a.username)}</td><td style="font-size:12px;">${pcE(a.se)}</td>
+    <td><b>$${inN(a.author_earned_usd)}</b></td><td>$${inN(a.reader_usd)}</td><td>${inN(a.unlocks)}</td><td>${inN(a.vip_reads)}</td></tr>`).join('')
+    || inEmpty(7, 'No earnings yet.');
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px;">
+      ${inKpi('Readers spent', '$' + inN(Math.round(tot('reader_usd'))), inN(tot('reader_coins')) + ' coins on unlocks + tips')}
+      ${inKpi('Paid unlocks', inN(tot('unlocks')), inN(tot('paid_coins')) + ' purchased · ' + inN(tot('bonus_coins')) + ' bonus coins')}
+      ${inKpi('VIP reads', inN(tot('vip_reads')), 'paid from the VIP pool')}
+      ${inKpi('Authors earned', '$' + inN(Math.round(tot('author_earned_usd'))), 'their share')}</div>
+    <div class="card" style="margin-bottom:16px;"><div class="ch"><h2>By senior editor</h2></div><div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>Senior editor</th><th>Readers spent</th><th>Unlocks</th><th>Tips (coins)</th><th>VIP reads</th><th>Authors earned</th><th>Top earning authors</th></tr></thead>
+      <tbody>${seRows}</tbody></table></div></div>
+    <div class="card"><div class="ch"><h2>Top earning authors</h2></div><div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>#</th><th>Author</th><th>Editor</th><th>Earned</th><th>Readers spent</th><th>Unlocks</th><th>VIP reads</th></tr></thead>
+      <tbody>${topRows}</tbody></table></div></div>
+    <p style="font-size:11px;color:var(--muted-fg);margin-top:8px;">Dollars use 100 coins = $1. Bonus coins are free rewards, so they bring in no money; the purchased/bonus split is recorded from now on.</p>`;
+}
+
+const IN_COLS = { paid: 'hsl(142 60% 38%)', bonus: 'hsl(38 92% 45%)', mixed: 'hsl(80 50% 42%)', coins_unsplit: 'hsl(0 0% 60%)',
+  download: 'hsl(200 70% 45%)', vip: 'hsl(270 60% 50%)', ads: 'hsl(14 62% 45%)', free_daily: 'hsl(190 50% 50%)' };
+
+function inDaily(daily) {
+  const mx = Math.max(1, ...daily.map(x => (x.coins || 0) + (x.vip || 0) + (x.ads || 0) + (x.free_daily || 0)));
+  const col = k => IN_COLS[k === 'coins' ? 'paid' : k];
+  return `<div style="display:flex;align-items:flex-end;gap:3px;height:120px;min-width:${daily.length * 14}px;">${daily.map(x =>
+    `<div title="${x.date} — coins ${x.coins || 0}, VIP ${x.vip || 0}, ads ${x.ads || 0}, free ${x.free_daily || 0}" style="flex:1;display:flex;flex-direction:column-reverse;min-width:8px;">
+      ${['coins', 'vip', 'ads', 'free_daily'].map(k => `<div style="height:${(x[k] || 0) / mx * 120}px;background:${col(k)};"></div>`).join('')}</div>`).join('')}</div>
+    <div style="display:flex;gap:14px;font-size:11px;color:var(--muted-fg);margin-top:8px;flex-wrap:wrap;">
+      ${[['paid', 'coins'], ['vip', 'VIP'], ['ads', 'ads'], ['free_daily', 'daily free']].map(([k, l]) => `<span><span style="color:${IN_COLS[k]}">■</span> ${l}</span>`).join('')}</div>`;
+}
+
+function inUnlocks(d) {
+  const shown = d.methods.filter(m => m.count);
+  const books = d.top_books.map(b => `<tr><td class="ttl">${pcE(b.title)} <a href="#" style="font-size:11px;color:var(--role);font-weight:400;" onclick="event.preventDefault();pcInsights('${b.slug}')">Insights ›</a></td>
+    <td>${inN(b.unlocks)}</td><td>${inN(b.coins)}</td></tr>`).join('') || inEmpty(3, 'No unlocks yet.');
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px;">
+      ${inKpi('Chapters unlocked', inN(d.total), 'last ' + d.days + ' days')}
+      ${inKpi('Purchased coins spent', inN(d.coins.paid), '≈ $' + inN(d.coins.paid_usd))}
+      ${inKpi('Bonus coins spent', inN(d.coins.bonus), 'free rewards')}
+      ${d.coins.unsplit ? inKpi('Coins (not split)', inN(d.coins.unsplit), 'before tracking started') : ''}</div>
+    <div class="card" style="margin-bottom:16px;"><div class="ch"><h2>By method</h2></div><div class="cb">
+      <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;margin-bottom:14px;">${shown.map(m => `<div title="${m.label}: ${m.pct}%" style="width:${m.pct}%;background:${IN_COLS[m.key]};"></div>`).join('') || '<div style="flex:1;background:var(--muted);"></div>'}</div>
+      ${d.methods.map(m => `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span style="width:10px;height:10px;border-radius:2px;background:${IN_COLS[m.key]};"></span><span style="flex:1;">${m.label}</span><b>${inN(m.count)}</b><span style="width:50px;text-align:right;color:var(--muted-fg);">${m.pct}%</span></div>`).join('')}
+    </div></div>
+    <div class="card" style="margin-bottom:16px;"><div class="ch"><h2>Day by day</h2></div><div class="cb" style="overflow-x:auto;">${inDaily(d.daily)}</div></div>
+    <div class="card"><div class="ch"><h2>Most-unlocked books</h2></div><div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>Book</th><th>Unlocks</th><th>Coins</th></tr></thead><tbody>${books}</tbody></table></div></div>`;
+}
+
+function inContracts(d) {
+  const grid = d.types.map(t => `<tr><td class="ttl">${t.label}</td>${d.stages.map(s => `<td>${inN(t[s.key])}</td>`).join('')}<td><b>${inN(t.total)}</b></td></tr>`).join('');
+  const bySe = d.signed_by_se.map(r => `<tr><td class="ttl">${pcE(r.se)}</td>${d.types.map(t => `<td>${inN(r[t.key])}</td>`).join('')}</tr>`).join('')
+    || inEmpty(d.types.length + 1, 'No signed contracts yet.');
+  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:16px;">
+      ${d.types.map(t => inKpi(t.label, inN(t.signed), `signed · ${inN(t.total)} in total`)).join('')}</div>
+    <div class="card" style="margin-bottom:16px;"><div class="ch"><h2>By type and stage</h2></div><div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>Type</th>${d.stages.map(s => `<th>${s.label}</th>`).join('')}<th>Total</th></tr></thead><tbody>${grid}</tbody></table></div></div>
+    <div class="card"><div class="ch"><h2>Signed contracts by senior editor</h2></div><div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>Senior editor</th>${d.types.map(t => `<th>${t.label}</th>`).join('')}</tr></thead><tbody>${bySe}</tbody></table></div></div>
+    <p style="font-size:11px;color:var(--muted-fg);margin-top:8px;">${pcE(d.note)}</p>`;
+}
+
+
+// ── Colour theme ──────────────────────────────────────────────────────────────
+const CE_THEMES = {
+  rust:    ['hsl(14 62% 38%)',  'hsl(14 62% 55%)',  'Rust'],
+  purple:  ['hsl(270 60% 48%)', 'hsl(270 65% 66%)', 'Purple'],
+  blue:    ['hsl(217 80% 46%)', 'hsl(217 85% 64%)', 'Blue'],
+  teal:    ['hsl(178 70% 30%)', 'hsl(176 60% 48%)', 'Teal'],
+  green:   ['hsl(142 60% 32%)', 'hsl(142 55% 50%)', 'Green'],
+  rose:    ['hsl(340 70% 46%)', 'hsl(340 75% 64%)', 'Rose'],
+  gold:    ['hsl(38 85% 38%)',  'hsl(40 85% 55%)',  'Gold'],
+  slate:   ['hsl(222 20% 30%)', 'hsl(220 15% 70%)', 'Slate'],
+};
+function ceApplyTheme(key) {
+  const t = CE_THEMES[key] || CE_THEMES.rust;
+  let st = document.getElementById('ce-theme-style');
+  if (!st) { st = document.createElement('style'); st.id = 'ce-theme-style'; document.head.appendChild(st); }
+  st.textContent = `:root{--role:${t[0]};--primary:${t[0]};}html.dark{--role:${t[1]};--primary:${t[1]};}`;
+  try { localStorage.setItem('nux_ce_theme', key); } catch (e) {}
+  document.querySelectorAll('.ce-sw').forEach(s => s.style.outline = s.dataset.k === key ? '2px solid var(--fg)' : 'none');
+}
+function ceThemeMenu(ev) {
+  ev.stopPropagation();
+  let m = document.getElementById('ce-theme-menu');
+  if (m) { m.remove(); return; }
+  m = document.createElement('div'); m.id = 'ce-theme-menu';
+  m.style.cssText = 'position:fixed;top:56px;right:16px;z-index:300;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);width:220px;';
+  let cur = 'rust'; try { cur = localStorage.getItem('nux_ce_theme') || 'rust'; } catch (e) {}
+  m.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:8px;">Dashboard colour</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${Object.entries(CE_THEMES).map(([k, t]) =>
+      `<button class="ce-sw" data-k="${k}" title="${t[2]}" onclick="ceApplyTheme('${k}')" style="width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;background:${t[0]};outline-offset:2px;${k === cur ? 'outline:2px solid var(--fg);' : ''}"></button>`).join('')}</div>
+    <div style="font-size:11px;color:var(--muted-fg);margin-top:10px;">Light / dark: use the ◐ button.</div>`;
+  document.body.appendChild(m);
+  setTimeout(() => document.addEventListener('click', function close(e) { if (!m.contains(e.target)) { m.remove(); document.removeEventListener('click', close); } }), 0);
+}
+try { ceApplyTheme(localStorage.getItem('nux_ce_theme') || 'rust'); } catch (e) { ceApplyTheme('rust'); }
+
+// ── Home: needs attention, team, money, promotions ────────────────────────────
+async function ceHome() {
+  const el = document.getElementById('ce-home-live'); if (!el) return;
+  const [c, h, p, a] = await Promise.all([
+    NUX.get('/editorial/ce/issue-counts/').catch(() => ({})),
+    NUX.get('/editorial/ce/home-summary/').catch(() => ({})),
+    NUX.get('/editorial/ce/promo-center/overview/').catch(() => ({})),
+    NUX.get('/editorial/ce/insights/se-activity/?days=7').catch(() => ({ results: [] })),
+  ]);
+  const go = (page, btn) => `gp('${page}',document.getElementById('${btn}'))`;
+  const todo = [
+    [c.queue, 'stories waiting for your contract decision', go('escalations', 'nb-esc')],
+    [c.reader_reports, 'reader reports to act on', go('reports', 'nb-reports') + ";switchReportsTab('readerreports',document.querySelectorAll('.reports-tab')[1])"],
+    [c.flags, 'content flags open', go('reports', 'nb-reports') + ';loadReports(\'flags\')'],
+    [c.promotion_requests, 'promotion requests from SEs', go('promo', 'nb-promo') + ";pcGo('requests')"],
+    [c.kyc, 'KYC submissions to review', go('kyc', 'nb-kyc')],
+    [c.messages, 'unread author messages', go('reports', 'nb-reports') + ";switchReportsTab('messages',document.querySelectorAll('.reports-tab')[3])"],
+    [c.payouts, 'payouts waiting', go('revenue', 'nb-revenue') + ';loadRevenue()'],
+    [c.policies, 'policies to review', go('policies', 'nb-policies')],
+    [c.awaiting_sign, 'contracts waiting for the author to sign', go('escalations', 'nb-esc')],
+  ].filter(t => t[0]);
+  const idle = a.results.filter(r => r.idle_days == null || r.idle_days >= 3);
+  const usd = v => '$' + Math.round(v || 0).toLocaleString();
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="ch"><h2>Needs your attention</h2>${todo.length ? `<span class="bdg brd">${todo.reduce((s, t) => s + t[0], 0)}</span>` : ''}</div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:6px;">${todo.length ? todo.map(([n, label, js]) =>
+        `<a href="#" onclick="event.preventDefault();${js.replace(/"/g, '&quot;')}" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--muted);">
+          <b style="min-width:28px;color:var(--role);font-size:16px;">${n}</b><span style="flex:1;">${label}</span><span style="color:var(--muted-fg);">›</span></a>`).join('')
+        : '<p style="color:var(--muted-fg);font-size:13px;">All clear 🎉 Nothing is waiting for you.</p>'}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px;">
+      ${[['Revenue this month', usd(h.revenue_month_usd), 'coin packs + VIP'], ['Chapter unlocks', (h.unlocks_week || 0).toLocaleString(), 'last 7 days'],
+         ['VIP reads', (h.vip_reads_week || 0).toLocaleString(), 'last 7 days'], ['New readers', (h.new_readers_week || 0).toLocaleString(), 'last 7 days'],
+         ['New authors', (h.new_authors_week || 0).toLocaleString(), 'last 7 days'], ['Live books', (h.live_books || 0).toLocaleString(), (h.signed_books || 0) + ' contracted']]
+        .map(([l, v, s]) => `<div class="sc"><div class="sl">${l}</div><div class="sv">${v}</div><div class="ss">${s}</div></div>`).join('')}</div>
+    <div class="two-col" style="margin-bottom:20px;">
+      <div class="card"><div class="ch"><h2>Team this week</h2><a href="#" style="font-size:12px;color:var(--role);" onclick="event.preventDefault();gp('insights',document.getElementById('nb-insights'));inLoad();">Details ›</a></div>
+        <div class="cb" style="display:flex;flex-direction:column;gap:10px;">${a.results.map(r => `<div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--role);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;">${pcE((r.name || '?')[0].toUpperCase())}</div>
+          <div style="flex:1;"><b>${pcE(r.name)}</b><div style="font-size:11px;color:var(--muted-fg);">${inHM(r.active_minutes)} active · ${r.actions} actions · ${r.waiting_reviews} waiting</div></div>
+          ${r.idle_days == null ? '<span class="bdg brd" style="font-size:10px;">never active</span>' : r.idle_days >= 3 ? `<span class="bdg byw" style="font-size:10px;">idle ${r.idle_days}d</span>` : '<span class="bdg bgr" style="font-size:10px;">active</span>'}</div>`).join('') || '<p style="color:var(--muted-fg);font-size:13px;">No senior editors yet.</p>'}
+          ${idle.length ? `<p style="font-size:11px;color:hsl(38 92% 38%);">${idle.length} editor(s) haven't worked in 3+ days.</p>` : ''}</div></div>
+      <div class="card"><div class="ch"><h2>Promotions</h2><a href="#" style="font-size:12px;color:var(--role);" onclick="event.preventDefault();gp('promo',document.getElementById('nb-promo'));pcInit();">Manage ›</a></div>
+        <div class="cb" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+          ${[['SE requests waiting', p.requests], ['Home sections live', p.slots], ['Explore pins live', p.pins], ['Banners live', p.banners], ['Pop-ups live', p.popups], ['Ending in 2 days', p.ending_soon]]
+            .map(([l, v]) => `<div style="padding:8px 10px;border-radius:8px;background:var(--muted);"><div style="font-size:11px;color:var(--muted-fg);">${l}</div><b style="font-size:18px;">${v ?? 0}</b></div>`).join('')}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px;"><div class="ch"><h2>Quick actions</h2></div><div class="cb" style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn brl bsm" onclick="${go('escalations', 'nb-esc')}">Story queue</button>
+      <button class="btn bol bsm" onclick="${go('promo', 'nb-promo')};pcInit();">Promotions</button>
+      <button class="btn bol bsm" onclick="${go('authors', 'nb-authors')};ceDir(1);">Contact an author</button>
+      <button class="btn bol bsm" onclick="${go('team', 'nb-team')}">Transfer authors</button>
+      <button class="btn bol bsm" onclick="${go('announcements', 'nb-announcements')};loadAnnouncements();">Send announcement</button>
+      <button class="btn bol bsm" onclick="${go('insights', 'nb-insights')};inLoad();">Team &amp; money insights</button>
+    </div></div>`;
+}
+ceHome();
+
+// ── Authors: directory + contact ──────────────────────────────────────────────
+let ceDirPage = 1, ceDirT;
+async function ceDir(page) {
+  ceDirPage = page || 1;
+  const el = document.getElementById('ce-dir'); if (!el) return;
+  const q = document.getElementById('ce-dir-q').value;
+  el.innerHTML = '<p style="padding:20px;color:var(--muted-fg);">Loading…</p>';
+  try {
+    const d = await NUX.get(`/editorial/ce/author-directory/?page=${ceDirPage}&q=${encodeURIComponent(q)}`);
+    window._ceDir = d.results;
+    el.innerHTML = `<table class="tbl"><thead><tr><th>Author</th><th>Contact</th><th>Senior editor</th><th>Books</th><th></th></tr></thead><tbody>
+      ${d.results.map((a, i) => `<tr><td class="ttl">${pcE(a.name || a.username)}${a.banned ? ' <span class="bdg brd" style="font-size:9px;">banned</span>' : ''}<div style="font-size:11px;color:var(--muted-fg);font-weight:400;">@${pcE(a.username)}${a.country ? ' · ' + pcE(a.country) : ''}</div></td>
+        <td style="font-size:12px;">${pcE(a.email)}${a.phone ? `<div style="color:var(--muted-fg);">${pcE(a.phone)}</div>` : ''}</td>
+        <td style="font-size:12px;">${a.se ? pcE(a.se) : '<span class="bdg byw">Unassigned</span>'}</td><td>${a.books}</td>
+        <td><button class="btn brl bsm" style="font-size:11px;" onclick="ceContact(${i})">Contact</button></td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted-fg);padding:24px;">No authors found.</td></tr>'}
+      </tbody></table>
+      ${d.pages > 1 ? `<div style="display:flex;gap:8px;justify-content:center;align-items:center;padding:12px;"><button class="btn bol bsm" ${ceDirPage <= 1 ? 'disabled' : ''} onclick="ceDir(${ceDirPage - 1})">← Prev</button><span style="font-size:12px;color:var(--muted-fg);">Page ${ceDirPage} of ${d.pages} · ${d.total} authors</span><button class="btn bol bsm" ${ceDirPage >= d.pages ? 'disabled' : ''} onclick="ceDir(${ceDirPage + 1})">Next →</button></div>` : ''}`;
+  } catch (e) { el.innerHTML = `<p style="padding:20px;color:hsl(0 68% 44%);">${pcE(e.detail || 'Could not load authors.')}</p>`; }
+}
+function ceDirSearch() { clearTimeout(ceDirT); ceDirT = setTimeout(() => ceDir(1), 300); }
+
+function ceWaNumber(phone) {
+  let n = String(phone || '').replace(/[^\d+]/g, '');
+  if (n.startsWith('+')) return n.slice(1);
+  if (n.startsWith('0')) return '234' + n.slice(1);     // local Nigerian number
+  return n;
+}
+let ceContactA = null;
+async function ceContact(i) {
+  const a = window._ceDir[i]; ceContactA = a;
+  const m = document.getElementById('ce-contact');
+  m.style.display = 'flex';
+  const subj = encodeURIComponent('HuxNovel — a message from the Chief Editor');
+  m.querySelector('.card').innerHTML = `<div class="ch"><h2>Contact ${pcE(a.name || a.username)}</h2><button class="btn bsm" onclick="document.getElementById('ce-contact').style.display='none'">✕</button></div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
+        <a class="btn bol bsm" style="text-align:center;" href="mailto:${pcE(a.email)}?subject=${subj}" target="_blank" onclick="ceLog('email')">✉ Email</a>
+        ${a.phone ? `<a class="btn bol bsm" style="text-align:center;" href="https://wa.me/${ceWaNumber(a.phone)}" target="_blank" onclick="ceLog('whatsapp')">💬 WhatsApp</a>
+                     <a class="btn bol bsm" style="text-align:center;" href="tel:${pcE(a.phone)}" onclick="ceLog('call')">📞 Call</a>` : ''}
+        <button class="btn bol bsm" onclick="navigator.clipboard.writeText('${pcE(a.email)}${a.phone ? ' / ' + pcE(a.phone) : ''}');toast('Copied')">Copy contact</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted-fg);">${pcE(a.email)}${a.phone ? ' · ' + pcE(a.phone) : ' · no phone number (they haven\'t completed KYC)'}</div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">In-app message</div>
+        <p style="font-size:12px;color:var(--muted-fg);margin-bottom:8px;">Arrives in their HuxNovel notifications, with a phone alert.</p>
+        <input id="ce-msg-subj" class="form-in" placeholder="Subject (e.g. About your contract)" style="margin-bottom:8px;">
+        <textarea id="ce-msg-body" class="form-in" rows="4" placeholder="Your message…"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;"><button class="btn brl bsm" onclick="ceSendMsg()">Send in app</button></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">History</div><div id="ce-contact-hist" style="font-size:12px;color:var(--muted-fg);">Loading…</div></div>
+    </div>`;
+  ceHist();
+}
+async function ceHist() {
+  const el = document.getElementById('ce-contact-hist');
+  try {
+    const d = await NUX.get(`/editorial/ce/authors/${ceContactA.id}/contact/`);
+    el.innerHTML = d.results.map(h => `<div style="padding:6px 0;border-bottom:1px solid var(--border);"><b style="color:var(--fg);">${pcE(h.channel)}</b> · ${new Date(h.at).toLocaleString()} · ${pcE(h.by)}
+      ${h.subject ? `<div style="color:var(--fg);">${pcE(h.subject)}</div>` : ''}${h.body ? `<div>${pcE(h.body)}</div>` : ''}</div>`).join('') || 'No contact yet.';
+  } catch (e) { el.textContent = 'Could not load history.'; }
+}
+async function ceLog(channel) { try { await NUX.post(`/editorial/ce/authors/${ceContactA.id}/contact/`, { channel }); ceHist(); } catch (e) {} }
+async function ceSendMsg() {
+  const message = document.getElementById('ce-msg-body').value.trim();
+  if (!message) { toast('Write a message first.'); return; }
+  try {
+    const r = await NUX.post(`/editorial/ce/authors/${ceContactA.id}/contact/`, { channel: 'in_app', subject: document.getElementById('ce-msg-subj').value, message });
+    toast(r.detail); document.getElementById('ce-msg-body').value = ''; document.getElementById('ce-msg-subj').value = ''; ceHist();
+  } catch (e) { toast(e.detail || 'Could not send.'); }
+}
+
+// ── Red numbers on the sidebar: everything still waiting for the CE ──
+function setNavBadge(selector, n, tip) {
+  const btn = document.querySelector(selector); if (!btn) return;
+  let b = btn.querySelector('.bdg');
+  if (!n) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('span'); b.className = 'bdg brd'; b.style.cssText = 'margin-left:auto;font-size:10px;'; btn.appendChild(b); }
+  b.textContent = n > 99 ? '99+' : n; b.title = tip || '';
+}
+async function refreshIssueCounts() {
+  try {
+    const c = await NUX.get('/editorial/ce/issue-counts/');
+    setNavBadge('#nb-esc', c.queue, 'Stories waiting for your contract decision');
+    setNavBadge(`button[onclick^="gp('policies'"]`, c.policies, 'Policies waiting for review');
+    setNavBadge(`button[onclick^="gp('kyc'"]`, c.kyc, 'KYC submissions to review');
+    setNavBadge('#nb-reports', c.reports, `${c.flags} flags · ${c.reader_reports} reader reports · ${c.messages} unread messages · ${c.promotion_requests} promotion requests`);
+    setNavBadge('#nb-revenue', c.payouts, 'Payouts waiting');
+    setNavBadge('#nb-contracts', c.awaiting_sign, 'Contracts waiting for the author to sign');
+    setNavBadge('#nb-promo', c.promotion_requests, 'Promotion requests from senior editors');
+    const rr = document.getElementById('rr-count');
+    if (rr) { rr.textContent = c.reader_reports; rr.style.display = c.reader_reports ? '' : 'none'; }
+    const q = document.getElementById('ce-queue-badge'); if (q) q.textContent = c.queue + ' pending';
+  } catch (e) {}
+}
+refreshIssueCounts();
+setInterval(() => { if (!document.hidden) refreshIssueCounts(); }, 60000);
+
+// Cancel a contract (sent by the CE or a senior editor) before the author signs
+async function ceCancelContract(slug, title) {
+  const back = confirm(`Cancel the contract for "${title}"?\n\nOK = send the book back to its senior editor for another review.\nCancel = choose to reject it instead.`);
+  let action = 'send_back';
+  if (!back) {
+    if (!confirm(`Reject "${title}" for a contract? The author is told it was not approved.`)) return;
+    action = 'reject';
+  }
+  const reason = prompt('Reason (shown to the author and the senior editor):');
+  if (reason === null) return;
+  try {
+    await NUX.post('/editorial/ce-story-queue/' + slug + '/reject/', { action, reason });
+    toast(action === 'reject' ? 'Contract cancelled and rejected.' : 'Contract cancelled — sent back to the senior editor.');
+    document.getElementById('ce-await-' + slug)?.remove(); refreshIssueCounts();
+  } catch(e) { toast(e.detail || 'Could not cancel.'); }
+}
+
+// ── Editorial team: transfer authors, deactivate editors ──
+let _trFrom = null;
+async function openTransfer(id, name) {
+  _trFrom = id;
+  document.getElementById('tr-from-name').textContent = name;
+  const sel = document.getElementById('tr-to');
+  [...sel.options].forEach(o => o.hidden = o.value == id);
+  if (sel.value == id) sel.value = [...sel.options].find(o => o.value != id)?.value || '';
+  document.getElementById('tr-all').checked = true;
+  document.getElementById('transfer-modal').style.display = 'flex';
+  const list = document.getElementById('tr-list');
+  list.innerHTML = 'Loading…';
+  try {
+    const d = await NUX.get('/editorial/ce/editors/' + id + '/authors/');
+    document.getElementById('tr-count').textContent = d.results.length + ' author(s)';
+    list.innerHTML = d.results.map(a => `<label style="display:flex;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+      <input type="checkbox" class="tr-a" value="${a.id}" checked> <b>${a.username}</b>
+      <span style="color:var(--muted-fg);font-size:12px;">${a.name ? a.name + ' · ' : ''}${a.books} book${a.books === 1 ? '' : 's'}</span></label>`).join('')
+      || '<p style="color:var(--muted-fg);padding:8px 0;">No authors assigned.</p>';
+  } catch(e) { list.innerHTML = '<p style="color:hsl(0 68% 44%);">Could not load authors.</p>'; }
+}
+async function doTransfer() {
+  const to = document.getElementById('tr-to').value;
+  if (!to || to == _trFrom) { toast('Pick the editor to move them to.'); return; }
+  const boxes = [...document.querySelectorAll('.tr-a')];
+  const picked = boxes.filter(b => b.checked).map(b => +b.value);
+  if (!picked.length) { toast('Select at least one author.'); return; }
+  const body = { from_se: _trFrom, to_se: +to, reason: document.getElementById('tr-reason').value };
+  if (picked.length !== boxes.length) body.author_ids = picked;
+  try {
+    const r = await NUX.post('/editorial/ce/transfer-authors/', body);
+    toast(r.detail); document.getElementById('transfer-modal').style.display = 'none';
+    setTimeout(() => location.reload(), 900);
+  } catch(e) { toast(e.detail || 'Transfer failed.'); }
+}
+async function setEditorActive(id, name, active) {
+  if (!confirm(active ? `Re-activate ${name}? They can sign in again.`
+                      : `Deactivate ${name}? They can no longer sign in and disappear from your team lists. Their past approvals stay in the audit log.`)) return;
+  try { const r = await NUX.post('/editorial/ce/editors/' + id + '/active/', { active }); toast(r.detail); setTimeout(() => location.reload(), 900); }
+  catch(e) {
+    if (e.status === 400 && /Transfer them first/.test(e.detail || '')) { toast(e.detail); openTransfer(id, name); }
+    else toast(e.detail || 'Could not update.');
+  }
+}
+
+async function deleteAnnouncement(id) {
+  if (!confirm('Delete this announcement? It is also removed from everyone\'s notifications in the app. (Phone pop-ups already delivered can\'t be recalled.)')) return;
+  try { const r = await NUX.del('/editorial/ce/announcements/' + id + '/'); toast(r?.detail || 'Deleted.'); loadAnnouncements(); }
+  catch(e) { toast(e.detail || 'Could not delete.'); }
 }
 
 async function sendAnnouncement() {

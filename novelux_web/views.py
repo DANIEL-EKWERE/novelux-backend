@@ -3932,12 +3932,12 @@ def _editorial_context(request):
         _User = _gum()
 
         se_qs = _User.objects.filter(
-            role='se', editorial_assignment__supervisor=user,
+            role='se', is_active=True, editorial_assignment__supervisor=user,
         )
         # Fall back to all SEs on the platform (covers invites sent before
         # the supervisor-auto-assign fix)
         if not se_qs.exists():
-            se_qs = _User.objects.filter(role='se')
+            se_qs = _User.objects.filter(role='se', is_active=True)
 
         # Stories SE-approved and waiting for CE action (send contract)
         pending_stories = Story.objects.filter(
@@ -4024,7 +4024,8 @@ def _editorial_context(request):
             'active_policies':          EditorialPolicy.objects.filter(
                 status='active',
             ).select_related('proposed_by', 'approved_by').order_by('-published_at'),
-            'all_editors':              _User.objects.filter(role='se').order_by('username'),
+            'all_editors':              _User.objects.filter(role='se', is_active=True).order_by('username'),
+            'inactive_editors':         _User.objects.filter(role='se', is_active=False).order_by('username'),
             'author_overview':          _User.objects.filter(role='author').order_by('username')[:100],
             # legacy keys kept so other template sections don't crash
             'ce_escalation_count':      pending_stories.count(),

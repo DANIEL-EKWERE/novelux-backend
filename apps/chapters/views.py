@@ -463,7 +463,9 @@ class DownloadStoryView(APIView):
                     share = Decimal(str(settings.AUTHOR_REVENUE_SHARE))
                     for chapter, paid in priced:
                         unlock, created = ChapterUnlock.objects.get_or_create(
-                            user=user, chapter=chapter, defaults={'coins_spent': paid})
+                            user=user, chapter=chapter,
+                            defaults={'coins_spent': paid, 'bonus_spent': 0,
+                                      'method': ChapterUnlock.METHOD_DOWNLOAD})
                         cut = int(Decimal(paid) * share)
                         if created and cut > 0:
                             ChapterUnlockEarning.objects.create(
@@ -526,7 +528,9 @@ class UnlockChapterView(APIView):
             author_cut = int(coins_needed * settings.AUTHOR_REVENUE_SHARE)
 
         unlock = ChapterUnlock.objects.create(
-            user=request.user, chapter=chapter, coins_spent=coins_needed
+            user=request.user, chapter=chapter, coins_spent=coins_needed,
+            bonus_spent=getattr(request.user, 'last_bonus_spent', 0) if coins_needed else 0,
+            method=ChapterUnlock.METHOD_COINS if coins_needed else ChapterUnlock.METHOD_FREE_DAILY,
         )
 
         # The author's cut is held, not paid. It reaches their balance only when

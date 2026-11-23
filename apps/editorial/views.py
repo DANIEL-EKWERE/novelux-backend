@@ -2576,6 +2576,12 @@ def ce_reject_story(request, slug):
             message=notify_body,
             data={'screen': 'my_books', 'slug': story.slug},
         )
+        se = getattr(getattr(story.author, 'editor_link', None), 'assigned_se', None)
+        if se and se.pk != request.user.pk:
+            create_notification(se, Notification.TYPE_SYSTEM,
+                                f'Chief Editor {"rejected" if action == "reject" else "sent back"} "{story.title}"',
+                                (f'Reason: {reason}' if reason else 'No reason given.'),
+                                data={'slug': story.slug}, send_push=False)
     except Exception:
         pass
 
@@ -4276,10 +4282,7 @@ def ce_ban_user(request, pk):
         return Response({'detail': 'Cannot ban editorial staff.'}, status=403)
 
     reason = request.data.get('reason', '').strip()
-    user.is_banned  = True
-    user.is_active  = False
-    user.ban_reason = reason
-    user.save(update_fields=['is_banned', 'is_active', 'ban_reason'])
+    ban_author(user, request.user, reason)
     return Response({'detail': f'User {user.username} has been banned.', 'user': _user_summary(user)})
 
 
@@ -4625,13 +4628,42 @@ class CEBooksView(APIView):
 @api_view(['POST'])
 @permission_classes([IsCE])
 def ce_remove_story(request, slug):
-    """POST /api/editorial/ce/books/<slug>/remove/ — marks story as rejected/removed."""
+    """POST /api/editorial/ce/books/<slug>/remove/ — takes the story off the
+    platform and tells the author why."""
     from apps.stories.models import Story
-    story  = get_object_or_404(Story, slug=slug)
-    reason = request.data.get('reason', '')
+    story  = get_object_or_404(Story.objects.select_related('author'), slug=slug)
+    take_down_story(story, request.user, request.data.get('reason', ''))
+    return Response({'detail': f'"{story.title}" by {story.author.username} was taken down.', 'slug': slug})
+
+
+def _notify_author(user, title, message, data=None):
+    try:
+        from apps.notifications.services import create_notification
+        create_notification(user, 'system', title, message, data=data or {})
+    except Exception:
+        logger.exception('Moderation notification failed')
+
+
+def take_down_story(story, by, reason=''):
+    """Hide a story everywhere (lists, search, its page, chapters) and notify
+    the author. Restorable from Books Browser."""
     story.status = 'rejected'
     story.save(update_fields=['status'])
-    return Response({'detail': f'Story "{story.title}" removed.', 'slug': slug})
+    why = f' Reason: {reason}' if reason else ''
+    _notify_author(story.author, 'Your book was taken down',
+                   f'"{story.title}" was removed from HuxNovel for violating our guidelines.{why} '
+                   f'Contact your editor if you believe this is a mistake.',
+                   {'screen': 'my_books', 'slug': story.slug})
+
+
+def ban_author(author, by, reason=''):
+    """Ban the account (no sign-in) — all of the author's books disappear from
+    the platform at once — and notify them."""
+    author.is_banned, author.is_active, author.ban_reason = True, False, reason
+    author.save(update_fields=['is_banned', 'is_active', 'ban_reason'])
+    why = f' Reason: {reason}' if reason else ''
+    _notify_author(author, 'Your account has been banned',
+                   f'Your HuxNovel account and all your books were removed for violating our guidelines.{why}')
 
 
 @api_view(['POST'])
@@ -5030,12 +5062,74 @@ def ce_resolve_flag(request, pk):
     """POST /api/editorial/ce/flags/<pk>/resolve/"""
     from apps.editorial.models import ContentFlag
     from django.utils import timezone
-    flag = get_object_or_404(ContentFlag, pk=pk)
+    flag = get_object_or_404(ContentFlag.objects.select_related('chapter__story__author'), pk=pk)
+    note = request.data.get('note', '')
+    err, done = _moderation_action(request, flag.chapter.story if flag.chapter else None, note)
+    if err:
+        return err
     flag.resolved      = True
-    flag.resolution_note = request.data.get('note', '')
+    flag.resolution_note = f'{done} {note}'.strip() if done else note
     flag.resolved_by   = request.user
     flag.save(update_fields=['resolved', 'resolution_note', 'resolved_by'])
-    return Response({'detail': 'Flag resolved.'})
+    return Response({'detail': done or 'Flag resolved.'})
+
+
+def _moderation_action(request, story, note):
+    """Apply ?action= take_down | ban (or plain resolve) for a flag/report.
+    Returns (error Response or None, what was done)."""
+    action = request.data.get('action', 'resolve')
+    if action == 'resolve':
+        return None, ''
+    if story is None:
+        return Response({'detail': 'This report has no book attached.'}, status=400), ''
+    if action == 'take_down':
+        take_down_story(story, request.user, note)
+        return None, 'Book taken down.'
+    if action == 'ban':
+        if story.author.role in ('ce', 'se', 'admin') or story.author.is_superuser:
+            return Response({'detail': 'Editorial staff can\'t be banned here.'}, status=403), ''
+        ban_author(story.author, request.user, note)
+        return None, f'Author {story.author.username} banned.'
+    return Response({'detail': 'Unknown action.'}, status=400), ''
+
+
+class CEReaderReportsView(APIView):
+    """GET /api/editorial/ce/reader-reports/?status=pending|reviewed —
+    readers' "Report this story" submissions."""
+    permission_classes = [IsCE]
+
+    def get(self, request):
+        from apps.stories.models import ContentReport
+        qs = ContentReport.objects.select_related('story__author', 'reporter').order_by('-created_at')
+        st = request.query_params.get('status', 'pending')
+        if st in ('pending', 'reviewed'):
+            qs = qs.filter(status=st)
+        return Response({'results': [{
+            'id': r.id, 'reason': r.get_reason_display(), 'details': r.details,
+            'chapter_num': r.chapter_number, 'status': r.status,
+            'story_title': r.story.title, 'story_slug': r.story.slug, 'story_status': r.story.status,
+            'author': r.story.author.username, 'author_id': r.story.author_id,
+            'author_banned': r.story.author.is_banned,
+            'reporter': r.reporter.username if r.reporter else 'Guest',
+            'created_at': r.created_at.isoformat(),
+        } for r in qs[:100]]})
+
+
+@api_view(['POST'])
+@permission_classes([IsCE])
+def ce_reader_report_action(request, pk):
+    """POST /api/editorial/ce/reader-reports/<pk>/action/ {action, note}"""
+    from apps.stories.models import ContentReport
+    r = get_object_or_404(ContentReport.objects.select_related('story__author'), pk=pk)
+    err, done = _moderation_action(request, r.story, request.data.get('note', ''))
+    if err:
+        return err
+    # Taking the book down (or banning) settles every open report on it
+    if request.data.get('action') in ('take_down', 'ban'):
+        ContentReport.objects.filter(story=r.story, status='pending').update(status='reviewed')
+    else:
+        ContentReport.objects.filter(pk=pk).update(status='reviewed')
+    return Response({'detail': done or 'Report closed.'})
 
 
 # ── Author Warnings ───────────────────────────────────────────────────────────
@@ -5362,7 +5456,7 @@ class CEAnnouncementsView(APIView):
                     notification_type=Notification.TYPE_SYSTEM,
                     title=f'📢 {title}',
                     message=body[:255],
-                    data={'screen': 'announcements'},
+                    data={'screen': 'announcements', 'announcement_id': ann.id},
                 )
                 for u in users
             ], batch_size=500)
@@ -5386,6 +5480,28 @@ class CEAnnouncementsView(APIView):
             'id':      ann.id,
             'pushed':  pushed,
         }, status=201)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsCE])
+def ce_delete_announcement(request, pk):
+    """DELETE /api/editorial/ce/announcements/<pk>/ — removes the announcement
+    and the copies in everyone's in-app notifications. (A phone push already
+    delivered can't be recalled.)"""
+    from datetime import timedelta
+    from django.db.models import Q
+    from apps.editorial.models import Announcement
+    from apps.notifications.models import Notification
+    ann = get_object_or_404(Announcement, pk=pk)
+    # Newer copies carry the announcement id; older ones are matched by text and time
+    when = ann.sent_at or ann.created_at
+    removed, _ = Notification.objects.filter(
+        Q(data__announcement_id=ann.id) |
+        Q(title=f'📢 {ann.title}', message=ann.body[:255], notification_type=Notification.TYPE_SYSTEM,
+          created_at__gte=when - timedelta(minutes=10), created_at__lte=when + timedelta(minutes=30))
+    ).delete()
+    ann.delete()
+    return Response({'detail': f'Announcement deleted (removed from {removed} inbox{"es" if removed != 1 else ""}).'})
 
 
 # ── SE Promotion Requests ─────────────────────────────────────────────────────
@@ -5447,6 +5563,9 @@ def ce_review_promotion(request, pk):
     req.save(update_fields=['status', 'ce_note', 'reviewed_by', 'reviewed_at'])
 
     if action == 'approved':
+        # Timeline: how long the book holds the spot (default 7 days)
+        from .ce_promotions import _window
+        starts, ends = _window(request.data)
         pin, _ = ExploreTabPin.objects.update_or_create(
             tab=req.tab,
             section=req.section,
@@ -5456,6 +5575,8 @@ def ce_review_promotion(request, pk):
                 'source_request': req,
                 'is_active':      True,
                 'order':          order,
+                'starts_at':      starts,
+                'expires_at':     ends,
             },
         )
 
@@ -6742,3 +6863,202 @@ def editor_send_contract(request, slug):
     logger.info('Editor %s sent contract for %s (template=%s, type=%s)',
                 request.user.pk, story.slug, template.pk if template else None, contract_type)
     return Response({'status': 'contract_sent', 'story': story.slug})
+
+
+# ── CE: issue counts, author transfer, deactivating editors ──────────────────
+
+@api_view(['GET'])
+@permission_classes([IsCE])
+def ce_issue_counts(request):
+    """GET /api/editorial/ce/issue-counts/ — the red numbers in the CE sidebar:
+    everything still waiting for the chief editor."""
+    from apps.coins.models import AuthorPayout
+    from apps.editorial.models import AuthorMessage, ContentFlag, EditorialPolicy, SEPromotionRequest
+    from apps.stories.models import ContentReport, Story
+    from apps.users.models import AuthorKYC
+    flags = ContentFlag.objects.filter(resolved=False).count()
+    reader_reports = ContentReport.objects.filter(status='pending').count()
+    messages = AuthorMessage.objects.filter(is_read=False).count()
+    promo_requests = SEPromotionRequest.objects.filter(status='pending').count()
+    counts = {
+        'queue':          Story.objects.filter(contract_status='contract_sent').count(),
+        'awaiting_sign':  Story.objects.filter(contract_status='awaiting_signature').count(),
+        'policies':       EditorialPolicy.objects.filter(status='under_review').count(),
+        'kyc':            AuthorKYC.objects.filter(status=AuthorKYC.STATUS_PENDING).count(),
+        'flags':          flags,
+        'reader_reports': reader_reports,
+        'messages':       messages,
+        'promotion_requests': promo_requests,
+        'reports':        flags + reader_reports + messages + promo_requests,
+        'payouts':        AuthorPayout.objects.filter(status=AuthorPayout.STATUS_PENDING).count(),
+    }
+    return Response(counts)
+
+
+@api_view(['POST'])
+@permission_classes([IsCE])
+def ce_transfer_authors(request):
+    """POST /api/editorial/ce/transfer-authors/
+    { "from_se": 12, "to_se": 15, "author_ids": [..] (optional — all when
+      left out), "reason": "" } — moves authors (and their open contract
+    applications) from one senior editor to another, and tells everyone."""
+    from apps.editorial.models import ContractApplication
+    _User = get_user_model()
+    src = get_object_or_404(_User, pk=request.data.get('from_se'), role='se')
+    dst = get_object_or_404(_User, pk=request.data.get('to_se'), role='se', is_active=True)
+    if src.pk == dst.pk:
+        return Response({'detail': 'Pick two different senior editors.'}, status=400)
+    links = AuthorEditorLink.objects.filter(assigned_se=src).select_related('author')
+    ids = request.data.get('author_ids')
+    if ids:
+        links = links.filter(author_id__in=[int(i) for i in ids])
+    links = list(links)
+    if not links:
+        return Response({'detail': f'{src.username} has no authors to move.'}, status=400)
+    reason = (request.data.get('reason') or '').strip()
+    note = (f'Transferred from {src.username} to {dst.username} by CE {request.user.username} '
+            f'on {timezone.now().date()}' + (f'. Reason: {reason}' if reason else ''))
+    for link in links:
+        link.assigned_se, link.link_method, link.notes = dst, AuthorEditorLink.LINK_MANUAL, note
+        link.save(update_fields=['assigned_se', 'link_method', 'notes'])
+    authors = [l.author for l in links]
+    ContractApplication.objects.filter(author__in=authors, assigned_se=src).exclude(
+        status__in=[ContractApplication.STATUS_REJECTED]).update(assigned_se=dst)
+    try:
+        from apps.notifications.services import create_notification
+        for a in authors:
+            create_notification(a, 'system', 'You have a new editor',
+                                f'{dst.get_full_name() or dst.username} is now your senior editor on HuxNovel.',
+                                data={'screen': 'my_books'})
+        create_notification(dst, 'system', f'{len(authors)} author(s) transferred to you',
+                            f'From {src.username}: ' + ', '.join(a.username for a in authors[:10])
+                            + ('…' if len(authors) > 10 else ''), send_push=False)
+    except Exception:
+        logger.exception('Transfer notifications failed')
+    return Response({'detail': f'Moved {len(authors)} author(s) from {src.username} to {dst.username}.',
+                     'moved': len(authors)})
+
+
+@api_view(['POST'])
+@permission_classes([IsCE])
+def ce_set_editor_active(request, pk):
+    """POST /api/editorial/ce/editors/<pk>/active/ {"active": false} —
+    deactivate (or bring back) a senior editor. Their authors must be
+    transferred first; their history (approvals, audit log) is kept."""
+    _User = get_user_model()
+    se = get_object_or_404(_User, pk=pk, role='se')
+    active = str(request.data.get('active', 'false')).lower() in ('1', 'true', 'yes')
+    if not active:
+        left = AuthorEditorLink.objects.filter(assigned_se=se).count()
+        if left:
+            return Response({'detail': f'{se.username} still has {left} author(s). Transfer them first.',
+                             'authors_left': left}, status=400)
+    se.is_active = active
+    se.save(update_fields=['is_active'])
+    return Response({'detail': f'{se.username} {"re-activated" if active else "deactivated — they can no longer sign in"}.'})
+
+
+@api_view(['GET'])
+@permission_classes([IsCE])
+def ce_se_authors(request, pk):
+    """GET /api/editorial/ce/editors/<pk>/authors/ — a senior editor's authors."""
+    from apps.stories.models import Story
+    links = AuthorEditorLink.objects.filter(assigned_se_id=pk).select_related('author').order_by('author__username')
+    books = {}
+    for aid, n in Story.objects.filter(author__in=[l.author_id for l in links]).values_list('author_id', 'id'):
+        books[aid] = books.get(aid, 0) + 1
+    return Response({'results': [{'id': l.author_id, 'username': l.author.username,
+                                  'name': l.author.get_full_name(), 'email': l.author.email,
+                                  'books': books.get(l.author_id, 0)} for l in links]})
+
+
+# ── CE: find and contact authors ──────────────────────────────────────────────
+
+@api_view(['GET'])
+@permission_classes([IsCE])
+def ce_author_directory(request):
+    """GET /api/editorial/ce/author-directory/?q=&page= — every author with
+    their contact details (email, and phone from KYC)."""
+    from django.db.models import Count, Q as _Q
+    from apps.users.models import AuthorKYC
+    _User = get_user_model()
+    qs = _User.objects.filter(role='author').select_related('editor_link__assigned_se')
+    q = (request.query_params.get('q') or '').strip()
+    if q:
+        qs = qs.filter(_Q(username__icontains=q) | _Q(email__icontains=q) | _Q(first_name__icontains=q)
+                       | _Q(last_name__icontains=q) | _Q(stories__title__icontains=q)).distinct()
+    qs = qs.annotate(books=Count('stories', distinct=True)).order_by('username')
+    try:
+        page = max(1, int(request.query_params.get('page', 1)))
+    except ValueError:
+        page = 1
+    total = qs.count()
+    rows = list(qs[(page - 1) * 50: page * 50])
+    kyc = {k.user_id: k for k in AuthorKYC.objects.filter(user__in=rows)}
+    out = []
+    for a in rows:
+        k = kyc.get(a.pk)
+        link = getattr(a, 'editor_link', None)
+        se = link.assigned_se if link else None
+        out.append({'id': a.pk, 'username': a.username, 'name': (k.full_name if k else '') or a.get_full_name(),
+                    'email': a.email, 'phone': k.phone if k else '', 'country': k.country if k else '',
+                    'se': (se.get_full_name() or se.username) if se else None, 'books': a.books,
+                    'banned': a.is_banned, 'joined': a.date_joined.isoformat()})
+    return Response({'total': total, 'page': page, 'pages': (total + 49) // 50, 'results': out})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsCE])
+def ce_contact_author(request, pk):
+    """GET  /api/editorial/ce/authors/<pk>/contact/ — contact history.
+    POST {channel: in_app|email|whatsapp|call, subject, message} — in_app sends
+    it to the author's notifications (with a push); the others just log that
+    she reached out (the email/WhatsApp itself opens on her device)."""
+    from .models import AuthorContact
+    author = get_object_or_404(get_user_model(), pk=pk, role='author')
+    if request.method == 'GET':
+        return Response({'results': [{'channel': c.get_channel_display(), 'subject': c.subject, 'body': c.body,
+                                      'by': c.sent_by.username if c.sent_by_id else '', 'at': c.created_at.isoformat()}
+                                     for c in AuthorContact.objects.filter(author=author).select_related('sent_by')[:50]]})
+    channel = request.data.get('channel', 'in_app')
+    if channel not in dict(AuthorContact.CHANNELS):
+        return Response({'detail': 'Unknown channel.'}, status=400)
+    subject = (request.data.get('subject') or '').strip()[:150]
+    body = (request.data.get('message') or '').strip()
+    if channel == 'in_app':
+        if not body:
+            return Response({'detail': 'Write a message first.'}, status=400)
+        try:
+            from apps.notifications.services import create_notification
+            create_notification(author, 'system', f'Message from the Chief Editor{": " + subject if subject else ""}',
+                                body, data={'from': 'chief_editor'})
+        except Exception:
+            logger.exception('Author message failed')
+            return Response({'detail': 'Could not deliver the message.'}, status=502)
+    AuthorContact.objects.create(author=author, sent_by=request.user, channel=channel, subject=subject, body=body)
+    return Response({'detail': 'Message sent to the author\'s notifications.' if channel == 'in_app' else 'Logged.'})
+
+
+@api_view(['GET'])
+@permission_classes([IsCE])
+def ce_home_summary(request):
+    """GET /api/editorial/ce/home-summary/ — the dashboard home in one call."""
+    from datetime import timedelta
+    from django.db.models import Sum
+    from apps.chapters.models import ChapterUnlock, VipChapterRead
+    from apps.coins.models import Purchase
+    from apps.stories.models import Story
+    from apps.users.models import User as _U
+    now = timezone.now()
+    month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    week = now - timedelta(days=7)
+    rev = Purchase.objects.filter(status='completed', completed_at__gte=month).aggregate(t=Sum('amount_paid_usd'))['t'] or 0
+    return Response({
+        'revenue_month_usd': float(rev),
+        'unlocks_week': ChapterUnlock.objects.filter(created_at__gte=week).count(),
+        'vip_reads_week': VipChapterRead.objects.filter(created_at__gte=week).count(),
+        'new_authors_week': _U.objects.filter(role='author', date_joined__gte=week).count(),
+        'new_readers_week': _U.objects.filter(date_joined__gte=week).exclude(role__in=['author', 'se', 'ce', 'admin']).count(),
+        'live_books': Story.objects.exclude(status__in=['draft', 'rejected']).count(),
+        'signed_books': Story.objects.filter(contract_status='signed').count(),
+    })

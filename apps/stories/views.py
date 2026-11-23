@@ -661,7 +661,8 @@ def exclude_explicit(qs, user=None, request=None):
     Authors keep seeing their own stories when a user is given."""
     from .models import PlatformSettings, viewer_pin_locked
     from django.db.models import Q
-    hidden = Q(genre__is_active=False)
+    # Taken down by the chief editor, or written by a banned author
+    hidden = Q(genre__is_active=False) | Q(status='rejected') | Q(author__is_banned=True)
     pin_locked = viewer_pin_locked(user)
     if not PlatformSettings.explicit_visible() or pin_locked:
         hidden = hidden | Q(is_explicit=True)
@@ -998,7 +999,12 @@ class PromoBannersView(APIView):
     permission_classes = [permissions.AllowAny]
  
     def get(self, request):
-        banners = PromoBanner.objects.filter(is_active=True)
+        from django.db.models import Q
+        from django.utils import timezone
+        now = timezone.now()
+        banners = (PromoBanner.objects.filter(is_active=True)
+                   .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+                   .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now)))
         if not banners.exists():
             # Fallback hardcoded
             return Response([
@@ -1585,10 +1591,15 @@ class ExploreTabView(APIView):
     def _pinned_ids(self, tab, section):
         """Return ordered list of story PKs pinned to this tab/section by CE/SE."""
         try:
+            from django.db.models import Q
+            from django.utils import timezone
             from apps.editorial.models import ExploreTabPin
+            now = timezone.now()
             return list(
                 ExploreTabPin.objects
                 .filter(tab=tab, section=section, is_active=True)
+                .filter(Q(starts_at__isnull=True) | Q(starts_at__lte=now))
+                .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
                 .order_by('order', '-pinned_at')
                 .values_list('story_id', flat=True)
             )

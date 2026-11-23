@@ -505,6 +505,9 @@ class PromoBanner(models.Model):
     is_active  = models.BooleanField(default=True)
     order      = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Timeline: shown only between these dates (blank = no limit)
+    starts_at  = models.DateTimeField(null=True, blank=True)
+    ends_at    = models.DateTimeField(null=True, blank=True)
  
     class Meta:
         ordering = ['order']
@@ -625,8 +628,10 @@ def explicit_blocked(story, user=None, request=None):
         not PlatformSettings.explicit_visible() or pin_locked
     )
     adult_off = story.age_rating == '18+' and pin_locked
+    # Taken down by the chief editor, or written by a banned author
+    taken_down = story.status == 'rejected' or bool(getattr(story.author, 'is_banned', False))
 
-    if not (genre_off or explicit_off or adult_off):
+    if not (genre_off or explicit_off or adult_off or taken_down):
         return False
     if user is not None and getattr(user, 'is_authenticated', False):
         if story.author_id == user.pk:

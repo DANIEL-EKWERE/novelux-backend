@@ -906,9 +906,16 @@ class Chapter(models.Model):
         return published_count
 
 class ChapterUnlock(models.Model):
+    METHOD_COINS, METHOD_FREE_DAILY, METHOD_DOWNLOAD = 'coins', 'free_daily', 'download'
+    METHOD_CHOICES = [(METHOD_COINS, 'Coins'), (METHOD_FREE_DAILY, 'Daily free chapter'),
+                      (METHOD_DOWNLOAD, 'Bought with the book download')]
     user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='unlocked_chapters')
     chapter    = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='unlocked_by')
     coins_spent= models.PositiveSmallIntegerField()
+    # Of coins_spent, how many were bonus coins (the rest were purchased).
+    # Null on unlocks made before this was recorded.
+    bonus_spent = models.PositiveSmallIntegerField(null=True, blank=True)
+    method     = models.CharField(max_length=12, choices=METHOD_CHOICES, default=METHOD_COINS, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

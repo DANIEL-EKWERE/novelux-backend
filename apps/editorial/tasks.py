@@ -428,6 +428,14 @@ def expire_promotions():
             next_q.save(update_fields=['status', 'starts_at', 'expires_at', 'queue_position', 'updated_at'])
             logger.info(f'Activated queued promotion: "{next_q.story.title}" [{next_q.category}]')
 
+    # Queued books whose start date has come take a free slot
+    for q in (StoryPromotion.objects.filter(status=StoryPromotion.STATUS_QUEUED, starts_at__lte=now(),
+                                            expires_at__gt=now())
+              .select_related('se').order_by('queue_position', 'created_at')):
+        if StoryPromotion.can_add_active(q.se, q.category):
+            q.status, q.queue_position = StoryPromotion.STATUS_ACTIVE, 0
+            q.save(update_fields=['status', 'queue_position', 'updated_at'])
+
 
 @shared_task
 def send_promotion_reminders():

@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import ce_analytics, ce_promotions, views
 
 app_name = 'editorial'
 
@@ -93,13 +93,23 @@ urlpatterns = [
     path('ce/visitor-analytics/', views.CEVisitorAnalyticsView.as_view(), name='ce-visitor-analytics'),
     path('ce/flags/', views.CEContentFlagsView.as_view(), name='ce-flags'),
     path('ce/flags/<int:pk>/resolve/', views.ce_resolve_flag, name='ce-flag-resolve'),
+    path('ce/reader-reports/', views.CEReaderReportsView.as_view(), name='ce-reader-reports'),
+    path('ce/reader-reports/<int:pk>/action/', views.ce_reader_report_action, name='ce-reader-report-action'),
     path('ce/warnings/', views.CEAuthorWarningsView.as_view(), name='ce-warnings'),
     path('ce/warnings/<int:pk>/', views.ce_dismiss_warning, name='ce-warning-dismiss'),
     path('ce/authors/<int:author_id>/reassign/', views.ce_reassign_author, name='ce-reassign-author'),
+    path('ce/transfer-authors/', views.ce_transfer_authors, name='ce-transfer-authors'),
+    path('ce/editors/<int:pk>/active/', views.ce_set_editor_active, name='ce-editor-active'),
+    path('ce/editors/<int:pk>/authors/', views.ce_se_authors, name='ce-se-authors'),
+    path('ce/issue-counts/', views.ce_issue_counts, name='ce-issue-counts'),
+    path('ce/author-directory/', views.ce_author_directory, name='ce-author-directory'),
+    path('ce/authors/<int:pk>/contact/', views.ce_contact_author, name='ce-contact-author'),
+    path('ce/home-summary/', views.ce_home_summary, name='ce-home-summary'),
     path('ce/messages/', views.CEAuthorMessagesView.as_view(), name='ce-messages'),
     path('ce/messages/<int:pk>/reply/', views.ce_reply_message, name='ce-message-reply'),
     path('ce/messages/<int:pk>/read/', views.ce_mark_message_read, name='ce-message-read'),
     path('ce/announcements/', views.CEAnnouncementsView.as_view(), name='ce-announcements'),
+    path('ce/announcements/<int:pk>/', views.ce_delete_announcement, name='ce-announcement-delete'),
     path('ce/promotion-requests/', views.CESEPromotionRequestsView.as_view(), name='ce-promotion-requests'),
     path('ce/promotion-requests/<int:pk>/review/', views.ce_review_promotion, name='ce-promotion-review'),
     path('ce/tab-pins/', views.CETabPinsView.as_view(), name='ce-tab-pins'),
@@ -118,6 +128,22 @@ urlpatterns = [
     path('ce/promotions/', views.CEPromotionListView.as_view(), name='ce-promotions'),
     path('ce/promotions/<int:pk>/', views.ce_remove_promotion, name='ce-promotion-remove'),
     path('ce/slot-configs/', views.CESlotConfigView.as_view(), name='ce-slot-configs'),
+    # CE promotion center: every promotional spot, with timelines
+    path('ce/insights/se-activity/',             ce_analytics.se_activity),
+    path('ce/insights/se-revenue/',              ce_analytics.se_revenue),
+    path('ce/insights/unlocks/',                 ce_analytics.unlock_methods),
+    path('ce/insights/contracts/',               ce_analytics.contract_types),
+    path('ce/promo-center/overview/',            ce_promotions.overview),
+    path('ce/promo-center/placements/',          ce_promotions.placements),
+    path('ce/promo-center/books/',               ce_promotions.books),
+    path('ce/promo-center/insights/<slug:slug>/', ce_promotions.book_insights),
+    path('ce/promo-center/slots/',               ce_promotions.add_slot),
+    path('ce/promo-center/slots/<int:pk>/',      ce_promotions.slot_detail),
+    path('ce/promo-center/pins/',                ce_promotions.add_pin),
+    path('ce/promo-center/pins/<int:pk>/',       ce_promotions.pin_detail),
+    path('ce/promo-center/banners/',             ce_promotions.add_banner),
+    path('ce/promo-center/banners/<int:pk>/',    ce_promotions.banner_detail),
+    path('ce/promo-center/library/<int:pk>/',    ce_promotions.library_toggle),
     # Tab/section catalogue for SE promotion modal
     path('tab-sections/', views.TabSectionsView.as_view(), name='tab-sections'),
     # Author-facing & system

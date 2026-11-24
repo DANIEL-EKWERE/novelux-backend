@@ -189,27 +189,35 @@ class ReadingReminder(models.Model):
         return f'{self.user} — {self.story_id} ch.{self.chapter_number}'
 
 
+def _default_slots():
+    return [8, 10, 12, 14, 16, 18, 20, 21]
+
+
 class EngagementPushSettings(models.Model):
-    """Singleton: scheduled pushes for check-in streaks, tasks / ad rewards and
-    VIP. A reader gets at most one of these a day, at their local time."""
-    checkin_enabled  = models.BooleanField(default=True, help_text='"Don\'t lose your streak" reminders.')
-    checkin_hour     = models.PositiveSmallIntegerField(default=19, help_text="Reader's local hour (0–23).")
+    """Singleton: the daily retention pushes — up to `daily_max` a day, at the
+    hours in `slot_hours` (each reader's local time), each picked for that
+    reader: the book they're reading, books they might like, check-in, coins,
+    rewards, VIP…"""
+    daily_max        = models.PositiveSmallIntegerField(default=8, help_text='Most pushes a reader gets in a day.')
+    slot_hours       = models.JSONField(default=_default_slots,
+                                        help_text="Reader's local hours to send at, e.g. [8, 10, 12, 14, 16, 18, 20, 21].")
+    books_enabled    = models.BooleanField(default=True, help_text='Continue reading / books they might like / new arrivals.')
+    checkin_enabled  = models.BooleanField(default=True, help_text='Check-in and streak reminders.')
     rewards_enabled  = models.BooleanField(default=True, help_text='Tasks and ad-reward reminders.')
-    rewards_hour     = models.PositiveSmallIntegerField(default=12)
-    rewards_every_days = models.PositiveSmallIntegerField(default=3)
+    coins_enabled    = models.BooleanField(default=True, help_text='Unused coins / bonus coins about to expire.')
     vip_enabled      = models.BooleanField(default=True, help_text='"Tired of ads? Go VIP" to non-VIP readers.')
-    vip_hour         = models.PositiveSmallIntegerField(default=20)
-    vip_every_days   = models.PositiveSmallIntegerField(default=7)
+    vip_every_days   = models.PositiveSmallIntegerField(default=3)
+    guests_enabled   = models.BooleanField(default=True, help_text='Also reach people using the app without an account.')
     active_days      = models.PositiveSmallIntegerField(
-                           default=14, help_text='Only readers who opened the app in this many days.')
+                           default=30, help_text='Only people who opened the app in this many days.')
     updated_at       = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'engagement_push_settings'
-        verbose_name = verbose_name_plural = 'Check-in / rewards / VIP push settings'
+        verbose_name = verbose_name_plural = 'Daily retention push settings'
 
     def __str__(self):
-        return 'Check-in / rewards / VIP push settings'
+        return 'Daily retention push settings'
 
     @classmethod
     def get(cls):
@@ -218,10 +226,16 @@ class EngagementPushSettings(models.Model):
 
 
 class EngagementPush(models.Model):
-    """One scheduled push sent to one reader (for the daily limit and stats)."""
-    KINDS = [('checkin', 'Check-in streak'), ('tasks', 'Tasks'), ('ads', 'Ad rewards'), ('vip', 'Go VIP')]
-    user    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='engagement_pushes')
-    kind    = models.CharField(max_length=10, choices=KINDS, db_index=True)
+    """One retention push sent to one reader (or guest device) — for the
+    daily limit, variety and stats."""
+    KINDS = [('continue', 'Continue reading'), ('recommend', 'Book they might like'),
+             ('new_arrivals', 'New arrival'), ('trending', 'Trending book'), ('checkin', 'Check-in'),
+             ('tasks', 'Tasks'), ('ads', 'Ad rewards'), ('bonus_expiring', 'Bonus coins expiring'),
+             ('coins', 'Unused coins'), ('weekly', 'New week'), ('vip', 'Go VIP')]
+    user    = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True,
+                                related_name='engagement_pushes')
+    device_token = models.CharField(max_length=255, blank=True, db_index=True, help_text='Guests (no account).')
+    kind    = models.CharField(max_length=20, choices=KINDS, db_index=True)
     title   = models.CharField(max_length=150)
     body    = models.CharField(max_length=255)
     sent_at = models.DateTimeField(default=timezone.now, db_index=True)
@@ -232,4 +246,4 @@ class EngagementPush(models.Model):
         indexes = [models.Index(fields=['user', 'sent_at'])]
 
     def __str__(self):
-        return f'{self.user} — {self.kind} — {self.sent_at:%Y-%m-%d %H:%M}'
+        return f'{self.user or "guest"} — {self.kind} — {self.sent_at:%Y-%m-%d %H:%M}'

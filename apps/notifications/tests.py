@@ -137,75 +137,92 @@ class ContinueReadingReminderTests(TestCase):
 
 
 class EngagementPushTests(TestCase):
-    """Check-in / tasks / ad rewards / VIP pushes at the reader's local hour."""
+    """Daily retention pushes: up to 8 a day at the reader's local hours,
+    each picked for them."""
 
     def setUp(self):
         from datetime import datetime, timezone as dt_tz
         from apps.analytics.models import PageVisit
+        from apps.chapters.models import Chapter
+        from apps.coins.models import ReadingHistory
         from apps.users.models import FCMDevice
+        self.author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
         self.reader = User.objects.create_user(email='r@x.com', username='ada', password='x')
         FCMDevice.objects.create(user=self.reader, token='tok-ada', platform='Android', device_model='', app_version='')
+        self.day = datetime(2026, 11, 17, tzinfo=dt_tz.utc)            # a Tuesday
         v = PageVisit.objects.create(user=self.reader, path='/api/stories/', country_code='NG')
-        self.day = datetime(2026, 11, 17, tzinfo=dt_tz.utc)
         PageVisit.objects.filter(pk=v.pk).update(created_at=self.day - timedelta(days=1))
+        self.luna = Story.objects.create(author=self.author, title='Spare Luna', slug='luna', status='ongoing',
+                                         total_chapters=3, total_views=900)
+        self.other = Story.objects.create(author=self.author, title='Royal Mate', slug='royal', status='ongoing',
+                                          total_chapters=2, total_views=500)
+        for n in (1, 2, 3):
+            Chapter.objects.create(story=self.luna, title=f'C{n}', chapter_number=n, is_published=True)
+        ReadingHistory.objects.create(user=self.reader, story=self.luna, chapter_number=1)
 
-    def at_lagos(self, hour, days=0):
-        return self.day + timedelta(days=days, hours=hour - 1)     # Lagos = UTC+1
+    def lagos(self, hour, days=0, minute=5):
+        return self.day + timedelta(days=days, hours=hour - 1, minutes=minute)     # Lagos = UTC+1
 
     def run_at(self, when):
         from .engagement import send_due
-        with mock.patch('apps.notifications.fcm.send_to_tokens') as push:
+        with mock.patch('apps.notifications.fcm.send_personal', return_value=(1, 0, [])) as push:
             out = send_due(now=when)
         return out, push
 
-    def test_checkin_streak_reminder_at_7pm(self):
-        from apps.coins.models import CheckinStreak
-        CheckinStreak.objects.create(user=self.reader, current_streak=4,
-                                     last_checkin=self.day.date() - timedelta(days=1))
-        _, push = self.run_at(self.at_lagos(18))
-        push.assert_not_called()                                    # not 7pm yet
-        out, push = self.run_at(self.at_lagos(19))
-        self.assertIn('checkin: 1', out)
-        tokens, title, body, data = push.call_args[0]
-        self.assertEqual(tokens, ['tok-ada'])
-        self.assertIn('4', title + body)                            # the streak
-        self.assertEqual(data, {'screen': 'rewards', 'section': 'checkin'})
-        _, push = self.run_at(self.at_lagos(19) + timedelta(minutes=15))
-        push.assert_not_called()                                    # one a day
+    def sent(self, push):
+        return push.call_args[0][0] if push.called else []
 
-    def test_no_checkin_reminder_after_checking_in(self):
-        from apps.coins.models import CheckinStreak
-        CheckinStreak.objects.create(user=self.reader, current_streak=2, last_checkin=self.day.date())
-        _, push = self.run_at(self.at_lagos(19))
+    def test_morning_push_and_once_per_slot(self):
+        _, push = self.run_at(self.lagos(7))
+        push.assert_not_called()                                   # before the first slot
+        out, push = self.run_at(self.lagos(8))
+        (tok, title, body, data), = self.sent(push)
+        self.assertEqual(tok, 'tok-ada')
+        self.assertEqual(data['screen'], 'rewards')                # morning: check-in
+        _, push = self.run_at(self.lagos(8, minute=25))
+        push.assert_not_called()                                   # same slot: once
+
+    def test_continue_reading_names_their_book(self):
+        self.run_at(self.lagos(8))
+        _, push = self.run_at(self.lagos(10))
+        (tok, title, body, data), = self.sent(push)
+        self.assertIn('Spare Luna', title + body)
+        self.assertIn('2', title + body)                           # the next chapter
+        self.assertEqual(data, {'screen': 'story', 'slug': 'luna', 'chapter_number': 2, 'action': 'continue'})
+
+    def test_eight_a_day_varied(self):
+        from .models import EngagementPush
+        User.objects.filter(pk=self.reader.pk).update(coin_balance=140)
+        for h in (8, 10, 12, 14, 16, 18, 20, 21, 22):
+            self.run_at(self.lagos(h))
+        kinds = list(EngagementPush.objects.filter(user=self.reader).order_by('sent_at').values_list('kind', flat=True))
+        self.assertEqual(len(kinds), 8)
+        self.assertTrue(all(a != b for a, b in zip(kinds, kinds[1:])), kinds)     # never twice in a row
+        self.assertIn('continue', kinds)
+        self.assertIn('recommend', kinds)                          # Royal Mate — not read yet
+        self.assertIn('coins', kinds)
+        self.assertLessEqual(kinds.count('continue'), 2)
+
+    def test_local_time_per_country(self):
+        from apps.analytics.models import PageVisit
+        PageVisit.objects.filter(user=self.reader).update(country_code='US')    # New York = UTC-5
+        _, push = self.run_at(self.lagos(8))
+        push.assert_not_called()                                   # 2am in New York
+        _, push = self.run_at(self.day + timedelta(hours=13, minutes=5))   # 8am New York
+        self.assertEqual(len(self.sent(push)), 1)
+
+    def test_guests_get_book_pushes(self):
+        from apps.users.models import FCMDevice
+        FCMDevice.objects.create(user=None, token='tok-guest', platform='Android', device_model='', app_version='')
+        _, push = self.run_at(self.lagos(10))
+        guest = [m for m in self.sent(push) if m[0] == 'tok-guest']
+        self.assertEqual(len(guest), 1)
+        self.assertEqual(guest[0][3]['screen'], 'story')
+
+    def test_inactive_readers_left_alone(self):
+        from apps.analytics.models import PageVisit
+        PageVisit.objects.filter(user=self.reader).update(created_at=self.day - timedelta(days=45))
+        User.objects.filter(pk=self.reader.pk).update(date_joined=self.day - timedelta(days=90))
+        _, push = self.run_at(self.lagos(8))
         push.assert_not_called()
 
-    def test_tasks_then_ad_rewards_at_noon(self):
-        from apps.coins.models import AdRewardTask, Task, UserTask
-        t = Task.objects.create(title='Follow us', description='x', reward_coins=20)
-        AdRewardTask.objects.create(ads_required=3, reward_coins=15)
-        out, push = self.run_at(self.at_lagos(12))
-        self.assertIn('tasks: 1', out)
-        self.assertEqual(push.call_args[0][3], {'screen': 'rewards', 'section': 'tasks'})
-        self.assertIn('20', push.call_args[0][2])
-        # Task done → next rewards push (3 days later) is about ad rewards
-        UserTask.objects.create(user=self.reader, task=t, status=UserTask.STATUS_CLAIMED,
-                                claimed_at=self.day)
-        _, push = self.run_at(self.at_lagos(12, days=1))
-        push.assert_not_called()                                    # every 3 days
-        out, push = self.run_at(self.at_lagos(12, days=3))
-        self.assertIn('ads: 1', out)
-        self.assertEqual(push.call_args[0][3], {'screen': 'rewards', 'section': 'ad_rewards'})
-
-    def test_vip_push_weekly_and_never_to_vips(self):
-        out, push = self.run_at(self.at_lagos(20))
-        self.assertIn('vip: 1', out)
-        self.assertEqual(push.call_args[0][3], {'screen': 'vip'})
-        _, push = self.run_at(self.at_lagos(20, days=2))
-        push.assert_not_called()                                    # weekly
-        User.objects.filter(pk=self.reader.pk).update(is_vip=True)
-        _, push = self.run_at(self.at_lagos(20, days=8))
-        push.assert_not_called()
-
-    def test_inactive_readers_are_left_alone(self):
-        _, push = self.run_at(self.at_lagos(20, days=30))
-        push.assert_not_called()

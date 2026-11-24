@@ -106,3 +106,37 @@ def send_to_topic(topic: str, title: str, body: str,
     except Exception as e:
         logger.error(f'FCM topic send failed: {e}')
         return False
+
+def send_personal(items):
+    """Send a different message to each device in one go (500 per batch).
+    items: [(token, title, body, data)]. Returns (sent, failed, dead_tokens)."""
+    if not items:
+        return 0, 0, []
+    _get_app()
+    sent = failed = 0
+    dead = []
+    for i in range(0, len(items), 500):
+        chunk = items[i:i + 500]
+        msgs = [messaging.Message(
+            token=tok,
+            notification=messaging.Notification(title=title, body=body),
+            data={str(k): str(v) for k, v in (data or {}).items()},
+            android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(
+                icon='ic_notification', color='#C15F3C', sound='default', channel_id='high_importance_channel')),
+            apns=messaging.APNSConfig(headers={'apns-priority': '10'}, payload=messaging.APNSPayload(
+                aps=messaging.Aps(alert=messaging.ApsAlert(title=title, body=body), sound='default'))),
+        ) for tok, title, body, data in chunk]
+        try:
+            res = messaging.send_each(msgs)
+        except Exception as e:
+            logger.error(f'FCM personal batch failed: {e}')
+            failed += len(chunk)
+            continue
+        for (tok, *_), r in zip(chunk, res.responses):
+            if r.success:
+                sent += 1
+            else:
+                failed += 1
+                if r.exception and type(r.exception).__name__ in ('UnregisteredError', 'SenderIdMismatchError'):
+                    dead.append(tok)
+    return sent, failed, dead

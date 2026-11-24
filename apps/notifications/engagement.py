@@ -1,201 +1,385 @@
-"""Scheduled pushes that bring readers back: check-in streaks, tasks / ad
-rewards and "tired of ads? go VIP".
+"""Daily retention pushes — up to 8 a day per reader, at set hours in their
+local time (morning first), each one picked for that reader:
 
-Runs every 15 minutes from the scheduled-jobs runner. Each reader gets at
-most ONE of these a day, at a set hour in their local time (from the country
-of their latest visit), and only if they've used the app recently. Several
-wordings per kind rotate so the same message doesn't repeat.
+  continue      the book they're reading — the next chapter
+  recommend     a popular book in the genre they read, that they haven't started
+  new_arrivals  a fresh, popular book they haven't read
+  trending      what everyone is reading
+  checkin       today's check-in coins / don't break the streak
+  tasks / ads   free coins in Rewards
+  bonus_expiring  bonus coins about to vanish
+  coins         coins sitting unused
+  weekly        Monday morning "new week" hook
+  vip           tired of ads? go VIP
 
-All of them open the right screen when tapped: check-in, tasks and ad
-rewards → Rewards ("screen": "rewards"), VIP → "screen": "vip".
+Runs every 15 minutes from the scheduled-jobs runner. A reader gets at most
+one per slot, never the same kind twice in a row, and each kind only a
+couple of times a day. People without an account (guests) get the general
+book pushes. Wording rotates so the same message rarely repeats.
 """
 import logging
 import random
 from collections import defaultdict
 from datetime import timedelta
 
-from django.db.models import Exists, OuterRef, Q, Subquery
+from django.db.models import Exists, Max, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_TZ = 'Africa/Lagos'
+SLOT_GAP = timedelta(minutes=50)          # never two pushes in the same slot
 
-# (title, body) — {streak}, {coins}, {count}, {next_day} are filled in
-CHECKIN_STREAK = [
-    ("🔥 Don't break your {streak}-day streak", "Check in now for {coins} free coins before midnight."),
-    ('Day {next_day} is waiting 🔥', "{streak} days in a row! Today's check-in is worth {coins} coins."),
-    ('Your {coins} coins are ready 🪙', 'Tap to check in and keep your {streak}-day streak alive.'),
+# Which kinds each slot prefers, in order (the first one that fits wins).
+SLOT_PLAN = [
+    ['weekly', 'checkin', 'continue', 'recommend', 'trending'],          # morning
+    ['continue', 'recommend', 'trending'],
+    ['tasks', 'ads', 'coins', 'recommend', 'trending'],                  # midday
+    ['recommend', 'new_arrivals', 'continue', 'trending'],
+    ['bonus_expiring', 'coins', 'continue', 'new_arrivals'],
+    ['new_arrivals', 'recommend', 'continue', 'trending'],
+    ['checkin', 'continue', 'vip', 'recommend'],                         # evening
+    ['continue', 'vip', 'recommend', 'trending'],                        # night
 ]
-CHECKIN_NEW = [
-    ('🪙 Free coins today', "Check in daily for up to 20 coins — today's reward is {coins}."),
-    ('Daily check-in is open', 'Claim your free coins and start a new streak 🔥'),
-    ('Coins for chapters 🪙', 'Check in once a day and collect free coins to unlock more chapters.'),
-]
-TASKS = [
-    ('🎁 {count} rewards waiting', 'Finish quick tasks and earn up to {coins} free coins.'),
-    ('Free coins inside 🪙', '{count} easy task{s} — up to {coins} coins to unlock more chapters.'),
-    ('Unlock chapters for free 📖', 'Complete {count} task{s} in Rewards and collect up to {coins} coins.'),
-]
-ADS = [
-    ('📺 Watch, earn, read', 'Watch a few short ads and earn up to {coins} bonus coins today.'),
-    ('Low on coins? 🪙', 'Earn up to {coins} bonus coins today with short videos — then keep reading.'),
-    ('Free coins, no purchase needed', "Today's ad rewards are worth up to {coins} bonus coins. Claim them in Rewards."),
-]
-VIP = [
-    ('Tired of ads? 👑', 'Go VIP: read ad-free, download books for offline and enjoy the whole library.'),
-    ('Read without interruptions 👑', 'VIP removes every ad. Try it and get lost in your story.'),
-    ('Your next chapter, ad-free ✨', 'Upgrade to VIP for ad-free reading and offline downloads.'),
-]
+PER_DAY = {'continue': 2, 'recommend': 2, 'checkin': 2, 'trending': 1, 'new_arrivals': 1, 'tasks': 1,
+           'ads': 1, 'bonus_expiring': 1, 'coins': 1, 'weekly': 1, 'vip': 1}
+GUEST_KINDS = {'recommend', 'new_arrivals', 'trending', 'weekly'}
+
+# ── Wording (title, body) — {book} {chapter} {coins} {streak} {count} {genre}
+T = {
+    'continue': [
+        ('📖 {book}', 'Chapter {chapter} is waiting. You stopped at the best part 👀'),
+        ('You left them on a cliffhanger 😱', 'Chapter {chapter} of {book} — find out what happens next.'),
+        ("Don't leave {book} hanging", 'Chapter {chapter} is just one tap away.'),
+        ('🔥 Chapter {chapter} hits different', 'Pick up {book} right where you left off.'),
+        ('Still thinking about {book}? 💭', 'So are we. Chapter {chapter} is ready.'),
+        ('5 minutes? Perfect. ⏳', 'Just enough for chapter {chapter} of {book}.'),
+    ],
+    'recommend': [
+        ('📚 Picked for you', '{book} — readers who love {genre} can\'t put this down.'),
+        ('Your next obsession? 👀', '{book} is trending with {genre} fans right now.'),
+        ('We found your type 😏', 'If you liked your last read, {book} will hook you from page one.'),
+        ('💘 New crush unlocked', '{book}. Trust us on this one.'),
+        ('Bored? Not for long.', 'Start {book} — chapter 1 is free.'),
+    ],
+    'new_arrivals': [
+        ('✨ Fresh off the press', '{book} just landed. Be one of the first to read it.'),
+        ('🆕 New on HuxNovel', '{book} — everyone will be talking about this soon.'),
+        ('Hot new story alert 🔥', '{book} is climbing the charts. Start chapter 1 free.'),
+    ],
+    'trending': [
+        ('🔥 Everyone is reading this', '{book} — see what the hype is about.'),
+        ('📈 #1 right now', "{book} is today's most-read story. Don't miss out."),
+        ('The story everyone\'s talking about 🗣️', 'Start {book} — chapter 1 is on us.'),
+    ],
+    'checkin_streak': [
+        ("🔥 Don't break your {streak}-day streak", 'Check in now for {coins} free coins.'),
+        ('🐾 Your check-in reward is escaping', 'Tap. Claim. Done. +{coins} coins.'),
+        ('Day {next_day} is calling 📅', '{coins} free coins are waiting for you.'),
+    ],
+    'checkin_new': [
+        ('🪙 Free coins today', "Today's check-in is worth {coins} coins. Tap to claim."),
+        ("🐾 Don't let your check-in reward escape", 'Tap. Claim. Done.'),
+        ('Your daily coins are ready 🎁', 'Check in and unlock more chapters for free.'),
+    ],
+    'tasks': [
+        ('🎁 {count} rewards waiting', 'Finish quick tasks and earn up to {coins} free coins.'),
+        ('Free coins inside 🪙', 'Easy tasks in Rewards — up to {coins} coins.'),
+    ],
+    'ads': [
+        ('📺 Watch, earn, read', 'Short videos = up to {coins} bonus coins today.'),
+        ('Low on coins? 🪙', 'Earn up to {coins} bonus coins with a few short videos.'),
+    ],
+    'bonus_expiring': [
+        ('⏰ {coins} coins expire soon', "Use them before they vanish — they won't wait."),
+        ('Your bonus coins are leaving 👋', '{coins} coins expire within a day. Spend them on a chapter now.'),
+    ],
+    'coins': [
+        ('🪙 {coins} coins are just sitting there', 'We know you\'re busy, but your coins won\'t hear the excuse. Use them now.'),
+        ('You have {coins} coins 💰', 'That\'s a few chapters on us. Go read!'),
+        ('Coins don\'t read themselves 😅', 'You have {coins} — unlock your next chapter.'),
+    ],
+    'weekly': [
+        ('📦 New week, new stuff', 'Click to see your haul.'),
+        ('☀️ Fresh week, fresh stories', 'New chapters dropped while you were away.'),
+        ('Monday mood: one more chapter 📖', "See what's new this week."),
+    ],
+    'vip': [
+        ('Tired of ads? 👑', 'Go VIP: no ads, offline downloads and the whole library.'),
+        ('Read without interruptions 👑', 'VIP removes every ad. Try it tonight.'),
+        ('Your next chapter, ad-free ✨', 'Upgrade to VIP and binge in peace.'),
+    ],
+}
 
 
-def _pick(variants, user_id, today, **ctx):
-    """Rotate wording per reader and day (stable within a run)."""
-    title, body = random.Random(f'{user_id}-{today}').choice(variants)
-    return title.format(**ctx), body.format(**ctx)
+def _fmt(kind, key, seed, **ctx):
+    title, body = random.Random(seed).choice(T[kind])
+    return title.format(**ctx)[:150], body.format(**ctx)[:255]
 
 
-def _local_hour(now, cc):
+def _zone(cc):
     import pytz
-    tz = (pytz.country_timezones.get((cc or '').upper()) or [DEFAULT_TZ])[0]
-    return now.astimezone(pytz.timezone(tz)).hour
+    return pytz.timezone((pytz.country_timezones.get((cc or '').upper()) or [DEFAULT_TZ])[0])
 
 
-def _candidates(now, s):
-    """Active readers with a phone to push to, with their country and last visit."""
+# ── Book pools (shared by everyone in a run) ──────────────────────────────────
+
+def _book_pools(now):
+    from apps.stories.models import Story
+    from apps.stories.views import exclude_explicit
+    live = exclude_explicit(Story.objects.exclude(status__in=['draft', 'rejected'])).filter(total_chapters__gt=0)
+    trending = list(live.order_by('-total_views').values('id', 'slug', 'title', 'genre_id', 'genre__name')[:60])
+    fresh = list(live.filter(created_at__gte=now - timedelta(days=21)).order_by('-total_views')
+                 .values('id', 'slug', 'title', 'genre_id', 'genre__name')[:30])
+    return trending, fresh
+
+
+def _pick(pool, read, seed, genre=None):
+    """A book from the pool they haven't read — same genre first."""
+    options = [b for b in pool if b['id'] not in read]
+    if genre:
+        same = [b for b in options if b['genre_id'] == genre]
+        options = same or options
+    if not options:
+        return None
+    return random.Random(seed).choice(options[:8])
+
+
+# ── Who is due ────────────────────────────────────────────────────────────────
+
+def _users_due(now, s):
     from django.contrib.auth import get_user_model
     from apps.analytics.models import PageVisit
     from apps.users.models import FCMDevice
-    from .models import EngagementPush, ReadingReminder
     User = get_user_model()
     visits = PageVisit.objects.filter(user=OuterRef('pk')).order_by('-created_at')
-    return (User.objects.filter(is_active=True)
-            .filter(Exists(FCMDevice.objects.filter(user=OuterRef('pk'), is_active=True)))
-            .annotate(cc=Subquery(visits.exclude(country_code='').values('country_code')[:1]),
-                      seen=Subquery(visits.values('created_at')[:1]))
-            .filter(seen__gte=now - timedelta(days=s.active_days))
-            # one of these a day…
-            .exclude(Exists(EngagementPush.objects.filter(user=OuterRef('pk'),
-                                                          sent_at__gte=now - timedelta(hours=20))))
-            # …and not right after a "continue reading" reminder
-            .exclude(Exists(ReadingReminder.objects.filter(user=OuterRef('pk'),
-                                                           sent_at__gte=now - timedelta(hours=3))))
-            .only('id', 'is_vip'))
+    qs = (User.objects.filter(is_active=True, is_banned=False)
+          .filter(Exists(FCMDevice.objects.filter(user=OuterRef('pk'), is_active=True)))
+          .annotate(cc=Subquery(visits.exclude(country_code='').values('country_code')[:1]),
+                    seen=Coalesce(Subquery(visits.values('created_at')[:1]), 'date_joined'))
+          .filter(seen__gte=now - timedelta(days=s.active_days)))
+    return list(qs.only('id', 'is_vip', 'coin_balance', 'bonus_balance', 'first_name', 'username'))
 
 
-def _last_sent(user_ids, kinds):
-    from .models import EngagementPush
-    out = {}
-    for uid, at in (EngagementPush.objects.filter(user_id__in=user_ids, kind__in=kinds)
-                    .order_by('sent_at').values_list('user_id', 'sent_at')):
-        out[uid] = at
-    return out
-
-
-def _checkin_pushes(users, today):
-    from apps.coins.models import STREAK_REWARDS, CheckinStreak
-    streaks = {c.user_id: c for c in CheckinStreak.objects.filter(user__in=users)}
-    out = []
-    for u in users:
-        st = streaks.get(u.pk)
-        if st and st.last_checkin == today:
-            continue                                   # already checked in
-        alive = bool(st and st.current_streak and st.last_checkin == today - timedelta(days=1))
-        streak = st.current_streak if alive else 0
-        coins = STREAK_REWARDS[streak % len(STREAK_REWARDS)]
-        variants = CHECKIN_STREAK if alive else CHECKIN_NEW
-        out.append((u, 'checkin', *_pick(variants, u.pk, today, streak=streak, coins=coins,
-                                         next_day=streak + 1), {'screen': 'rewards', 'section': 'checkin'}))
-    return out
-
-
-def _reward_pushes(users, today, now):
-    """Tasks if there are any left to do, otherwise ad rewards."""
-    from apps.coins.models import AdRewardTask, AdTaskProgress, Task, UserTask
-    tasks = list(Task.objects.filter(is_active=True).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now)))
-    claimed = defaultdict(dict)
-    for ut in UserTask.objects.filter(user__in=users, task__in=tasks, status=UserTask.STATUS_CLAIMED):
-        claimed[ut.user_id][ut.task_id] = ut.claimed_at
-    ad_tasks = list(AdRewardTask.objects.filter(is_active=True))
-    ads_done = defaultdict(set)
-    for uid, tid in AdTaskProgress.objects.filter(user__in=users, date=today, claimed_at__isnull=False) \
-            .values_list('user_id', 'task_id'):
-        ads_done[uid].add(tid)
-    out = []
-    for u in users:
-        mine = claimed.get(u.pk, {})
-        open_tasks = [t for t in tasks if t.pk not in mine or (
-            t.is_repeatable and mine[t.pk] and mine[t.pk] + timedelta(hours=t.repeat_cooldown_hours) <= now)]
-        ads_left = [t for t in ad_tasks if t.pk not in ads_done.get(u.pk, set())]
-        if open_tasks:
-            n = len(open_tasks)
-            out.append((u, 'tasks', *_pick(TASKS, u.pk, today, count=n, s='' if n == 1 else 's',
-                                           coins=sum(t.reward_coins for t in open_tasks)),
-                        {'screen': 'rewards', 'section': 'tasks'}))
-        elif ads_left:
-            out.append((u, 'ads', *_pick(ADS, u.pk, today, coins=sum(t.reward_coins for t in ads_left)),
-                        {'screen': 'rewards', 'section': 'ad_rewards'}))
-    return out
-
-
-def _vip_pushes(users, today):
-    return [(u, 'vip', *_pick(VIP, u.pk, today), {'screen': 'vip'}) for u in users if not u.is_vip]
-
-
-def _send(pushes, now):
-    """Group identical messages so each goes out as one multicast."""
-    from apps.users.models import FCMDevice
-    from .fcm import send_to_tokens
-    from .models import EngagementPush
-    tokens = defaultdict(list)
-    for uid, tok in FCMDevice.objects.filter(user__in=[p[0] for p in pushes], is_active=True) \
-            .values_list('user_id', 'token'):
-        tokens[uid].append(tok)
-    groups = defaultdict(list)
-    for user, kind, title, body, data in pushes:
-        groups[(title, body, tuple(sorted(data.items())))].extend(tokens.get(user.pk, []))
-    for (title, body, data), toks in groups.items():
-        for i in range(0, len(toks), 500):
-            try:
-                send_to_tokens(toks[i:i + 500], title, body, dict(data))
-            except Exception:
-                logger.exception('Engagement push failed')
-    EngagementPush.objects.bulk_create([EngagementPush(user=u, kind=k, title=t[:150], body=b[:255], sent_at=now)
-                                        for u, k, t, b, _ in pushes])
+def _slot_index(local_hour, slots):
+    return slots.index(local_hour) if local_hour in slots else None
 
 
 def send_due(now=None):
-    from .models import EngagementPushSettings
+    from apps.users.models import FCMDevice
+    from .fcm import send_personal
+    from .models import EngagementPush, EngagementPushSettings, ReadingReminder
     s = EngagementPushSettings.get()
     now = now or timezone.now()
-    today = now.date()      # check-ins use the server's (UTC) date
-    by_hour = defaultdict(list)
-    for u in _candidates(now, s):
-        by_hour[_local_hour(now, u.cc)].append(u)
+    slots = sorted({int(h) for h in (s.slot_hours or []) if 0 <= int(h) <= 23})[:max(s.daily_max, 0)]
+    if not slots:
+        return 'no slots set'
 
-    pushes = []
-    if s.rewards_enabled and by_hour.get(s.rewards_hour):
-        users = by_hour[s.rewards_hour]
-        last = _last_sent([u.pk for u in users], ['tasks', 'ads'])
-        users = [u for u in users if not last.get(u.pk) or last[u.pk] <= now - timedelta(days=s.rewards_every_days)]
-        pushes += _reward_pushes(users, today, now)
-    if s.checkin_enabled and by_hour.get(s.checkin_hour):
-        pushes += _checkin_pushes(by_hour[s.checkin_hour], today)
-    if s.vip_enabled and by_hour.get(s.vip_hour):
-        users = by_hour[s.vip_hour]
-        last = _last_sent([u.pk for u in users], ['vip'])
-        users = [u for u in users if not last.get(u.pk) or last[u.pk] <= now - timedelta(days=s.vip_every_days)]
-        pushes += _vip_pushes(users, today)
+    # Readers whose local time is one of the slot hours
+    batch = []                       # (user or None, token-for-guests, slot index, local datetime)
+    for u in _users_due(now, s):
+        local = now.astimezone(_zone(u.cc))
+        i = _slot_index(local.hour, slots)
+        if i is not None:
+            batch.append((u, None, i, local))
+    if s.guests_enabled:
+        lagos = now.astimezone(_zone(''))
+        i = _slot_index(lagos.hour, slots)
+        if i is not None:
+            for tok in (FCMDevice.objects.filter(user__isnull=True, is_active=True,
+                                                 updated_at__gte=now - timedelta(days=s.active_days))
+                        .values_list('token', flat=True)):
+                batch.append((None, tok, i, lagos))
+    if not batch:
+        return 'no pushes due'
 
-    # Safety: one per reader per run even if two hours coincide in settings
-    seen, unique = set(), []
+    users = [b[0] for b in batch if b[0]]
+    uids = [u.pk for u in users]
+    guest_toks = [b[1] for b in batch if b[1]]
+
+    # What each one already got today (their local day)
+    sent_today = defaultdict(list)
+    recent = EngagementPush.objects.filter(sent_at__gte=now - timedelta(hours=26)).filter(
+        Q(user_id__in=uids) | Q(device_token__in=guest_toks)).values_list('user_id', 'device_token', 'kind', 'sent_at')
+    for uid, tok, kind, at in recent:
+        sent_today[uid or tok].append((kind, at))
+    vip_last = dict(EngagementPush.objects.filter(user_id__in=uids, kind='vip').values('user_id')
+                    .annotate(t=Max('sent_at')).values_list('user_id', 't'))
+    reminded = set(ReadingReminder.objects.filter(user_id__in=uids, sent_at__gte=now - SLOT_GAP)
+                   .values_list('user_id', flat=True))
+
+    ctx = _context(users, now)
+    trending, fresh = _book_pools(now)
+
+    pushes = []      # (user, token or None, kind, title, body, data)
+    for user, tok, i, local in batch:
+        key = user.pk if user else tok
+        midnight = local.replace(hour=0, minute=0, second=0, microsecond=0)
+        today = [(k, at) for k, at in sent_today.get(key, []) if at >= midnight]
+        if len(today) >= s.daily_max or any(at >= now - SLOT_GAP for _, at in today):
+            continue
+        if user and user.pk in reminded:
+            continue
+        counts = defaultdict(int)
+        for k, _ in today:
+            counts[k] += 1
+        last_kind = max(today, key=lambda x: x[1])[0] if today else None
+        seed = f'{key}-{local.date()}-{i}'
+        choice = None
+        for kind in SLOT_PLAN[min(i, len(SLOT_PLAN) - 1)] + ['recommend', 'trending']:
+            if counts[kind] >= PER_DAY.get(kind, 1) or kind == last_kind:
+                continue
+            if user is None and kind not in GUEST_KINDS:
+                continue
+            msg = _make(kind, user, ctx, trending, fresh, local, seed, s, vip_last, now)
+            if msg:
+                choice = (kind, *msg)
+                break
+        if choice:
+            pushes.append((user, tok, *choice))
+
+    if not pushes:
+        return 'no pushes due'
+    tokens = defaultdict(list)
+    for uid, t in FCMDevice.objects.filter(user_id__in=[p[0].pk for p in pushes if p[0]], is_active=True) \
+            .values_list('user_id', 'token'):
+        tokens[uid].append(t)
+    items = []
+    for user, tok, kind, title, body, data in pushes:
+        for t in ([tok] if tok else tokens.get(user.pk, [])):
+            items.append((t, title, body, data))
+    sent, failed, dead = send_personal(items)
+    if dead:
+        FCMDevice.objects.filter(token__in=dead).update(is_active=False)
+    EngagementPush.objects.bulk_create([EngagementPush(user=u, device_token=tok or '', kind=k, title=t, body=b,
+                                                       sent_at=now) for u, tok, k, t, b, _ in pushes])
+    by = defaultdict(int)
     for p in pushes:
-        if p[0].pk not in seen:
-            seen.add(p[0].pk)
-            unique.append(p)
-    if unique:
-        _send(unique, now)
-    counts = defaultdict(int)
-    for p in unique:
-        counts[p[1]] += 1
-    return ', '.join(f'{k}: {v}' for k, v in sorted(counts.items())) or 'no engagement pushes due'
+        by[p[2]] += 1
+    return f'{len(pushes)} retention push(es) — ' + ', '.join(f'{k}: {v}' for k, v in sorted(by.items())) + \
+        (f' ({failed} failed)' if failed else '')
+
+
+# ── Per-reader facts, loaded in bulk ──────────────────────────────────────────
+
+def _context(users, now):
+    from apps.chapters.models import Chapter
+    from apps.coins.models import AdRewardTask, AdTaskProgress, CheckinStreak, ReadingHistory, Task, UserTask
+    from apps.users.models import BonusGrant
+    from .models import ReadingReminder
+    uids = [u.pk for u in users]
+    c = {'reading': {}, 'read': defaultdict(set), 'streak': {}, 'bonus_exp': {}, 'tasks': {}, 'ads_left': {}}
+    if not uids:
+        return c
+    # The book each is reading: server record first, then the app's history
+    for r in ReadingReminder.objects.filter(user_id__in=uids).values('user_id', 'story_id', 'chapter_number', 'last_read_at'):
+        c['reading'][r['user_id']] = (r['story_id'], r['chapter_number'], r['last_read_at'])
+    for h in ReadingHistory.objects.filter(user_id__in=uids).values('user_id', 'story_id', 'chapter_number', 'read_at'):
+        c['read'][h['user_id']].add(h['story_id'])
+        cur = c['reading'].get(h['user_id'])
+        if cur is None or (h['read_at'] and cur[2] and h['read_at'] > cur[2]):
+            c['reading'][h['user_id']] = (h['story_id'], h['chapter_number'], h['read_at'])
+    story_ids = {v[0] for v in c['reading'].values()}
+    from apps.stories.models import Story
+    stories = {s['id']: s for s in Story.objects.filter(pk__in=story_ids).exclude(status__in=['draft', 'rejected'])
+               .exclude(author__is_banned=True).values('id', 'slug', 'title', 'genre_id', 'genre__name')}
+    last_ch = dict(Chapter.objects.filter(story_id__in=story_ids, is_published=True).values('story_id')
+                   .annotate(m=Max('chapter_number')).values_list('story_id', 'm'))
+    c['stories'], c['last_ch'] = stories, last_ch
+    c['streak'] = {st.user_id: st for st in CheckinStreak.objects.filter(user_id__in=uids)}
+    for uid, amt in (BonusGrant.objects.filter(user_id__in=uids, remaining__gt=0, expires_at__gt=now,
+                                               expires_at__lte=now + timedelta(hours=48))
+                     .values('user_id').annotate(a=Max('remaining')).values_list('user_id', 'a')):
+        c['bonus_exp'][uid] = amt
+    tasks = list(Task.objects.filter(is_active=True).filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now)))
+    done = defaultdict(set)
+    for uid, tid in UserTask.objects.filter(user_id__in=uids, status='claimed', task__is_repeatable=False) \
+            .values_list('user_id', 'task_id'):
+        done[uid].add(tid)
+    for uid in uids:
+        left = [t for t in tasks if t.pk not in done[uid]]
+        if left:
+            c['tasks'][uid] = (len(left), sum(t.reward_coins for t in left))
+    ad_tasks = list(AdRewardTask.objects.filter(is_active=True))
+    ads_done = defaultdict(set)
+    for uid, tid in AdTaskProgress.objects.filter(user_id__in=uids, date=now.date(), claimed_at__isnull=False) \
+            .values_list('user_id', 'task_id'):
+        ads_done[uid].add(tid)
+    for uid in uids:
+        left = [t for t in ad_tasks if t.pk not in ads_done[uid]]
+        if left:
+            c['ads_left'][uid] = sum(t.reward_coins for t in left)
+    return c
+
+
+def _book_data(b):
+    return {'screen': 'story', 'slug': b['slug']}
+
+
+def _make(kind, user, c, trending, fresh, local, seed, s, vip_last, now):
+    """(title, body, data) for this reader, or None when it doesn't fit."""
+    from apps.coins.models import STREAK_REWARDS
+    uid = user.pk if user else None
+    read = c['read'].get(uid, set()) if user else set()
+    reading = c['reading'].get(uid) if user else None
+    if kind == 'continue' and s.books_enabled and reading:
+        story = c['stories'].get(reading[0])
+        if story and c['last_ch'].get(story['id'], 0) > reading[1]:
+            t, b = _fmt('continue', None, seed, book=story['title'], chapter=reading[1] + 1)
+            return t, b, {**_book_data(story), 'chapter_number': reading[1] + 1, 'action': 'continue'}
+        return None
+    if kind == 'recommend' and s.books_enabled:
+        genre = c['stories'].get(reading[0], {}).get('genre_id') if reading else None
+        b = _pick(trending, read, seed, genre)
+        if b:
+            t, body = _fmt('recommend', None, seed, book=b['title'], genre=(b['genre__name'] or 'great stories'))
+            return t, body, _book_data(b)
+        return None
+    if kind == 'new_arrivals' and s.books_enabled:
+        b = _pick(fresh, read, seed)
+        return (*_fmt('new_arrivals', None, seed, book=b['title']), _book_data(b)) if b else None
+    if kind == 'trending' and s.books_enabled:
+        b = _pick(trending[:10], read, seed)
+        return (*_fmt('trending', None, seed, book=b['title']), _book_data(b)) if b else None
+    if kind == 'weekly':
+        if local.weekday() != 0:
+            return None
+        b = _pick(fresh or trending, read, seed)
+        return (*_fmt('weekly', None, seed), _book_data(b) if b else {'screen': 'rewards'})
+    if user is None:
+        return None
+    if kind == 'checkin' and s.checkin_enabled:
+        st = c['streak'].get(uid)
+        if st and st.last_checkin == now.date():
+            return None
+        alive = bool(st and st.current_streak and st.last_checkin == now.date() - timedelta(days=1))
+        streak = st.current_streak if alive else 0
+        coins = STREAK_REWARDS[streak % len(STREAK_REWARDS)]
+        t, b = _fmt('checkin_streak' if alive else 'checkin_new', None, seed,
+                    streak=streak, coins=coins, next_day=streak + 1)
+        return t, b, {'screen': 'rewards', 'section': 'checkin'}
+    if kind == 'tasks' and s.rewards_enabled and uid in c['tasks']:
+        n, coins = c['tasks'][uid]
+        return (*_fmt('tasks', None, seed, count=n, coins=coins), {'screen': 'rewards', 'section': 'tasks'})
+    if kind == 'ads' and s.rewards_enabled and c['ads_left'].get(uid):
+        return (*_fmt('ads', None, seed, coins=c['ads_left'][uid]), {'screen': 'rewards', 'section': 'ad_rewards'})
+    if kind == 'bonus_expiring' and s.coins_enabled and c['bonus_exp'].get(uid):
+        return (*_fmt('bonus_expiring', None, seed, coins=c['bonus_exp'][uid]), _coins_target(c, uid, reading))
+    if kind == 'coins' and s.coins_enabled:
+        total = (user.coin_balance or 0) + (user.bonus_balance or 0)
+        if total >= 20:
+            return (*_fmt('coins', None, seed, coins=total), _coins_target(c, uid, reading))
+        return None
+    if kind == 'vip' and s.vip_enabled and not user.is_vip:
+        last = vip_last.get(uid)
+        if last and last > now - timedelta(days=s.vip_every_days):
+            return None
+        return (*_fmt('vip', None, seed), {'screen': 'vip'})
+    return None
+
+
+def _coins_target(c, uid, reading):
+    """Coins pushes open the book they're reading (to spend them), else Rewards."""
+    story = c['stories'].get(reading[0]) if reading else None
+    return _book_data(story) if story else {'screen': 'rewards'}

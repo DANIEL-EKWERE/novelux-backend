@@ -785,12 +785,13 @@
             </h3>
             <div class="step-body">
               <div class="step-item">
-                <div class="step-item-label"><span class="dot"></span> Log In</div>
-                <p>Click the link to register or log in at <a href="/author/onboarding/"
-                    target="_blank">write.novelux.com</a></p>
+                <div class="step-item-label"><span class="dot"></span> Sign up or log in</div>
+                <p>Create your author account at <a href="/register/{% if request.GET.ref %}?editor_code={{ request.GET.ref|urlencode }}{% endif %}">{{ request.get_host }}/register</a>,
+                  or <a href="/login/">log in</a> if you already have one. Your author dashboard is at
+                  <a href="/dashboard/">{{ request.get_host }}/dashboard</a>.</p>
                 <div class="step-warning">
-                  Copy the URL and open it in a browser. Phoenix browser is recommended — set it to desktop mode for the
-                  best experience.
+                  Works in any browser on your phone or computer — you can also write in the HuxNovel app.
+                  Have a code from a HuxNovel editor? Enter it when you sign up so they can guide your book.
                 </div>
               </div>
             </div>

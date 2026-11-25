@@ -215,6 +215,7 @@ details.outline-details[open] .outline-chevron{transform:rotate(180deg);}
     <button class="nbtn" id="nb-se-perf" onclick="gp('se-perf',this);loadSEPerf();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg>SE Performance</button>
     <button class="nbtn" id="nb-insights" onclick="gp('insights',this);inLoad();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Team &amp; Money Insights</button>
     <button class="nbtn" id="nb-analytics" onclick="gp('analytics',this);loadAnalytics();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Platform Analytics</button>
+    <button class="nbtn" onclick="openBenefitsShare()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>Author benefits — share</button>
     <a class="nbtn" href="/social/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>Social posting ↗</a>
     <a class="nbtn" href="/promotions/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6"/><path d="M12 17h.01"/></svg>App promotions ↗</a>
     <span class="nlbl">Account</span>
@@ -4591,4 +4592,5 @@ function editCurrentArticle() {
 
 <script src="{% static 'novelux/js/contract_templates.js' %}"></script>
 <script src="{% static 'novelux/js/keep_place.js' %}"></script>
+<script src="{% static 'novelux/js/share_benefits.js' %}"></script>
 </body></html>

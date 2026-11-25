@@ -1,0 +1,251 @@
+{% load static humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Author Benefits – HuxNovel</title>
+<meta name="description" content="Earn a {{ b.revenue_share }}% net revenue share and up to ${{ short_total }} in bonuses. Discover the benefits for HuxNovel long-story and short-story authors.">
+<meta property="og:title" content="Author Benefits – HuxNovel">
+<meta property="og:description" content="{{ b.revenue_share }}% net revenue share, a ${{ b.long.bonus }} completion bonus for long stories and up to ${{ short_total }} in short-story bonuses.{% if editor %} Invited by {{ editor.get_full_name|default:editor.username }}.{% endif %}">
+<meta property="og:image" content="{{ logo_url }}">
+<meta property="og:url" content="{{ page_url }}">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Caveat:wght@500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{--rust:#b4501b;--rust-d:#7f3315;--rust-l:#c96a2c;--cream:#fff6f0;--card:#fff;--ink:#3b2418;--muted:#8a6f60;--line:#efdfd4;--gold:#f2b84b;--gold-l:#ffe7a6;--gold-bg:#ffeaa8;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Manrope',system-ui,sans-serif;background:var(--cream);color:var(--ink);font-size:15px;line-height:1.6;overflow-x:hidden;}
+a{color:inherit;text-decoration:none;}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px;}
+/* Nav */
+nav{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.nav{max-width:1140px;margin:0 auto;padding:0 20px;height:66px;display:flex;align-items:center;gap:20px;}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:20px;color:var(--rust);letter-spacing:.02em;}
+.brand img{width:30px;height:30px;border-radius:8px;}
+.links{display:flex;gap:26px;margin:0 auto;font-size:14px;color:var(--muted);font-weight:500;}
+.links a:hover,.links a.on{color:var(--rust);}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:8px;font-weight:700;font-size:14px;border:1.5px solid var(--rust);color:var(--rust);background:#fff;transition:transform .15s,box-shadow .15s;}
+.btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(127,51,21,.15);}
+.btn.solid{background:var(--rust);color:#fff;}
+/* Hero */
+.hero{background:linear-gradient(135deg,#b4501b 0%,#a2461a 55%,#8c3b16 100%);color:#fff;position:relative;overflow:hidden;padding:70px 0 120px;}
+.hero .in{max-width:1140px;margin:0 auto;padding:0 20px;display:grid;grid-template-columns:1.05fr 1fr;gap:30px;align-items:center;position:relative;z-index:2;}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-l);}
+.hero h1{font-size:clamp(40px,6vw,66px);line-height:1.02;font-weight:800;margin:18px 0 22px;letter-spacing:-.01em;}
+.hero p.lead{font-size:16.5px;max-width:440px;opacity:.95;line-height:1.75;}
+.hero .cta{margin-top:30px;display:flex;gap:12px;flex-wrap:wrap;}
+.hero .btn{border-color:#fff;}
+.tag{margin-top:22px;font-size:12.5px;opacity:.9;display:flex;align-items:center;gap:8px;}
+.invite{display:inline-flex;align-items:center;gap:10px;margin-top:22px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);padding:8px 14px;border-radius:30px;font-size:13px;}
+.invite b{color:var(--gold-l);}
+/* Hero art */
+.art{position:relative;height:420px;}
+.phone{position:absolute;left:16%;top:30px;width:190px;height:360px;border-radius:30px;background:#2b1b14;padding:9px;transform:rotate(-10deg);box-shadow:0 30px 60px rgba(40,12,0,.45),0 0 0 3px #e9b96a inset;}
+.phone .scr{width:100%;height:100%;border-radius:22px;background:linear-gradient(180deg,#fffaf4,#f8eadd);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--rust-d);}
+.phone .notch{position:absolute;top:16px;left:50%;transform:translateX(-50%);width:60px;height:12px;border-radius:8px;background:#2b1b14;}
+.phone .logo{width:64px;height:64px;border-radius:16px;}
+.phone .nm{font-weight:800;letter-spacing:.06em;font-size:16px;}
+.phone .sl{font-family:'Caveat',cursive;font-size:19px;line-height:1.1;text-align:center;}
+.book{position:absolute;right:6%;bottom:10px;width:200px;height:250px;border-radius:6px 14px 14px 6px;background:linear-gradient(135deg,#fff8ee,#efdcc4);box-shadow:0 26px 50px rgba(40,12,0,.4);transform:rotate(7deg);border-left:14px solid #e2c49d;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--rust-d);}
+.book .t{font-family:'Caveat',cursive;font-size:30px;line-height:1;text-align:center;}
+.book .s{font-size:11px;letter-spacing:.14em;text-transform:uppercase;margin-top:10px;color:var(--muted);}
+.bigN{position:absolute;right:30%;top:-10px;font-family:Georgia,serif;font-size:110px;font-weight:700;color:var(--gold);text-shadow:0 8px 0 #b97d22,0 20px 30px rgba(0,0,0,.25);transform:rotate(-6deg);}
+.coin{position:absolute;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe9a8,#f2b84b 55%,#c98a24);box-shadow:inset 0 -3px 0 rgba(0,0,0,.15),0 4px 10px rgba(80,30,0,.25);animation:float 6s ease-in-out infinite;z-index:1;}
+.coin::after{content:'';position:absolute;inset:6px;border-radius:50%;border:2px solid rgba(160,95,20,.45);}
+@keyframes float{0%,100%{transform:translateY(0) rotate(-20deg) scaleX(.8);}50%{transform:translateY(-12px) rotate(10deg) scaleX(1);}}
+/* Note card */
+.note{position:relative;z-index:3;margin:-80px auto 0;max-width:1000px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 50px rgba(127,51,21,.1);display:grid;grid-template-columns:260px 1fr;}
+.note .l{padding:34px 36px;border-right:1px solid var(--line);}
+.note .r{padding:34px 40px;color:var(--muted);}
+.dear{font-family:'Caveat',cursive;font-size:42px;color:var(--rust);line-height:1.1;margin:8px 0 14px;}
+.note .l small{display:block;color:var(--muted);font-size:12.5px;line-height:1.6;}
+.note .r strong{display:block;margin-top:14px;color:var(--rust);font-size:13px;}
+/* Sections */
+section.block{padding:70px 0 10px;}
+.center{text-align:center;}
+.h2{font-size:clamp(28px,4vw,40px);font-weight:800;color:var(--rust-d);letter-spacing:-.01em;margin:10px 0 8px;}
+.sub{color:var(--muted);}
+.eyebrow.dark{color:var(--rust);}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(127,51,21,.06);}
+.long{margin-top:38px;padding:30px 34px;}
+.ch{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+.ico{width:46px;height:46px;border-radius:12px;background:#fdf0e6;display:flex;align-items:center;justify-content:center;color:var(--rust);font-size:22px;flex-shrink:0;}
+.ch .t{font-size:26px;font-weight:800;color:var(--rust);letter-spacing:.01em;}
+.script{font-family:'Caveat',cursive;font-size:24px;color:var(--rust-d);margin-left:auto;}
+.long .grid{display:grid;grid-template-columns:1fr 1.4fr;gap:34px;}
+.k{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+.pct{font-size:78px;font-weight:800;color:var(--rust);line-height:1;margin-top:8px;}
+.pct span{font-size:42px;}
+.pct-l{font-weight:700;color:var(--rust-d);font-size:17px;margin-top:4px;}
+.mini{margin-top:16px;color:var(--muted);font-size:13.5px;}
+.ok{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);color:var(--rust);font-size:12.5px;font-weight:600;}
+.bonus{border-left:1px solid var(--line);padding-left:34px;}
+.bonus .row{display:flex;justify-content:space-between;align-items:flex-start;}
+.bonus .bt{font-size:23px;color:var(--ink);margin-top:4px;}
+.bonus .amt{font-size:52px;font-weight:800;color:var(--rust);line-height:1;}
+.req{margin-top:20px;background:#fff7ee;border-radius:10px;padding:18px 20px;}
+.req b{font-size:13px;}
+.req li{list-style:none;display:flex;gap:10px;align-items:center;margin-top:10px;font-size:13.5px;color:var(--muted);}
+.req li::before{content:'✓';width:20px;height:20px;border-radius:50%;background:var(--gold-l);color:#9a6512;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.short-h{display:flex;align-items:center;gap:14px;margin:56px 0 20px;flex-wrap:wrap;}
+.short-h .t{font-size:26px;font-weight:800;color:var(--rust);}
+.short-h .pp{margin-left:auto;display:flex;align-items:center;gap:10px;border-left:1px solid var(--line);padding-left:20px;}
+.short-h .pp b{font-size:30px;color:var(--rust);font-weight:800;}
+.miles{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.mile{padding:26px 28px;border-top:4px solid var(--gold);}
+.mile.two{border-top-color:var(--rust);}
+.mile .top{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;color:var(--rust);letter-spacing:.06em;text-transform:uppercase;}
+.mile .num{width:30px;height:30px;border-radius:50%;background:var(--gold-l);display:flex;align-items:center;justify-content:center;font-size:11px;color:#8a5a10;}
+.mile .tro{margin-left:auto;font-size:20px;}
+.mile .big{display:flex;align-items:center;gap:18px;margin:22px 0;}
+.mile .big b{font-size:64px;font-weight:800;color:var(--rust);line-height:1;}
+.mile .big span{font-size:19px;font-weight:600;color:var(--rust-d);line-height:1.35;}
+.tbl{border-bottom:1px solid var(--line);}
+.tbl .h,.tbl .v{display:flex;justify-content:space-between;padding:10px 14px;}
+.tbl .h{background:#fff7ee;font-size:12px;color:var(--muted);}
+.tbl .v{font-size:20px;font-weight:800;color:var(--rust-d);}
+.tbl .v span:last-child{color:var(--rust);}
+.mile .lim{margin-top:22px;font-size:12.5px;font-weight:700;color:var(--rust);}
+.mile p{font-size:13.5px;color:var(--muted);margin-top:6px;}
+.total{margin-top:22px;background:var(--gold-bg);border-radius:12px;padding:22px 28px;display:flex;align-items:center;gap:16px;}
+.total .gi{width:46px;height:46px;border-radius:50%;border:1.5px solid #c89530;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.total small{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--rust-d);text-transform:uppercase;}
+.total .tt{font-size:17px;color:var(--rust-d);}
+.total b{margin-left:auto;font-size:44px;color:var(--rust-d);font-weight:800;}
+/* CTA band */
+.band{margin-top:60px;padding:34px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:linear-gradient(120deg,#fff,#fff3e6);}
+.band h3{font-size:24px;color:var(--rust-d);font-weight:800;}
+.band p{color:var(--muted);font-size:14px;}
+.band .btn{margin-left:auto;}
+/* FAQ */
+.faq{display:grid;grid-template-columns:1fr 1.4fr;gap:40px;padding:70px 0 80px;}
+.faq h2{font-size:34px;font-weight:800;color:var(--rust-d);line-height:1.15;margin:10px 0 12px;}
+details{border-top:1px solid #e9d6c8;padding:20px 0;}
+details:last-child{border-bottom:1px solid #e9d6c8;}
+summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:14.5px;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:'⌄';color:var(--rust);font-size:18px;transition:transform .2s;}
+details[open] summary{color:var(--rust);}
+details[open] summary::after{transform:rotate(180deg);}
+details p{margin-top:12px;color:var(--muted);font-size:14px;}
+/* Footer */
+footer{background:var(--rust-d);color:#fff;padding:30px 0;}
+footer .in{max-width:1000px;margin:0 auto;padding:0 20px;}
+footer .row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid rgba(255,255,255,.15);}
+footer .brand{color:#fff;}
+footer .slogan{margin:0 auto;font-weight:600;line-height:1.3;}
+footer .slogan span{display:block;color:var(--gold);}
+footer .go{width:42px;height:42px;border-radius:50%;border:1px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:18px;}
+footer small{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:16px;font-size:11.5px;opacity:.8;}
+/* Share */
+.share{position:fixed;right:18px;bottom:18px;z-index:60;}
+.share button{background:var(--rust);color:#fff;border:none;border-radius:30px;padding:12px 18px;font-weight:700;font-family:inherit;box-shadow:0 10px 26px rgba(127,51,21,.35);cursor:pointer;}
+@media(max-width:860px){
+  .links{display:none;}.hero{padding:44px 0 110px;}.hero .in{grid-template-columns:1fr;}.art{height:330px;}
+  .phone{left:4%;width:150px;height:290px;}.book{width:160px;height:200px;right:2%;}.bigN{font-size:80px;right:38%;}
+  .note{grid-template-columns:1fr;margin-left:16px;margin-right:16px;}.note .l{border-right:none;border-bottom:1px solid var(--line);}
+  .long .grid,.miles,.faq{grid-template-columns:1fr;}.bonus{border-left:none;padding-left:0;border-top:1px solid var(--line);padding-top:24px;}
+  .script{display:none;}.hero .coin:first-of-type{display:none;}.mile .big b{font-size:52px;}.total b{font-size:34px;}.nav .btn{padding:9px 12px;}
+}
+</style>
+</head>
+<body>
+<nav><div class="nav">
+  <a class="brand" href="/"><img src="{% static 'novelux/images/logo.png' %}" alt="">HuxNovel</a>
+  <div class="links"><a href="#top" class="on">Author benefits</a><a href="#long">Long stories</a><a href="#short">Short stories</a><a href="#faq">FAQs</a></div>
+  <a class="btn" href="{{ signup_url }}">Start writing ↗</a>
+</div></nav>
+
+<header class="hero" id="top">
+  <span class="coin" style="left:3%;top:26px;"></span><span class="coin" style="left:44%;top:70px;animation-delay:-2s;width:26px;height:26px;"></span>
+  <span class="coin" style="right:6%;top:40%;animation-delay:-4s;"></span><span class="coin" style="left:50%;bottom:60px;animation-delay:-1s;width:22px;height:22px;"></span>
+  <div class="in">
+    <div>
+      <div class="eyebrow">A celebration of your creativity</div>
+      <h1>WELCOME TO<br>HUXNOVEL!</h1>
+      <p class="lead">Celebrate your creativity, share your stories, and grow with a writing community that believes in the power of every page.</p>
+      <div class="cta"><a class="btn" href="#long">Discover your benefits ↓</a><a class="btn solid" style="border-color:#fff;background:transparent;color:#fff;" href="{{ signup_url }}">Start writing</a></div>
+      {% if editor %}<div class="invite">✉️ Invited by <b>{{ editor.get_full_name|default:editor.username }}</b>, your HuxNovel editor</div>
+      {% else %}<div class="tag">✒️ Your words. Your world. Your next chapter.</div>{% endif %}
+    </div>
+    <div class="art" aria-hidden="true">
+      <div class="bigN">N</div>
+      <div class="phone"><span class="notch"></span><div class="scr"><img class="logo" src="{% static 'novelux/images/logo.png' %}" alt=""><div class="nm">HUXNOVEL</div><div class="sl">Every page.<br>A new possibility.</div><div style="font-size:26px;">📖</div></div></div>
+      <div class="book"><div class="t">Your story<br>starts here</div><div class="s">Chapter one</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="note">
+  <div class="l"><div style="color:var(--rust);font-size:22px;">✒️</div><div class="dear">Dear author:</div><small>A little appreciation.<br>A world of possibility.</small></div>
+  <div class="r">Every unforgettable story begins with someone brave enough to write it. At HuxNovel, we value your creativity and the time you invest in bringing your characters and worlds to life. Discover the benefits available to our long-story and short-story authors below.
+    <strong>Because your creativity deserves to be rewarded.</strong></div>
+</div>
+
+<section class="block" id="long"><div class="wrap">
+  <div class="center"><div class="eyebrow dark">Made for your next chapter</div><div class="h2">Your stories deserve more.</div><p class="sub">From the first page to the final chapter, we're here to celebrate your progress.</p></div>
+
+  <div class="card long">
+    <div class="ch"><div class="ico">📖</div><div><div class="eyebrow dark" style="font-size:10.5px;">For the worlds you build</div><div class="t">LONG STORIES</div></div><div class="script">Every chapter counts</div></div>
+    <div class="grid">
+      <div><div class="k">Royalty share</div><div class="pct">{{ b.revenue_share }}<span>%</span></div><div class="pct-l">Net Revenue Share</div>
+        <div class="mini">Your imagination. Your dedication.<br>A share in every story's success.</div><div class="ok">✓ Designed with authors in mind</div></div>
+      <div class="bonus"><div class="k">The finish-line reward</div>
+        <div class="row"><div class="bt">Completion Bonus</div><div class="amt">${{ b.long.bonus }}</div></div>
+        <ul class="req"><b>To qualify, your book must:</b>
+          <li>Reach at least {{ b.long.min_words|intcomma }} original words.</li>
+          <li>Reach at least ${{ b.long.min_royalty }} in author royalty share.</li>
+          <li>Be marked as completed.</li>
+          <li>Meet the applicable completion and eligibility requirements.</li></ul></div>
+    </div>
+  </div>
+
+  <div class="short-h" id="short"><div class="ico">🪶</div><div><div class="eyebrow dark" style="font-size:10.5px;">Small stories. Big possibilities.</div><div class="t">SHORT STORIES</div></div>
+    <div class="pp"><b>{{ b.revenue_share }}%</b><span class="sub" style="font-size:13px;">Net Revenue Share</span></div></div>
+  <div class="miles">
+    {% for m in b.short %}
+    <div class="card mile {% if not forloop.first %}two{% endif %}">
+      <div class="top"><span class="num">{{ m.n }}</span>{{ m.label }}<span class="tro">🏆</span></div>
+      <div class="big"><b>${{ m.bonus }}</b><span>Outstanding<br>Bonus</span></div>
+      <div class="tbl"><div class="h"><span>Royalty share target</span><span>Your bonus</span></div><div class="v"><span>${{ m.target }}</span><span>${{ m.bonus }}</span></div></div>
+      <div class="lim">{{ m.limit }}</div><p>{{ m.text }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="total"><div class="gi">🎁</div><div><small>Two milestones. One amazing journey.</small><div class="tt">TOTAL POTENTIAL BONUSES</div></div><b>${{ short_total }} ✦</b></div>
+
+  <div class="card band"><div><h3>Ready to write your story?</h3><p>Create your free author account — {% if editor %}{{ editor.get_full_name|default:editor.username }} will be your editor.{% else %}an editor will guide you from your first chapter.{% endif %}</p></div>
+    <a class="btn solid" href="{{ signup_url }}">Start writing now →</a></div>
+</div></section>
+
+<div class="wrap"><div class="faq" id="faq">
+  <div><div class="eyebrow dark">A little clarity for your journey</div><h2>Good questions.<br>Clear answers.</h2><p class="sub">Everything you need to know about your author benefits.</p></div>
+  <div>
+    <details open><summary>What does {{ b.revenue_share }}% Net Revenue Share mean?</summary><p>You receive {{ b.revenue_share }}% of the net revenue generated by your story, calculated in accordance with your HuxNovel author agreement.</p></details>
+    <details><summary>Can a short story qualify for both outstanding bonuses?</summary><p>Yes. An eligible short story can earn both the ${{ b.short.0.bonus }} and ${{ b.short.1.bonus }} outstanding bonuses, for a total of ${{ short_total }}, when it meets each milestone's requirements.</p></details>
+    <details><summary>What are the long-story completion requirements?</summary><p>Your book must reach at least {{ b.long.min_words|intcomma }} original words and ${{ b.long.min_royalty }} in author royalty share, be marked as completed, and meet the applicable completion and eligibility requirements.</p></details>
+    <details><summary>Is there a time limit for the ${{ b.short.1.bonus }} short-story bonus?</summary><p>No. There is no time limit for the second milestone. An eligible short story qualifies when it reaches ${{ b.short.1.target }} in royalty share.</p></details>
+    <details><summary>How do I get started?</summary><p>Create a free author account, add your story and upload your chapters. Our editorial team reviews it, and books that perform well are invited to a contract. <a href="/become-author/{% if ref %}?ref={{ ref }}{% endif %}" style="color:var(--rust);font-weight:600;">See the 5 steps →</a></p></details>
+  </div>
+</div></div>
+
+<footer><div class="in">
+  <div class="row"><a class="brand" href="/"><img src="{% static 'novelux/images/logo.png' %}" alt="">HuxNovel</a>
+    <div class="slogan">WRITE YOUR STORY.<span>GROW WITH US.</span></div><a class="go" href="{{ signup_url }}" title="Start writing">↗</a></div>
+  <small><span>All rewards are subject to eligibility checks, verification and the applicable HuxNovel author agreement.</span><span>© {% now "Y" %} HuxNovel</span></small>
+</div></footer>
+
+<div class="share"><button onclick="shareBenefits()">Share ↗</button></div>
+<script>
+function shareBenefits() {
+  const url = location.href, text = 'Write on HuxNovel — {{ b.revenue_share }}% revenue share and up to ${{ short_total }} in bonuses for authors.';
+  if (navigator.share) { navigator.share({ title: 'HuxNovel Author Benefits', text, url }).catch(() => {}); return; }
+  navigator.clipboard.writeText(url).then(() => alert('Link copied — paste it anywhere to share.'));
+}
+</script>
+</body>
+</html>

@@ -2665,6 +2665,39 @@ def index(request):
 def become_author(request):
     return render(request, 'novelux/become_author.html')
 
+# Author benefits — edit the numbers here; the page reads them.
+AUTHOR_BENEFITS = {
+    'revenue_share': 50,                 # % of net revenue
+    'long': {'bonus': 50, 'min_words': 150_000, 'min_royalty': 40},
+    'short': [
+        {'n': '01', 'label': 'First milestone', 'bonus': 50, 'target': 100, 'limit': 'Within 365 days',
+         'text': 'An eligible new short story must reach $100 in royalty share within 365 days.'},
+        {'n': '02', 'label': 'Second milestone', 'bonus': 120, 'target': 500, 'limit': 'No time limit',
+         'text': 'An eligible short story must reach $500 in royalty share. There is no time limit for this milestone.'},
+    ],
+}
+
+
+def author_benefits(request):
+    """/author-benefits/ — the shareable author benefits page. ?ref=<SE code>
+    links authors who sign up from it to that senior editor."""
+    from django.contrib.auth import get_user_model
+    ref = (request.GET.get('ref') or '').strip().upper()[:20]
+    editor = None
+    if ref:
+        editor = get_user_model().objects.filter(editor_code=ref, role='se', is_active=True).first()
+        if not editor:
+            ref = ''
+    b = AUTHOR_BENEFITS
+    signup = f'/register/?editor_code={ref}' if ref else '/register/'
+    return render(request, 'novelux/author_benefits.html', {
+        'b': b, 'ref': ref, 'editor': editor, 'signup_url': signup,
+        'short_total': sum(m['bonus'] for m in b['short']),
+        'page_url': request.build_absolute_uri(request.get_full_path()),
+        'logo_url': request.build_absolute_uri('/static/novelux/images/logo.png'),
+    })
+
+
 def faq(request):
     return render(request, 'novelux/faq.html')
 

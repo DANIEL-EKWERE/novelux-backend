@@ -226,3 +226,59 @@ class PromotionTasksAndAnalyticsTests(TestCase):
         a.force_authenticate(self.author)
         mine = a.get('/api/stories/my-promotions/').data
         self.assertTrue(any(p['section'] == 'Featured Books' and p['state'] == 'live' for p in mine['promotions']))
+
+
+class AuthorBenefitsPageTests(TestCase):
+    def setUp(self):
+        self.se = User.objects.create_user(email='se@x.com', username='kay', password='x', role='se',
+                                           first_name='Kemi', last_name='Ade')
+        self.se.editor_code = 'KAY123'
+        self.se.save(update_fields=['editor_code'])
+
+    def test_page_and_se_referral(self):
+        r = self.client.get('/author-benefits/')
+        self.assertEqual(r.status_code, 200)
+        html = r.content.decode()
+        self.assertIn('50', html)
+        self.assertIn('$170', html)
+        self.assertIn('href="/register/"', html)
+        r = self.client.get('/author-benefits/?ref=kay123')
+        html = r.content.decode()
+        self.assertIn('/register/?editor_code=KAY123', html)
+        self.assertIn('Kemi Ade', html)
+        r = self.client.get('/author-benefits/?ref=NOPE99')                 # unknown code: plain page
+        self.assertNotIn('editor_code=NOPE99', r.content.decode())
+
+    def test_signup_from_the_link_links_the_author_to_the_se(self):
+        import json
+        from apps.editorial.models import AuthorEditorLink
+        r = self.client.get('/register/?editor_code=KAY123')
+        self.assertIn(b'KAY123', r.content)
+        r = self.client.post('/auth/register-web/', data=json.dumps({
+            'username': 'newauthor', 'email': 'n@x.com', 'password1': 'longpassword1', 'password2': 'longpassword1',
+            'role': 'author', 'editor_code': 'KAY123'}), content_type='application/json')
+        self.assertEqual(r.status_code, 200, r.content[:300])
+        self.assertEqual(AuthorEditorLink.objects.get(author__username='newauthor').assigned_se, self.se)
+
+    def test_become_author_has_the_real_signup_link(self):
+        html = self.client.get('/become-author/').content.decode()
+        self.assertNotIn('write.novelux.com', html)
+        self.assertIn('/register/', html)
+
+    def test_dashboards_have_the_share_button(self):
+        from rest_framework_simplejwt.tokens import AccessToken
+        ce = User.objects.create_user(email='ce@x.com', username='ce', password='x', role='ce')
+        author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        promo = User.objects.create_user(email='p@x.com', username='tola', password='x', role='promo')
+        for user, url, expect in ((self.se, '/editorial/se/', "openBenefitsShare({code:'KAY123'})"),
+                                  (ce, '/editorial/ce/', 'openBenefitsShare()'),
+                                  (author, '/dashboard/', 'openBenefitsShare()'),
+                                  (promo, '/promotion/', 'openBenefitsShare()')):
+            tok = str(AccessToken.for_user(user))
+            self.client.cookies['nux_access'] = tok
+            with mock.patch('novelux_web.views._user_from_request', return_value=user), \
+                    mock.patch('novelux_web.views._jwt_from_request', return_value=tok):
+                r = self.client.get(url)
+            self.assertEqual(r.status_code, 200, (url, r.status_code))
+            self.assertIn(expect, r.content.decode(), url)
+            self.assertIn('share_benefits.js', r.content.decode(), url)

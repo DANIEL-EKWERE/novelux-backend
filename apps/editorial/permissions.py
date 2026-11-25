@@ -103,3 +103,19 @@ def editor_context(user):
         ).count()
 
     return ctx
+
+
+class IsCEOrPromo(BasePermission):
+    """Chief Editors and the Promotion team (and admins)."""
+    def has_permission(self, request, view):
+        u = request.user
+        return u.is_authenticated and (u.role in ('ce', 'promo') or u.is_superuser or u.role == 'admin')
+
+
+class IsPromo(BasePermission):
+    """The Promotion team (and admins)."""
+    message = 'This is for the Promotion team.'
+
+    def has_permission(self, request, view):
+        u = request.user
+        return u.is_authenticated and (u.role == 'promo' or u.is_superuser or u.role == 'admin')

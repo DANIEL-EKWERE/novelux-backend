@@ -20,6 +20,10 @@ def can_manage(user):
 def can_post(user):
     if can_manage(user):
         return True
+    if user and user.is_authenticated and user.role == 'promo':
+        return True             # the Promotion team always posts
+    if user and user.is_authenticated and user.role == 'promo':
+        return True                  # the promotion team runs social media
     return bool(user and user.is_authenticated and user.role in (SocialSettings.get().poster_roles or []))
 
 

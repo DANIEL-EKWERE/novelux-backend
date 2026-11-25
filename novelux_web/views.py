@@ -1722,7 +1722,7 @@
 #     from apps.editorial.models import EditorInvite
 #     from django.utils import timezone
 
-#     ROLE_LABELS = {'se': 'Senior Editor'}
+#     ROLE_LABELS = {'se': 'Senior Editor', 'promo': 'Promotion Team'}
 
 #     # Look up the invite
 #     try:
@@ -1804,7 +1804,7 @@
 #     access_token['role']     = user.role
 #     access_token['username'] = user.username
 
-#     EDITOR_ROUTES = {'ae': '/editorial/ae/', 'se': '/editorial/se/'}
+#     EDITOR_ROUTES = {'ae': '/editorial/ae/', 'se': '/editorial/se/', 'promo': '/promotion/'}
 #     next_url = EDITOR_ROUTES.get(user.role, '/editorial/')
 
 #     response = redirect(next_url)
@@ -2608,6 +2608,8 @@ def _home_for(user):
         return '/editorial/se/'
     if user.role == 'ce':
         return '/editorial/ce/'
+    if user.role == 'promo':
+        return '/promotion/'
     if user.role == 'author':
         return '/dashboard/'
     if user.is_superuser or user.role == 'admin':
@@ -2632,6 +2634,10 @@ def _safe_next(user, next_url):
     if path.startswith('/editorial/se') and user.role != 'se':
         return home
     if path.startswith('/editorial/ce') and user.role != 'ce':
+        return home
+    if path.startswith('/promotion/') and user.role != 'promo' and not (user.is_superuser or user.role == 'admin'):
+        return home
+    if path.startswith('/promotion/') and not (user.role == 'promo' or user.is_superuser or user.role == 'admin'):
         return home
     if path.startswith('/dashboard') and user.role != 'author':
         return home
@@ -4099,6 +4105,21 @@ def promos_dashboard(request):
     })
 
 
+def promotion_dashboard(request):
+    """/promotion/ — the Promotion team's dashboard (shelves, scheduling,
+    requests, campaigns). Admins can open it too."""
+    user = _user_from_request(request)
+    if user is None:
+        return redirect(f'/login/?next={request.path}')
+    if not (user.role == 'promo' or user.is_superuser or user.role == 'admin'):
+        return redirect(_home_for(user))
+    return render(request, 'novelux/promotion_dashboard.html', {
+        'access_token': _jwt_from_request(request),
+        'api_url': _get_api_base(request),
+        'me': user,
+    })
+
+
 def master_token(request):
     """/master/token/ — a fresh access token for an open dashboard (master,
     social…), so it keeps working past the 1-hour access-token lifetime. It
@@ -4135,7 +4156,7 @@ def editor_invite_page(request, token):
     from apps.editorial.models import EditorInvite
     from django.utils import timezone
 
-    ROLE_LABELS = {'se': 'Senior Editor'}
+    ROLE_LABELS = {'se': 'Senior Editor', 'promo': 'Promotion Team'}
 
     # Look up the invite
     try:
@@ -4217,7 +4238,7 @@ def editor_invite_page(request, token):
     access_token['role']     = user.role
     access_token['username'] = user.username
 
-    EDITOR_ROUTES = {'ae': '/editorial/ae/', 'se': '/editorial/se/'}
+    EDITOR_ROUTES = {'ae': '/editorial/ae/', 'se': '/editorial/se/', 'promo': '/promotion/'}
     next_url = EDITOR_ROUTES.get(user.role, '/editorial/')
 
     response = redirect(next_url)
@@ -4335,8 +4356,8 @@ def ce_invite_create_web(request):
 
     if not email:
         return JsonResponse({'error': 'Email is required.'}, status=400)
-    if editor_role not in ('se',):
-        return JsonResponse({'error': "Role must be 'se'."}, status=400)
+    if editor_role not in ('se', 'promo'):
+        return JsonResponse({'error': "Role must be 'se' or 'promo'."}, status=400)
 
     User = get_user_model()
 
@@ -4354,9 +4375,11 @@ def ce_invite_create_web(request):
         except User.DoesNotExist:
             return JsonResponse({'error': 'Supervisor not found.'}, status=404)
 
-    # SE reports directly to the CE who invited them
+    # SE reports directly to the CE who invited them (the Promotion team doesn't)
     if editor_role == 'se' and not supervisor:
         supervisor = ce_user
+    if editor_role == 'promo':
+        supervisor = None
 
     # Check for existing pending invite to this email
     existing = EditorInvite.objects.filter(

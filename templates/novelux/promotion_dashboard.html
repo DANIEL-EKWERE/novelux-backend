@@ -1,0 +1,677 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<script>(function(){var t=localStorage.getItem('nux_theme')||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.classList.toggle('dark',t==='dark');})()</script>
+<meta charset="UTF-8"/>
+<link rel="icon" type="image/png" href="{% static 'novelux/images/favicon_circle.png' %}">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="nux-token" content="{{ access_token }}">
+<meta name="nux-api" content="{{ api_url|default:'/api' }}">
+<meta name="robots" content="noindex,nofollow">
+<title>Promotion – HuxNovel</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#fff;--fg:#171717;--muted:#f5f5f5;--muted-fg:#737373;--border:#e5e5e5;--card:#fafafa;--role:hsl(330 70% 45%);--ok:hsl(142 60% 36%);--bad:hsl(0 70% 48%);--warn:hsl(38 92% 40%);--blue:hsl(217 80% 48%);}
+html.dark{--bg:#0f0f11;--fg:#e5e5e5;--muted:#1c1c20;--muted-fg:#8a8a90;--border:#2a2a30;--card:#141417;--role:hsl(330 75% 62%);--ok:hsl(142 60% 55%);--bad:hsl(0 70% 62%);--blue:hsl(217 85% 64%);}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Geist',sans-serif;font-size:14px;background:var(--bg);color:var(--fg);min-height:100vh;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+button{cursor:pointer;}a{color:inherit;text-decoration:none;}
+.layout{display:flex;min-height:100vh;}
+.sb{width:220px;flex-shrink:0;border-right:1px solid var(--border);padding:16px 10px;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--bg);}
+.brand{display:flex;align-items:center;gap:8px;font-weight:700;padding:4px 8px 16px;}
+.brand .lg{width:26px;height:26px;border-radius:8px;background:var(--role);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+.nbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:none;background:none;padding:8px 10px;border-radius:8px;color:var(--muted-fg);font-size:13.5px;}
+.nbtn:hover{background:var(--muted);color:var(--fg);}
+.nbtn.active{background:color-mix(in srgb,var(--role) 11%,transparent);color:var(--role);font-weight:600;}
+.nbtn .bdg{margin-left:auto;}
+.sbh{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);padding:14px 10px 4px;}
+.main{flex:1;min-width:0;}
+.top{position:sticky;top:0;z-index:30;height:54px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);display:flex;align-items:center;gap:12px;padding:0 20px;}
+.top h2{font-size:15px;font-weight:600;}.top .r{margin-left:auto;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted-fg);}
+.wrap{padding:20px;max-width:1300px;}
+.page{display:none;}.page.active{display:block;}
+.card{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:16px;min-width:0;margin-bottom:16px;}
+.card h3{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.card h3 .sub{margin-left:auto;font-weight:400;font-size:12px;color:var(--muted-fg);}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:16px;}
+.kpi{border:1px solid var(--border);background:var(--card);border-radius:12px;padding:12px 14px;}
+.kpi .l{font-size:12px;color:var(--muted-fg);}.kpi .v{font-size:24px;font-weight:700;margin-top:2px;}
+label.lbl{display:block;font-size:12px;color:var(--muted-fg);margin:10px 0 5px;}
+input[type=text],input[type=number],input[type=datetime-local],input[type=date],input[type=time],select,textarea{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg);}
+textarea{min-height:70px;resize:vertical;}
+.btn{padding:8px 13px;border-radius:9px;border:1px solid var(--border);background:var(--bg);font-weight:500;white-space:nowrap;}
+.btn.p{background:var(--role);border-color:var(--role);color:#fff;}
+.btn.sm{padding:5px 9px;font-size:12px;}.btn.danger{color:var(--bad);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.muted{color:var(--muted-fg);}.sm{font-size:12px;}
+.bdg{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;background:var(--muted);color:var(--muted-fg);white-space:nowrap;}
+.bdg.active,.bdg.promoted,.bdg.approved{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok);}
+.bdg.scheduled{background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue);}
+.bdg.paused,.bdg.pending{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);}
+.bdg.rejected,.bdg.red{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad);}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;font-weight:500;color:var(--muted-fg);padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;font-size:12px;}
+.tbl td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.cov{width:36px;height:50px;border-radius:5px;object-fit:cover;background:var(--muted);flex-shrink:0;}
+.bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+.bk{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg);cursor:pointer;position:relative;}
+.bk:hover{border-color:var(--role);}
+.bk img,.bk .ph{width:100%;aspect-ratio:3/4;object-fit:cover;display:block;background:var(--muted);}
+.bk .i{padding:8px;}.bk .t{font-weight:600;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.bk .pick{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:var(--role);color:#fff;display:none;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.bk.sel{border-color:var(--role);box-shadow:0 0 0 2px var(--role);}.bk.sel .pick{display:flex;}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+.slot{border:1.5px dashed var(--border);border-radius:10px;padding:8px;min-height:150px;font-size:12px;position:relative;}
+.slot.full{border-style:solid;}.slot .n{font-size:11px;font-weight:700;color:var(--muted-fg);}
+.slot img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:6px;margin:4px 0;}
+.slot.clash{border-color:var(--bad);}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:16px;padding:3px 8px 3px 4px;font-size:12px;background:var(--bg);}
+.chip img{width:20px;height:28px;object-fit:cover;border-radius:3px;}
+.chip button{border:none;background:none;color:var(--muted-fg);font-size:13px;}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+.cd{border:1px solid var(--border);border-radius:10px;padding:8px;min-height:130px;background:var(--bg);font-size:11.5px;}
+.cd.today{border-color:var(--role);}
+.cd .dh{font-weight:700;font-size:12px;margin-bottom:6px;display:flex;justify-content:space-between;}
+.cd .it{padding:3px 5px;border-radius:5px;background:color-mix(in srgb,var(--role) 8%,transparent);margin-bottom:3px;line-height:1.3;}
+.cd .cl{color:var(--bad);font-weight:600;}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;padding:16px;}
+.modal-bg.on{display:flex;}
+.modal{background:var(--bg);border-radius:14px;width:min(760px,100%);max-height:92vh;overflow-y:auto;padding:20px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:300;display:none;font-size:13px;max-width:90vw;}
+.empty{padding:28px;text-align:center;color:var(--muted-fg);}
+.warn{padding:9px 12px;border-radius:9px;background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn);font-size:12.5px;margin-top:10px;}
+.mb{display:none;}
+@media(max-width:860px){.sb{position:fixed;left:-240px;z-index:60;transition:left .25s;}.sb.open{left:0;box-shadow:0 0 40px rgba(0,0,0,.3);}.mb{display:inline-flex;}.cal{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="sb" id="sb">
+    <div class="brand"><span class="lg">H</span>Promotion</div>
+    <button class="nbtn active" data-p="overview">Overview</button>
+    <button class="nbtn" data-p="requests">SE requests <span class="bdg red" id="reqBadge" style="display:none"></span></button>
+    <div class="sbh">Shelves</div>
+    <button class="nbtn" data-p="books">Browse books</button>
+    <button class="nbtn" data-p="shelves">Shelves &amp; slots</button>
+    <button class="nbtn" data-p="schedule">Schedule a set</button>
+    <button class="nbtn" data-p="rotation">Daily rotation</button>
+    <button class="nbtn" data-p="calendar">Calendar</button>
+    <button class="nbtn" data-p="active">Active promotions</button>
+    <div class="sbh">Authors &amp; insights</div>
+    <button class="nbtn" data-p="tasks">Author promotion tasks</button>
+    <button class="nbtn" data-p="analytics">Analytics</button>
+    <div class="sbh">More placements</div>
+    <button class="nbtn" data-p="banners">Banners &amp; library carousel</button>
+    <a class="nbtn" href="/promotions/" target="_blank">Pop-ups &amp; full-screen ↗</a>
+    <a class="nbtn" href="/social/" target="_blank">Social media posts ↗</a>
+    <div class="sbh">Records</div>
+    <button class="nbtn" data-p="history">History</button>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <button class="btn sm mb" onclick="document.getElementById('sb').classList.toggle('open')">☰</button>
+      <h2 id="ptitle">Overview</h2>
+      <div class="r"><span>{{ me.get_full_name|default:me.username }}</span>
+        <button class="btn sm" onclick="document.documentElement.classList.toggle('dark');localStorage.setItem('nux_theme',document.documentElement.classList.contains('dark')?'dark':'light')">◐</button>
+        <a class="btn sm" href="/logout/">Sign out</a></div>
+    </div>
+    <div class="wrap">
+      <section class="page active" id="page-overview"><div id="ov"></div></section>
+      <section class="page" id="page-requests">
+        <div class="row" style="margin-bottom:12px;"><select id="reqStatus" style="width:auto;" onchange="loadRequests()"><option value="pending">Waiting for a decision</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="all">All</option></select></div>
+        <div id="reqList"></div>
+      </section>
+      <section class="page" id="page-books">
+        <div class="card"><div class="row">
+          <input type="text" id="bq" placeholder="Search title, author or description…" style="flex:2;min-width:200px;" oninput="clearTimeout(window._bqT);window._bqT=setTimeout(()=>loadBooks(1),300)">
+          <select id="bgenre" style="width:auto;" onchange="loadBooks(1)"><option value="">All genres</option></select>
+          <select id="bstatus" style="width:auto;" onchange="loadBooks(1)"><option value="">Any status</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option><option value="paused">Paused</option></select>
+          <select id="bprom" style="width:auto;" onchange="loadBooks(1)"><option value="">Promoted or not</option><option value="yes">On a shelf now</option><option value="no">Not on a shelf</option></select>
+          <select id="bsort" style="width:auto;" onchange="loadBooks(1)"><option value="views">Most read</option><option value="new">Newest</option><option value="rating">Best rated</option><option value="updated">Recently updated</option></select>
+        </div></div>
+        <div id="pickBar" class="card" style="display:none;position:sticky;top:62px;z-index:20;"></div>
+        <div class="bgrid" id="bookGrid"></div>
+        <div class="row" id="bookPager" style="justify-content:center;margin-top:14px;"></div>
+      </section>
+      <section class="page" id="page-shelves"><div id="shelfList"></div><div id="shelfView"></div></section>
+      <section class="page" id="page-schedule">
+        <div class="card"><h3>Schedule a set of books on a shelf</h3>
+          <div class="row" style="align-items:flex-end;">
+            <div style="flex:2;min-width:200px;"><label class="lbl">Shelf</label><select id="scShelf" onchange="scShelfChanged()"></select></div>
+            <div style="flex:1;min-width:180px;"><label class="lbl">Goes live</label><input type="datetime-local" id="scStart"></div>
+            <div style="flex:1;min-width:140px;"><label class="lbl">Stays for</label><select id="scDur" onchange="document.getElementById('scEndWrap').style.display=this.value==='custom'?'':'none'"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option><option value="30">30 days</option><option value="custom">Until…</option><option value="">Until removed</option></select></div>
+            <div style="flex:1;min-width:180px;display:none;" id="scEndWrap"><label class="lbl">Ends</label><input type="datetime-local" id="scEnd"></div>
+          </div>
+          <div class="row"><div style="flex:1;min-width:200px;"><label class="lbl">Set name (optional)</label><input type="text" id="scLabel" placeholder="e.g. Monday set, Valentine week"></div>
+            <label class="row sm" style="margin-top:28px;"><input type="checkbox" id="scReplace" checked> This set replaces whatever is in those slots</label></div>
+          <label class="lbl">Books, in slot order <span id="scCap" class="muted"></span></label>
+          <div class="chips" id="scChips"></div>
+          <div class="row" style="margin-top:8px;"><input type="text" id="scQ" placeholder="Add a book: search…" style="flex:1;" oninput="miniSearch('scQ','scRes',b=>addChip('sc',b))"></div>
+          <div id="scRes"></div>
+          <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn p" onclick="saveSet()">Schedule set</button></div>
+          <div id="scWarn"></div>
+        </div>
+      </section>
+      <section class="page" id="page-rotation">
+        <div class="card"><h3>Daily rotation <span class="sub">prepare several days in advance — the shelf switches by itself</span></h3>
+          <div class="row" style="align-items:flex-end;">
+            <div style="flex:2;min-width:200px;"><label class="lbl">Shelf</label><select id="roShelf" onchange="roRender()"></select></div>
+            <div style="flex:1;min-width:150px;"><label class="lbl">First day</label><input type="date" id="roDate"></div>
+            <div style="flex:1;min-width:120px;"><label class="lbl">Switches at</label><input type="time" id="roTime" value="08:00"></div>
+            <div style="flex:1;min-width:110px;"><label class="lbl">Days</label><input type="number" id="roDays" min="1" max="31" value="7" onchange="roRender()"></div>
+          </div>
+          <div class="row" style="margin-top:12px;"><span class="sm muted">Fill quickly:</span><button class="btn sm" onclick="roAutoFill()">Auto-fill from a pool of books…</button><span class="sm muted" id="roPoolInfo"></span></div>
+          <div id="roPool" style="display:none;" class="card"><div class="sm muted" style="margin-bottom:6px;">Add books to the pool — they are spread across the days so each day gets a different set.</div>
+            <div class="chips" id="roPoolChips"></div>
+            <input type="text" id="roPQ" placeholder="Add to pool: search…" style="margin-top:8px;" oninput="miniSearch('roPQ','roPRes',b=>{roPool.push(b);renderPool();})"><div id="roPRes"></div>
+            <div class="row" style="margin-top:8px;justify-content:flex-end;"><button class="btn sm p" onclick="roSpread()">Spread across the days</button></div></div>
+          <div id="roDaysBox" style="margin-top:12px;"></div>
+          <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn p" onclick="saveRotation()">Save rotation</button></div>
+        </div>
+      </section>
+      <section class="page" id="page-calendar">
+        <div class="row" style="margin-bottom:12px;"><button class="btn sm" onclick="calShift(-7)">← Week</button><input type="date" id="calStart" style="width:auto;" onchange="loadCalendar()"><button class="btn sm" onclick="calShift(7)">Week →</button>
+          <select id="calShelf" style="width:auto;" onchange="loadCalendar()"><option value="">All shelves</option></select><span class="sm muted">Two weeks from the date chosen.</span></div>
+        <div class="cal" id="cal"></div>
+      </section>
+      <section class="page" id="page-active">
+        <div class="row" style="margin-bottom:12px;">
+          <select id="acStatus" style="width:auto;" onchange="loadActive()"><option value="active">Active now</option><option value="scheduled">Scheduled</option><option value="paused">Paused</option><option value="expired">Ended / cancelled</option><option value="all">All</option></select>
+          <select id="acShelf" style="width:auto;" onchange="loadActive()"><option value="">All shelves</option></select></div>
+        <div class="card" style="padding:0;overflow-x:auto;"><div id="acList"></div></div>
+      </section>
+      <section class="page" id="page-banners"><div id="banList"></div></section>
+      <section class="page" id="page-tasks">
+        <div class="row" style="margin-bottom:12px;"><select id="tkStatus" style="width:auto;" onchange="loadTasks()"><option value="all">All</option><option value="sent">Waiting for the author</option><option value="accepted">In progress</option><option value="met">Requirements met</option><option value="missed">Missed</option><option value="qualified">Qualified</option><option value="declined">Declined</option></select>
+          <button class="btn p" onclick="taskForm()">+ New offer to an author</button></div>
+        <div id="tkList"></div>
+      </section>
+      <section class="page" id="page-analytics">
+        <div class="row" style="margin-bottom:12px;">
+          <button class="btn sm an-tab p" data-t="movers" onclick="anGo('movers')">Movers &amp; candidates</button>
+          <button class="btn sm an-tab" data-t="book" onclick="anGo('book')">Book performance</button>
+          <button class="btn sm an-tab" data-t="results" onclick="anGo('results')">Promotion results</button>
+          <select id="anDays" style="width:auto;margin-left:auto;" onchange="loadAnalytics()"><option value="7">7 days</option><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select>
+        </div>
+        <div class="card" id="anFilters"><div class="row">
+          <select id="anGenre" style="width:auto;" onchange="loadAnalytics()"><option value="">All genres</option></select>
+          <select id="anStatus" style="width:auto;" onchange="loadAnalytics()"><option value="">Any status</option><option value="ongoing">Ongoing</option><option value="completed">Completed</option></select>
+          <select id="anProm" style="width:auto;" onchange="loadAnalytics()"><option value="">Promoted or not</option><option value="yes">On a shelf now</option><option value="no">Not on a shelf</option></select></div></div>
+        <div class="card" id="anBookPick" style="display:none;"><input type="text" id="anQ" placeholder="Search a book to see its history…" oninput="miniSearch('anQ','anR',b=>{window._anBook=b.id;loadAnalytics();})"><div id="anR"></div></div>
+        <div id="anBody"></div>
+      </section>
+      <section class="page" id="page-history">
+        <div class="row" style="margin-bottom:12px;"><input type="text" id="hq" placeholder="Search a book, shelf or person…" oninput="clearTimeout(window._hT);window._hT=setTimeout(loadHistory,300)"></div>
+        <div class="card" style="padding:0;overflow-x:auto;"><div id="hList"></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mbg" onclick="if(event.target===this)closeModal()"><div class="modal" id="mbody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = {
+  token: document.querySelector('meta[name="nux-token"]').content,
+  base: document.querySelector('meta[name="nux-api"]').content || '/api',
+  async req(path, opts = {}, retry = true) {
+    const headers = { 'Authorization': 'Bearer ' + this.token };
+    if (opts.body && !(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    const r = await fetch(this.base + path, { ...opts, headers });
+    if (r.status === 401 && retry) {
+      const t = await fetch('/master/token/', { credentials: 'same-origin' });
+      if (t.ok) { this.token = (await t.json()).access; return this.req(path, opts, false); }
+    }
+    if (r.status === 204) return {};
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw d;
+    return d;
+  },
+  get(p) { return this.req(p); },
+  post(p, b) { return this.req(p, { method: 'POST', body: b instanceof FormData ? b : JSON.stringify(b || {}) }); },
+  patch(p, b) { return this.req(p, { method: 'PATCH', body: JSON.stringify(b) }); },
+  del(p) { return this.req(p, { method: 'DELETE' }); },
+};
+const $ = s => document.querySelector(s);
+const E = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const D = iso => iso ? new Date(iso).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+const DD = iso => iso ? new Date(iso).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+const toast = m => { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 3600); };
+const localNow = (addMin = 0) => { const d = new Date(Date.now() + addMin * 6e4); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const iso = v => v ? new Date(v).toISOString() : '';
+const cover = (b, cls = 'cov') => b && b.cover ? `<img class="${cls}" src="${E(b.cover)}" alt="">` : `<span class="${cls}" style="display:inline-block"></span>`;
+function left(iso) { if (!iso) return 'until removed'; const d = (new Date(iso) - new Date()) / 36e5; if (d <= 0) return 'ended'; return d < 24 ? `${Math.ceil(d)}h left` : `${Math.ceil(d / 24)} days left`; }
+function closeModal() { $('#mbg').classList.remove('on'); }
+function openModal(html) { $('#mbody').innerHTML = html; $('#mbg').classList.add('on'); }
+let SHELVES = [];
+
+// ── Navigation ──
+const TITLES = { overview: 'Overview', requests: 'SE promotion requests', books: 'Browse books', shelves: 'Shelves & slots', schedule: 'Schedule a set',
+  rotation: 'Daily rotation', calendar: 'Promotion calendar', active: 'Active promotions', banners: 'Banners & library carousel', history: 'History',
+  tasks: 'Author promotion tasks', analytics: 'Analytics' };
+function gp(p, btn) {
+  document.querySelectorAll('.page').forEach(x => x.classList.toggle('active', x.id === 'page-' + p));
+  document.querySelectorAll('.nbtn[data-p]').forEach(b => b.classList.toggle('active', b.dataset.p === p));
+  $('#ptitle').textContent = TITLES[p] || p; $('#sb').classList.remove('open');
+  ({ overview: loadOverview, requests: loadRequests, books: () => loadBooks(1), shelves: loadShelves, schedule: scShelfChanged,
+     rotation: roRender, calendar: loadCalendar, active: loadActive, banners: loadBanners, history: loadHistory,
+     tasks: loadTasks, analytics: loadAnalytics })[p]?.();
+}
+document.querySelectorAll('.nbtn[data-p]').forEach(b => b.setAttribute('onclick', `gp('${b.dataset.p}',this)`));
+
+async function loadShelfOptions() {
+  SHELVES = await API.get('/promotion/shelves/');
+  const opts = SHELVES.filter(s => s.is_active).map(s => `<option value="${s.id}">${E(s.group)} → ${E(s.name)} (${s.capacity} slots)</option>`).join('');
+  ['#scShelf', '#roShelf'].forEach(s => $(s).innerHTML = opts);
+  ['#calShelf', '#acShelf'].forEach(s => $(s).innerHTML = '<option value="">All shelves</option>' + opts);
+}
+
+// ── Overview ──
+async function loadOverview() {
+  const o = await API.get('/promotion/overview/');
+  const rb = $('#reqBadge'); rb.textContent = o.requests; rb.style.display = o.requests ? '' : 'none';
+  const k = (l, v, p) => `<div class="kpi" ${p ? `style="cursor:pointer" onclick="gp('${p}')"` : ''}><div class="l">${l}</div><div class="v">${v}</div></div>`;
+  let cal = { days: [] };
+  try { cal = await API.get('/promotion/calendar/?days=3'); } catch (e) {}
+  const clashes = cal.days.flatMap(d => d.clashes.map(c => `${DD(d.date)}: ${c}`));
+  $('#ov').innerHTML = `<div class="kpis">${k('SE requests waiting', o.requests, 'requests')}${k('Placements live', o.live, 'active')}${k('Books on shelves', o.books_live, 'active')}
+      ${k('Starting in 24h', o.starting_24h, 'calendar')}${k('Ending in 24h', o.ending_24h, 'active')}${k('Scheduled ahead', o.scheduled, 'calendar')}
+      ${k('Banners live', o.banners, 'banners')}${k('Pop-ups live', o.popups)}</div>
+    ${clashes.length ? `<div class="card" style="border-color:var(--bad);"><h3 style="color:var(--bad);">⚠ Scheduling clashes in the next 3 days</h3>${clashes.map(c => `<div class="sm">${E(c)}</div>`).join('')}<div class="row" style="margin-top:8px;"><button class="btn sm" onclick="gp('calendar')">Open calendar</button></div></div>` : ''}
+    ${o.empty_shelves.length ? `<div class="card"><h3>Home shelves with nothing scheduled</h3><p class="sm muted" style="margin-bottom:8px;">They show their usual automatic books.</p><div class="chips">${o.empty_shelves.map(n => `<span class="chip" style="padding:3px 10px;">${E(n)}</span>`).join('')}</div></div>` : ''}
+    <div class="card"><h3>Quick actions</h3><div class="row">
+      <button class="btn p" onclick="gp('books')">Pick books</button><button class="btn" onclick="gp('schedule')">Schedule a set</button>
+      <button class="btn" onclick="gp('rotation')">Plan a daily rotation</button><button class="btn" onclick="gp('requests')">Review SE requests</button>
+      <a class="btn" href="/social/" target="_blank">Post on social media ↗</a><a class="btn" href="/promotions/" target="_blank">Create a pop-up ↗</a></div></div>`;
+}
+
+// ── Books ──
+let PICKED = [];
+async function loadBooks(page) {
+  const p = new URLSearchParams({ page, q: $('#bq').value, genre: $('#bgenre').value, status: $('#bstatus').value, promoted: $('#bprom').value, sort: $('#bsort').value });
+  const d = await API.get('/promotion/books/?' + p);
+  window._books = d.results;
+  $('#bookGrid').innerHTML = d.results.map((b, i) => `<div class="bk ${PICKED.some(x => x.id === b.id) ? 'sel' : ''}" onclick="bookModal(${b.id})">
+      ${b.cover ? `<img src="${E(b.cover)}" alt="">` : '<div class="ph"></div>'}<span class="pick">✓</span>
+      <div class="i"><div class="t">${E(b.title)}</div><div class="sm muted">${E(b.author)} · ${E(b.genre)}</div>
+      <div class="sm muted">${(b.views || 0).toLocaleString()} views · ${b.chapters} ch</div>
+      ${b.on_shelves.length ? `<div style="margin-top:4px;"><span class="bdg active" title="${E(b.on_shelves.join(', '))}">On ${b.on_shelves.length} shelf${b.on_shelves.length > 1 ? 'ves' : ''}</span></div>` : ''}</div></div>`).join('') || '<div class="empty">No books match.</div>';
+  $('#bookPager').innerHTML = d.pages > 1 ? `<button class="btn sm" ${page <= 1 ? 'disabled' : ''} onclick="loadBooks(${page - 1})">← Prev</button><span class="sm muted">Page ${page} of ${d.pages} · ${d.total} books</span><button class="btn sm" ${page >= d.pages ? 'disabled' : ''} onclick="loadBooks(${page + 1})">Next →</button>` : '';
+}
+async function bookModal(id) {
+  openModal('<p class="muted">Loading…</p>');
+  const d = await API.get(`/promotion/books/${id}/`);
+  const ins = await API.get(`/editorial/ce/promo-center/insights/${d.book.slug}/`).catch(() => null);
+  const b = d.book, picked = PICKED.some(x => x.id === b.id);
+  openModal(`<div class="row" style="align-items:flex-start;gap:16px;flex-wrap:nowrap;">
+      ${b.cover ? `<img src="${E(b.cover)}" style="width:120px;border-radius:8px;">` : ''}
+      <div style="flex:1;min-width:0;"><h2 style="font-size:18px;">${E(b.title)}</h2>
+        <div class="sm muted" style="margin:4px 0 8px;">by ${E(b.author)} · ${E(b.genre)} · <span class="bdg">${E(b.status)}</span> ${b.contract_status ? `<span class="bdg">${E(b.contract_status)}</span>` : ''}</div>
+        <div class="row sm" style="gap:14px;"><span><b>${(b.views || 0).toLocaleString()}</b> views</span><span><b>${b.chapters}</b> chapters</span><span><b>${b.rating ? b.rating.toFixed(1) + ' ★' : '—'}</b></span><span><b>${b.likes}</b> likes</span>
+          ${ins ? `<span>Promotion score <b style="color:${ins.score >= 65 ? 'var(--ok)' : ins.score >= 45 ? 'var(--warn)' : 'var(--bad)'}">${ins.score} · ${ins.verdict}</b></span><span>Finish rate <b>${ins.reading.completion_pct}%</b></span>` : ''}</div>
+        ${ins && ins.notes.length ? `<div class="warn">${ins.notes.map(E).join('<br>')}</div>` : ''}
+      </div><button class="btn sm" onclick="closeModal()">✕</button></div>
+    <p style="margin:14px 0;line-height:1.6;white-space:pre-wrap;font-size:13px;">${E(b.description || b.synopsis || 'No description.')}</p>
+    ${d.placements.length ? `<h3 style="font-size:13px;margin-bottom:6px;">Shelf history</h3>${d.placements.map(p => `<div class="sm"><span class="bdg ${p.status}">${p.status}</span> ${E(p.shelf)} · slot ${p.position} · ${D(p.starts_at)} → ${p.ends_at ? D(p.ends_at) : 'until removed'}</div>`).join('')}` : ''}
+    <div class="row" style="margin-top:16px;justify-content:flex-end;">
+      <button class="btn" onclick='togglePick(${JSON.stringify({ id: b.id, title: b.title, cover: b.cover })});closeModal();'>${picked ? 'Remove from selection' : '+ Add to selection'}</button>
+      <button class="btn" onclick='taskForm(${JSON.stringify({ id: b.id, title: b.title, author: b.author })})'>Offer author a task…</button>
+      <button class="btn p" onclick='quickPlace(${JSON.stringify({ id: b.id, title: b.title, cover: b.cover })})'>Place on a shelf…</button></div>`);
+}
+function togglePick(b) {
+  const i = PICKED.findIndex(x => x.id === b.id);
+  if (i >= 0) PICKED.splice(i, 1); else PICKED.push(b);
+  renderPickBar(); document.querySelectorAll('#bookGrid .bk').forEach((el, j) => el.classList.toggle('sel', PICKED.some(x => x.id === (window._books[j] || {}).id)));
+}
+function renderPickBar() {
+  const bar = $('#pickBar'); bar.style.display = PICKED.length ? '' : 'none';
+  bar.innerHTML = `<div class="row"><b>${PICKED.length} selected</b><div class="chips" style="flex:1;">${PICKED.map(b => `<span class="chip">${b.cover ? `<img src="${E(b.cover)}">` : ''}${E(b.title)}</span>`).join('')}</div>
+    <button class="btn sm" onclick="PICKED=[];renderPickBar();loadBooks(1)">Clear</button><button class="btn sm p" onclick="useSelection()">Schedule these →</button></div>`;
+}
+function useSelection() { SC = [...PICKED]; gp('schedule'); renderChips('sc'); }
+function quickPlace(b) { SC = [b]; closeModal(); gp('schedule'); renderChips('sc'); }
+
+// mini book search used by forms
+async function miniSearch(inp, out, onPick) {
+  clearTimeout(window['_ms' + inp]);
+  window['_ms' + inp] = setTimeout(async () => {
+    const q = $('#' + inp).value.trim(); if (!q) { $('#' + out).innerHTML = ''; return; }
+    const d = await API.get('/promotion/books/?q=' + encodeURIComponent(q));
+    window['_mr' + out] = d.results;
+    $('#' + out).innerHTML = `<div style="border:1px solid var(--border);border-radius:9px;margin-top:4px;max-height:240px;overflow-y:auto;background:var(--bg);">${d.results.slice(0, 8).map((b, i) =>
+      `<div class="row" style="padding:6px 8px;cursor:pointer;flex-wrap:nowrap;" onmouseover="this.style.background='var(--muted)'" onmouseout="this.style.background=''" onclick="window._mp_${out}(${i})">${cover(b)}<div style="min-width:0;"><b>${E(b.title)}</b><div class="sm muted">${E(b.author)} · ${(b.views || 0).toLocaleString()} views</div></div></div>`).join('') || '<div class="sm muted" style="padding:8px;">No books found.</div>'}</div>`;
+    window['_mp_' + out] = i => { onPick(window['_mr' + out][i]); $('#' + inp).value = ''; $('#' + out).innerHTML = ''; };
+  }, 250);
+}
+
+// ── Schedule a set ──
+let SC = [];
+function addChip(kind, b) { if (!SC.some(x => x.id === b.id)) SC.push(b); renderChips(kind); }
+function renderChips() {
+  const cap = (SHELVES.find(s => s.id == $('#scShelf').value) || {}).capacity || 0;
+  $('#scCap').textContent = cap ? `(${SC.length} of ${cap} slots)` : '';
+  $('#scChips').innerHTML = SC.map((b, i) => `<span class="chip" style="${i >= cap ? 'border-color:var(--bad);' : ''}"><b class="sm muted">${i + 1}</b>${b.cover ? `<img src="${E(b.cover)}">` : ''}${E(b.title)}
+      ${i ? `<button title="Move up" onclick="SC.splice(${i - 1},0,SC.splice(${i},1)[0]);renderChips()">↑</button>` : ''}<button title="Remove" onclick="SC.splice(${i},1);renderChips()">✕</button></span>`).join('') || '<span class="sm muted">No books yet — pick them in Browse books, or search below.</span>';
+}
+function scShelfChanged() { if (!$('#scStart').value) $('#scStart').value = localNow(5); renderChips(); }
+async function saveSet() {
+  const dur = $('#scDur').value, body = { shelf_id: +$('#scShelf').value, books: SC.map(b => b.id), starts_at: iso($('#scStart').value),
+    label: $('#scLabel').value, replace: $('#scReplace').checked };
+  if (dur === 'custom') body.ends_at = iso($('#scEnd').value); else if (dur) body.days = dur;
+  try {
+    const r = await API.post('/promotion/schedule/', body);
+    toast(r.detail); $('#scWarn').innerHTML = r.warnings.length ? `<div class="warn">${r.warnings.map(E).join('<br>')}</div>` : '';
+    SC = []; PICKED = []; renderChips(); renderPickBar();
+  } catch (e) { toast(e.detail || 'Could not schedule.'); }
+}
+
+// ── Daily rotation ──
+let RO = [], roPool = [];
+function roRender() {
+  if (!$('#roDate').value) $('#roDate').value = localNow(24 * 60).slice(0, 10);
+  const n = Math.max(1, Math.min(31, +$('#roDays').value || 1)), cap = (SHELVES.find(s => s.id == $('#roShelf').value) || {}).capacity || 10;
+  while (RO.length < n) RO.push([]); RO.length = n;
+  const d0 = new Date($('#roDate').value + 'T00:00');
+  $('#roDaysBox').innerHTML = RO.map((day, i) => { const d = new Date(d0); d.setDate(d.getDate() + i);
+    return `<div class="card" style="padding:12px;"><div class="row" style="margin-bottom:6px;"><b>Day ${i + 1}</b><span class="sm muted">${d.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' })}</span><span class="sm muted" style="margin-left:auto;">${day.length}/${cap}</span></div>
+      <div class="chips">${day.map((b, j) => `<span class="chip"><b class="sm muted">${j + 1}</b>${b.cover ? `<img src="${E(b.cover)}">` : ''}${E(b.title)}<button onclick="RO[${i}].splice(${j},1);roRender()">✕</button></span>`).join('')}</div>
+      <input type="text" id="roQ${i}" placeholder="Add a book for day ${i + 1}…" style="margin-top:6px;" oninput="miniSearch('roQ${i}','roR${i}',b=>{RO[${i}].push(b);roRender();})"><div id="roR${i}"></div></div>`; }).join('');
+}
+function roAutoFill() { $('#roPool').style.display = ''; renderPool(); }
+function renderPool() { $('#roPoolChips').innerHTML = roPool.map((b, i) => `<span class="chip">${b.cover ? `<img src="${E(b.cover)}">` : ''}${E(b.title)}<button onclick="roPool.splice(${i},1);renderPool()">✕</button></span>`).join('') || '<span class="sm muted">Empty</span>';
+  $('#roPoolInfo').textContent = roPool.length ? `${roPool.length} book(s) in the pool` : ''; }
+function roSpread() {
+  const cap = (SHELVES.find(s => s.id == $('#roShelf').value) || {}).capacity || 10;
+  if (!roPool.length) { toast('Add books to the pool first.'); return; }
+  const per = Math.min(cap, roPool.length); let k = 0;
+  RO = RO.map(() => { const day = []; for (let j = 0; j < per; j++) day.push(roPool[(k++) % roPool.length]); return day; });
+  roRender(); toast(`Each day gets ${per} book(s), rotating through the pool.`);
+}
+async function saveRotation() {
+  try {
+    const r = await API.post('/promotion/rotation/', { shelf_id: +$('#roShelf').value, start_date: $('#roDate').value, switch_time: $('#roTime').value,
+      tz_offset_minutes: -new Date().getTimezoneOffset(), days: RO.map(d => d.map(b => b.id)) });
+    toast(r.detail); RO = []; roRender();
+  } catch (e) { toast(e.detail || 'Could not save.'); }
+}
+
+// ── Shelves ──
+async function loadShelves() {
+  await loadShelfOptions();
+  const groups = {}; SHELVES.forEach(s => (groups[s.group] = groups[s.group] || []).push(s));
+  $('#shelfList').innerHTML = Object.entries(groups).map(([g, list]) => `<div class="card"><h3>${E(g)}</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;">
+    ${list.map(s => `<div style="border:1px solid var(--border);border-radius:10px;padding:10px;cursor:pointer;background:var(--bg);${s.is_active ? '' : 'opacity:.5;'}" onclick="openShelf(${s.id})">
+      <b>${E(s.name)}</b><div class="sm muted">${s.live}/${s.capacity} slots filled now${s.upcoming ? ` · ${s.upcoming} scheduled` : ''}</div>
+      <div style="height:5px;background:var(--muted);border-radius:3px;margin-top:6px;"><div style="height:5px;width:${s.live / s.capacity * 100}%;background:var(--role);border-radius:3px;"></div></div></div>`).join('')}</div></div>`).join('');
+  $('#shelfView').innerHTML = '';
+}
+async function openShelf(id, at) {
+  const d = await API.get(`/promotion/shelves/${id}/` + (at ? '?at=' + encodeURIComponent(iso(at)) : ''));
+  const s = d.shelf;
+  $('#shelfList').innerHTML = '';
+  $('#shelfView').innerHTML = `<div class="card"><h3><button class="btn sm" onclick="loadShelves()">← All shelves</button> ${E(s.group)} → ${E(s.name)}
+      <span class="sub row"><label class="sm">Slots <input type="number" id="cap" value="${s.capacity}" min="1" max="50" style="width:70px;display:inline-block;"></label>
+      <button class="btn sm" onclick="shelfSave(${s.id})">Save</button>
+      <label class="row sm"><input type="checkbox" ${s.is_active ? 'checked' : ''} onchange="API.patch('/promotion/shelves/${s.id}/',{is_active:this.checked}).then(()=>toast('Saved'))"> On</label></span></h3>
+    <div class="row" style="margin-bottom:10px;"><span class="sm muted">Showing the shelf at</span><input type="datetime-local" id="atT" style="width:auto;" value="${localNow().slice(0, 16)}" onchange="openShelf(${s.id}, this.value)">
+      <button class="btn sm" onclick="SC=[];document.getElementById('scShelf').value=${s.id};gp('schedule')">+ Schedule books here</button></div>
+    <div class="slots">${d.slots.map(sl => { const p = sl.placement;
+      return `<div class="slot ${p ? 'full' : ''} ${sl.clash ? 'clash' : ''}"><div class="n">SLOT ${sl.position}${sl.clash ? ' · CLASH' : ''}</div>
+        ${p ? `${p.book.cover ? `<img src="${E(p.book.cover)}">` : ''}<b>${E(p.book.title)}</b><div class="muted">${left(p.ends_at)}</div>
+          <div class="row" style="margin-top:4px;gap:4px;">${sl.position > 1 ? `<button class="btn sm" title="Move left" onclick="moveSlot(${s.id},${p.id},${sl.position - 1})">←</button>` : ''}
+          ${sl.position < s.capacity ? `<button class="btn sm" title="Move right" onclick="moveSlot(${s.id},${p.id},${sl.position + 1})">→</button>` : ''}
+          <button class="btn sm danger" title="End now" onclick="plEdit(${p.id},{end_now:true},()=>openShelf(${s.id}))">✕</button></div>`
+        : '<div class="muted" style="margin-top:30px;text-align:center;">Empty<br><span class="sm">shows a usual book</span></div>'}</div>`; }).join('')}</div>
+    ${d.over_capacity.length ? `<div class="warn">${d.over_capacity.length} placement(s) sit beyond the last slot and are hidden.</div>` : ''}</div>
+    <div class="card"><h3>Scheduled and live on this shelf</h3>${placementTable(d.schedule, () => `openShelf(${s.id})`)}</div>`;
+}
+async function moveSlot(shelf, pid, pos) { await plEdit(pid, { position: pos }, () => openShelf(shelf)); }
+async function shelfSave(id) { try { await API.patch(`/promotion/shelves/${id}/`, { capacity: +$('#cap').value }); toast('Saved'); openShelf(id); } catch (e) { toast(e.detail || 'Failed'); } }
+
+// ── Placements table (shared) ──
+function placementTable(rows, reload) {
+  if (!rows.length) return '<div class="empty">Nothing here.</div>';
+  window._reload = reload;
+  return `<table class="tbl"><thead><tr><th>Book</th><th>Shelf</th><th>Slot</th><th>Starts</th><th>Ends</th><th>Time left</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(p => `<tr><td><div class="row" style="flex-wrap:nowrap;">${cover(p.book)}<div><b>${E(p.book.title)}</b><div class="sm muted">${E(p.book.author)}${p.label ? ' · ' + E(p.label) : ''}</div></div></div></td>
+      <td class="sm">${E(p.shelf)}</td><td>${p.position}</td><td class="sm">${D(p.starts_at)}</td><td class="sm">${p.ends_at ? D(p.ends_at) : 'until removed'}</td>
+      <td class="sm">${p.status === 'scheduled' ? 'starts ' + DD(p.starts_at) : left(p.ends_at)}</td><td><span class="bdg ${p.status}">${p.status}</span></td>
+      <td><div class="row" style="gap:4px;flex-wrap:nowrap;">${['active', 'scheduled', 'paused'].includes(p.status) ? `
+        <button class="btn sm" onclick="editPlacement(${p.id},'${p.starts_at}','${p.ends_at || ''}',${p.position})">Edit</button>
+        ${p.status === 'active' ? `<button class="btn sm" onclick="plEdit(${p.id},{paused:true},window._reload)">Pause</button>` : ''}
+        ${p.status === 'paused' ? `<button class="btn sm" onclick="plEdit(${p.id},{paused:false},window._reload)">Resume</button>` : ''}
+        ${p.status === 'scheduled' ? `<button class="btn sm danger" onclick="plCancel(${p.id})">Cancel</button>` : `<button class="btn sm danger" onclick="plEdit(${p.id},{end_now:true},window._reload)">End</button>`}` : ''}</div></td></tr>`).join('')}</tbody></table>`;
+}
+function editPlacement(id, s, e, pos) {
+  const loc = v => { if (!v) return ''; const d = new Date(v); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  openModal(`<h3 style="margin-bottom:10px;">Reschedule</h3><label class="lbl">Starts</label><input type="datetime-local" id="eS" value="${loc(s)}">
+    <label class="lbl">Ends (blank = until removed)</label><input type="datetime-local" id="eE" value="${loc(e)}"><label class="lbl">Slot</label><input type="number" id="eP" value="${pos}" min="1">
+    <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="closeModal()">Close</button>
+    <button class="btn p" onclick="plEdit(${id},{starts_at:iso($('#eS').value),ends_at:$('#eE').value?iso($('#eE').value):null,position:+$('#eP').value},()=>{closeModal();window._reload&&eval(window._reload())})">Save</button></div>`);
+}
+async function plEdit(id, body, after) {
+  try { const r = await API.patch(`/promotion/placements/${id}/`, body); toast(r.warnings && r.warnings.length ? '⚠ ' + r.warnings[0] : 'Saved');
+    if (typeof after === 'function') { const x = after(); if (typeof x === 'string') eval(x); } }
+  catch (e) { toast(e.detail || 'Failed'); }
+}
+async function plCancel(id) { if (!confirm('Cancel this scheduled placement?')) return; await API.del(`/promotion/placements/${id}/`); toast('Cancelled'); const x = window._reload && window._reload(); if (typeof x === 'string') eval(x); }
+
+// ── Active ──
+async function loadActive() {
+  const d = await API.get(`/promotion/placements/?status=${$('#acStatus').value}&shelf=${$('#acShelf').value}`);
+  $('#acList').innerHTML = placementTable(d.results, () => loadActive());
+}
+
+// ── Calendar ──
+function calShift(n) { const d = new Date(($('#calStart').value || localNow().slice(0, 10)) + 'T00:00'); d.setDate(d.getDate() + n); $('#calStart').value = d.toISOString().slice(0, 10); loadCalendar(); }
+async function loadCalendar() {
+  if (!$('#calStart').value) $('#calStart').value = localNow().slice(0, 10);
+  const d = await API.get(`/promotion/calendar/?start=${$('#calStart').value}&days=14`);
+  const sh = $('#calShelf').value, today = localNow().slice(0, 10);
+  $('#cal').innerHTML = d.days.map(day => { const ps = day.placements.filter(p => !sh || p.shelf_id == sh);
+    const byShelf = {}; ps.forEach(p => (byShelf[p.shelf] = byShelf[p.shelf] || []).push(p));
+    return `<div class="cd ${day.date === today ? 'today' : ''}"><div class="dh"><span>${DD(day.date + 'T12:00')}</span><span class="muted">${ps.length}</span></div>
+      ${day.clashes.map(c => `<div class="cl">⚠ ${E(c)}</div>`).join('')}
+      ${Object.entries(byShelf).map(([s, list]) => `<div class="it"><b>${E(s)}</b><br>${list.slice(0, 4).map(p => `${p.position}. ${E(p.book.title)}${p.starts_at.slice(0, 10) === day.date ? ` <span class="muted">from ${new Date(p.starts_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : ''}`).join('<br>')}${list.length > 4 ? `<br><span class="muted">+${list.length - 4} more</span>` : ''}</div>`).join('') || '<div class="muted">Nothing scheduled</div>'}</div>`; }).join('');
+}
+
+// ── SE requests ──
+async function loadRequests() {
+  const d = await API.get('/promotion/requests/?status=' + $('#reqStatus').value);
+  if (!SHELVES.length) await loadShelfOptions();
+  $('#reqList').innerHTML = d.results.map(r => `<div class="card"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:14px;">
+      ${r.book.cover ? `<img src="${E(r.book.cover)}" style="width:80px;border-radius:6px;">` : ''}
+      <div style="flex:1;min-width:0;"><div class="row"><b style="font-size:15px;">${E(r.book.title)}</b><span class="bdg ${r.stage}">${r.stage}</span></div>
+        <div class="sm muted">by ${E(r.book.author)} · ${E(r.book.genre)} · ${(r.book.views || 0).toLocaleString()} views · ${r.book.chapters} chapters · ${r.book.rating ? r.book.rating.toFixed(1) + '★' : 'no ratings'}</div>
+        <div class="sm" style="margin-top:6px;"><b>${E(r.se)}</b> recommends it${r.tab ? ` for ${E(r.tab)} → ${E(r.section)}` : ''}:</div>
+        <div style="margin-top:3px;padding:8px 10px;border-radius:8px;background:var(--muted);font-size:13px;white-space:pre-wrap;">${E(r.reason)}</div>
+        <details style="margin-top:6px;"><summary class="sm muted" style="cursor:pointer;">Synopsis</summary><p class="sm" style="margin-top:4px;white-space:pre-wrap;">${E(r.book.description || r.book.synopsis || '—')}</p></details>
+        ${r.feedback ? `<div class="sm" style="margin-top:6px;"><b>Feedback:</b> ${E(r.feedback)}</div>` : ''}
+        ${r.reviewed_by ? `<div class="sm muted">Decided by ${E(r.reviewed_by)} · ${D(r.reviewed_at)}</div>` : ''}
+      </div></div>
+    ${r.status === 'pending' ? `<div class="row" style="margin-top:12px;justify-content:flex-end;"><button class="btn sm" onclick="bookModal(${r.book.id})">Book details &amp; score</button>
+      <button class="btn sm danger" onclick="rejectReq(${r.id})">Reject…</button><button class="btn sm p" onclick="approveReq(${r.id}, ${JSON.stringify(r.book.title).replace(/"/g, '&quot;')})">Approve &amp; place…</button></div>` : ''}</div>`).join('') || '<div class="empty">No requests here.</div>';
+}
+function approveReq(id, title) {
+  openModal(`<h3 style="margin-bottom:6px;">Approve "${E(title)}"</h3><p class="sm muted">Choose where and when it goes. The senior editor is told.</p>
+    <label class="lbl">Shelf</label><select id="aSh">${SHELVES.filter(s => s.is_active).map(s => `<option value="${s.id}">${E(s.group)} → ${E(s.name)}</option>`).join('')}</select>
+    <div class="row"><div style="flex:1;"><label class="lbl">Starts</label><input type="datetime-local" id="aSt" value="${localNow(5)}"></div>
+      <div style="flex:1;"><label class="lbl">For</label><select id="aD"><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option><option value="30">30 days</option></select></div>
+      <div style="width:90px;"><label class="lbl">Slot</label><input type="number" id="aP" value="1" min="1"></div></div>
+    <label class="lbl">Note to the senior editor (optional)</label><textarea id="aN"></textarea>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn p" onclick="doApprove(${id})">Approve</button></div>`);
+}
+async function doApprove(id) {
+  try { const r = await API.post(`/promotion/requests/${id}/review/`, { action: 'approve', shelf_id: +$('#aSh').value, starts_at: iso($('#aSt').value), days: $('#aD').value, position: +$('#aP').value, feedback: $('#aN').value });
+    closeModal(); toast(r.detail + (r.warnings && r.warnings.length ? ' ⚠ ' + r.warnings[0] : '')); loadRequests(); loadOverview(); }
+  catch (e) { toast(e.detail || 'Failed'); }
+}
+async function rejectReq(id) {
+  const fb = prompt('Why is it rejected? The senior editor sees this and can pass it on to the author.'); if (!fb) return;
+  try { const r = await API.post(`/promotion/requests/${id}/review/`, { action: 'reject', feedback: fb }); toast(r.detail); loadRequests(); loadOverview(); }
+  catch (e) { toast(e.detail || 'Failed'); }
+}
+
+// ── Banners & library carousel ──
+async function loadBanners() {
+  const [b, l] = await Promise.all([API.get('/editorial/ce/promo-center/placements/?type=banners&state=all').catch(() => ({ results: [] })),
+                                    API.get('/editorial/ce/promo-center/placements/?type=library').catch(() => ({ results: [] }))]);
+  $('#banList').innerHTML = `<div class="card"><h3>Home banners <span class="sub"><button class="btn sm p" onclick="bannerForm()">+ New banner</button></span></h3>
+      ${b.results.length ? `<table class="tbl"><tbody>${b.results.map(x => `<tr><td>${x.image ? `<img src="${E(x.image)}" style="width:110px;height:46px;object-fit:cover;border-radius:6px;">` : ''}</td>
+        <td><b>${E(x.title)}</b><div class="sm muted">${x.book ? 'Opens ' + E(x.book.title) : 'No book link'}</div></td><td class="sm">${D(x.starts_at)} → ${x.ends_at ? D(x.ends_at) : 'until removed'}</td>
+        <td><span class="bdg ${x.state === 'live' ? 'active' : x.state}">${x.state}</span></td>
+        <td><button class="btn sm" onclick="banEdit(${x.id},{extend_days:7})">+7 days</button> <button class="btn sm danger" onclick="banEdit(${x.id},{end_now:true})">End</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">No banners.</div>'}</div>
+    <div class="card"><h3>Library carousel <span class="sub">top of the library screen</span></h3>
+      <div class="chips">${l.results.map(x => `<span class="chip">${x.book.cover ? `<img src="${E(x.book.cover)}">` : ''}${E(x.book.title)}<button onclick="libToggle(${x.book.id},false)">✕</button></span>`).join('') || '<span class="sm muted">Empty — the most-read books show.</span>'}</div>
+      <input type="text" id="libQ" placeholder="Add a book: search…" style="margin-top:8px;" oninput="miniSearch('libQ','libR',b=>libToggle(b.id,true))"><div id="libR"></div></div>`;
+}
+async function banEdit(id, body) { try { await API.patch(`/editorial/ce/promo-center/banners/${id}/`, body); toast('Saved'); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); } }
+async function libToggle(id, on) { try { const r = await API.post(`/editorial/ce/promo-center/library/${id}/`, { on }); toast(r.detail); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); } }
+let BB = null;
+function bannerForm() {
+  BB = null;
+  openModal(`<h3 style="margin-bottom:10px;">New home banner</h3><label class="lbl">Title</label><input type="text" id="bT" placeholder="e.g. Werewolf Week">
+    <label class="lbl">Picture (wide, about 1200×500)</label><input type="file" id="bI" accept="image/*">
+    <label class="lbl">Opens a book (optional)</label><div id="bBk" class="sm muted">None</div><input type="text" id="bQ" placeholder="Search…" oninput="miniSearch('bQ','bR',b=>{BB=b;document.getElementById('bBk').textContent=b.title;})"><div id="bR"></div>
+    <div class="row"><div style="flex:1;"><label class="lbl">Starts</label><input type="datetime-local" id="bS" value="${localNow(5)}"></div><div style="flex:1;"><label class="lbl">For</label><select id="bD"><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option><option value="30">30 days</option><option value="">Until removed</option></select></div></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn p" onclick="saveBanner()">Add banner</button></div>`);
+}
+async function saveBanner() {
+  const fd = new FormData(); fd.append('title', $('#bT').value); if (BB) fd.append('slug', BB.slug);
+  if ($('#bI').files[0]) fd.append('image', $('#bI').files[0]); fd.append('starts_at', iso($('#bS').value)); if ($('#bD').value) fd.append('days', $('#bD').value);
+  try { const r = await API.post('/editorial/ce/promo-center/banners/', fd); closeModal(); toast(r.detail); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); }
+}
+
+// ── History ──
+async function loadHistory() {
+  const d = await API.get('/promotion/history/?q=' + encodeURIComponent($('#hq').value));
+  $('#hList').innerHTML = d.results.length ? `<table class="tbl"><thead><tr><th>When</th><th>Who</th><th>What</th><th>Shelf</th><th>Book</th><th>Details</th></tr></thead><tbody>
+    ${d.results.map(h => `<tr><td class="sm">${D(h.at)}</td><td>${E(h.by)}</td><td>${E(h.action)}</td><td class="sm">${E(h.shelf)}</td><td>${E(h.book)}</td><td class="sm muted">${E(h.note)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nothing yet.</div>';
+}
+
+
+// ── Author promotion tasks ──
+async function loadTasks() {
+  const d = await API.get('/promotion/tasks/?status=' + $('#tkStatus').value);
+  $('#tkList').innerHTML = d.results.map(t => {
+    const p = t.progress || {};
+    const bar = (p.days || []).map(x => `<span title="Day ${x.day} (${x.date}): ${x.chapters} chapter(s)" style="display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:2px;background:${
+      x.state === 'met' ? 'var(--ok)' : x.state === 'missed' ? 'var(--bad)' : x.state === 'today' ? 'var(--warn)' : 'var(--border)'};"></span>`).join('');
+    const stCls = { sent: 'pending', accepted: 'scheduled', met: 'active', qualified: 'promoted', missed: 'rejected', declined: 'rejected', cancelled: '' }[t.status] || '';
+    return `<div class="card"><div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:12px;">${cover(t.book)}
+      <div style="flex:1;min-width:0;"><div class="row"><b>${E(t.title)}</b><span class="bdg ${stCls}">${E(t.status_label)}</span></div>
+        <div class="sm muted">${E(t.book.title)} · ${E(t.author)} · sent ${D(t.created_at)} by ${E(t.by)}</div>
+        <div class="sm" style="margin-top:6px;"><b>${t.chapters_per_day}</b> chapter(s)/day for <b>${t.duration_days}</b> days → <b>${E(t.reward)}</b>${t.promotion_start ? ` · promotion starts ${DD(t.promotion_start + 'T12:00')}` : ''}</div>
+        ${t.conditions ? `<div class="sm muted">Conditions: ${E(t.conditions)}</div>` : ''}
+        ${t.accepted_at ? `<div style="margin-top:8px;">${bar}</div><div class="sm muted" style="margin-top:4px;">${p.days_met}/${t.duration_days} days met · ${p.uploaded}/${p.required} chapters uploaded${p.ends_at ? ' · ends ' + D(p.ends_at) : ''}</div>` : ''}
+        ${t.decline_reason ? `<div class="sm" style="margin-top:4px;">Declined: ${E(t.decline_reason)}</div>` : ''}
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch;gap:4px;">
+        ${['sent', 'accepted'].includes(t.status) ? `<button class="btn sm" onclick="taskAct(${t.id},{remind:true})">Remind</button>` : ''}
+        ${['met', 'accepted'].includes(t.status) ? `<button class="btn sm p" onclick="taskAct(${t.id},{status:'qualified'})">Mark qualified</button>` : ''}
+        ${['sent', 'accepted', 'met'].includes(t.status) ? `<button class="btn sm danger" onclick="if(confirm('Withdraw this offer?'))taskAct(${t.id},{status:'cancelled'})">Withdraw</button>` : ''}
+        ${t.status === 'met' || t.status === 'qualified' ? `<button class="btn sm" onclick="SC=[${JSON.stringify({ id: t.book.id, title: t.book.title, cover: t.book.cover }).replace(/"/g, '&quot;')}];gp('schedule');renderChips()">Schedule the promotion</button>` : ''}
+      </div></div></div>`;
+  }).join('') || '<div class="empty">No promotion tasks yet. Spot a book doing well in Analytics, then send its author an offer.</div>';
+}
+async function taskAct(id, body) { try { const r = await API.patch(`/promotion/tasks/${id}/`, body); toast(r.detail); loadTasks(); } catch (e) { toast(e.detail || 'Failed'); } }
+let TK = null;
+function taskForm(book) {
+  TK = book || null;
+  openModal(`<h3 style="margin-bottom:4px;">New promotion offer for an author</h3><p class="sm muted">The author gets a notification and accepts on their author dashboard. Progress is checked from their chapter uploads.</p>
+    <label class="lbl">Book</label><div id="tkBook" class="sm"><b>${TK ? E(TK.title) + ' · ' + E(TK.author) : 'None chosen'}</b></div>
+    <input type="text" id="tkQ" placeholder="Search a book…" oninput="miniSearch('tkQ','tkR',b=>{TK=b;document.getElementById('tkBook').innerHTML='<b>'+E(b.title)+' · '+E(b.author)+'</b>';})"><div id="tkR"></div>
+    <label class="lbl">Title</label><input type="text" id="tkT" value="Featured promotion opportunity">
+    <label class="lbl">Message</label><textarea id="tkM" rows="4">Congratulations! Your book has been performing really well, and we've selected it for an upcoming promotional opportunity. To qualify, keep up the daily updates below.</textarea>
+    <div class="row"><div style="flex:1;"><label class="lbl">Chapters per day</label><input type="number" id="tkC" value="2" min="1" max="20"></div>
+      <div style="flex:1;"><label class="lbl">For how many days</label><input type="number" id="tkD" value="7" min="1" max="90"></div></div>
+    <label class="lbl">Reward / opportunity</label><input type="text" id="tkR2" placeholder="e.g. 7 days on Trending + a home banner">
+    <div class="row"><div style="flex:1;"><label class="lbl">Promotion starts (optional)</label><input type="date" id="tkS"></div>
+      <div style="flex:1;"><label class="lbl">Accept before (optional)</label><input type="datetime-local" id="tkB"></div></div>
+    <label class="lbl">Extra conditions (optional)</label><textarea id="tkX" rows="2" placeholder="e.g. Chapters must be at least 1,500 words"></textarea>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn p" onclick="sendTask()">Send offer</button></div>`);
+}
+async function sendTask() {
+  if (!TK) { toast('Choose a book.'); return; }
+  try {
+    const r = await API.post('/promotion/tasks/', { story_id: TK.id, title: $('#tkT').value, message: $('#tkM').value, chapters_per_day: $('#tkC').value,
+      duration_days: $('#tkD').value, reward: $('#tkR2').value, promotion_start: $('#tkS').value, respond_by: iso($('#tkB').value), conditions: $('#tkX').value });
+    closeModal(); toast(r.detail); loadTasks();
+  } catch (e) { toast(e.detail || 'Could not send.'); }
+}
+
+// ── Analytics ──
+let anTab = 'movers';
+function anGo(t) { anTab = t; document.querySelectorAll('.an-tab').forEach(b => b.classList.toggle('p', b.dataset.t === t)); loadAnalytics(); }
+async function loadAnalytics() {
+  $('#anFilters').style.display = anTab === 'movers' ? '' : 'none';
+  $('#anBookPick').style.display = anTab === 'book' ? '' : 'none';
+  const box = $('#anBody'); box.innerHTML = '<div class="empty">Loading…</div>';
+  try {
+    if (anTab === 'movers') box.innerHTML = anMovers(await API.get('/promotion/analytics/movers/?' + new URLSearchParams({ days: $('#anDays').value, genre: $('#anGenre').value, status: $('#anStatus').value, promoted: $('#anProm').value })));
+    else if (anTab === 'results') box.innerHTML = anResults(await API.get('/promotion/analytics/promotions/?days=' + $('#anDays').value));
+    else box.innerHTML = window._anBook ? anBook(await API.get(`/promotion/analytics/books/${window._anBook}/?days=90`)) : '<div class="empty">Search a book above to see its history.</div>';
+  } catch (e) { box.innerHTML = `<div class="empty">${E(e.detail || 'Could not load.')}</div>`; }
+}
+const anPct = v => v === null || v === undefined ? '—' : `<span style="color:${v >= 0 ? 'var(--ok)' : 'var(--bad)'};font-weight:600;">${v > 0 ? '+' : ''}${v}%</span>`;
+function anList(title, sub, rows, extra) {
+  return `<div class="card"><h3>${title}<span class="sub">${sub}</span></h3>${rows.length ? `<table class="tbl"><tbody>${rows.map(r => `<tr>
+    <td style="width:46px;">${cover(r)}</td><td><b style="cursor:pointer;" onclick="window._anBook=${r.id};anGo('book')">${E(r.title)}</b><div class="sm muted">${E(r.author)} · ${E(r.genre)}${r.promoted_now ? ' · <span class="bdg active">on a shelf</span>' : ''}</div></td>
+    <td class="sm">${(r.period_views || 0).toLocaleString()} views<div class="muted">was ${(r.prev_views || 0).toLocaleString()}</div></td><td>${anPct(r.growth)}</td>
+    <td class="sm">${extra ? extra(r) : (r.days_since_update == null ? '' : r.days_since_update + 'd since update')}</td>
+    <td><div class="row" style="gap:4px;flex-wrap:nowrap;"><button class="btn sm" onclick='SC=[${JSON.stringify({ id: r.id, title: r.title, cover: r.cover }).replace(/'/g, "&#39;")}];gp("schedule");renderChips()'>Place</button>
+      <button class="btn sm" onclick='taskForm(${JSON.stringify({ id: r.id, title: r.title, author: r.author }).replace(/'/g, "&#39;")})'>Offer task</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nothing here for this period.</div>'}</div>`;
+}
+function anMovers(d) {
+  return anList('⭐ Promotion candidates', 'growing on their own, updated recently, not on a shelf', d.candidates)
+    + anList('📈 Rising', `views up vs the previous ${d.days} days`, d.rising)
+    + anList('🔎 Searched for, but little read', 'readers look for these — a placement could convert them', d.searched_low_reads, r => `${r.searches} searches for "${E(r.query)}"`)
+    + anList('⏸ Getting reads, but updates stalled', 'no new chapter in 14+ days', d.stalled)
+    + anList('📉 Declining', 'views down', d.declining)
+    + `<div class="card"><h3>Top searches<span class="sub">last ${d.days} days</span></h3><div class="chips">${d.top_searches.map(s => `<span class="chip" style="padding:3px 10px;">${E(s.query)} <b>${s.count}</b></span>`).join('') || '<span class="sm muted">No searches logged yet — logging started with this update.</span>'}</div></div>`;
+}
+function anChart(series) {
+  const mx = Math.max(1, ...series.map(x => x.views));
+  return `<div style="display:flex;align-items:flex-end;gap:2px;height:140px;">${series.map(x => `<div title="${x.date}: ${x.views} views, ${x.unlocks} unlocks, ${x.chapters} new chapter(s)" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;">
+      <div style="height:${x.views / mx * 125}px;background:var(--role);border-radius:2px 2px 0 0;min-height:${x.views ? 2 : 0}px;"></div>
+      <div style="height:8px;margin-top:2px;background:${x.chapters ? 'var(--ok)' : 'transparent'};border-radius:2px;"></div></div>`).join('')}</div>
+    <div class="row sm muted" style="justify-content:space-between;margin-top:4px;"><span>${series[0].date}</span><span><span style="color:var(--role)">■</span> views <span style="color:var(--ok)">■</span> new chapters</span><span>${series[series.length - 1].date}</span></div>`;
+}
+function anBook(d) {
+  const b = d.book, t = d.totals;
+  return `<div class="card"><div class="row" style="flex-wrap:nowrap;gap:12px;">${cover(b)}<div style="flex:1;"><h3 style="margin:0;">${E(b.title)}</h3><div class="sm muted">${E(b.author)} · ${E(b.genre)} · ${b.chapters} chapters · ${E(b.status)}</div></div>
+      <button class="btn sm" onclick='taskForm(${JSON.stringify({ id: b.id, title: b.title, author: b.author }).replace(/'/g, "&#39;")})'>Offer task</button></div>
+    <div class="kpis" style="margin-top:12px;"><div class="kpi"><div class="l">Today</div><div class="v">${t.today.toLocaleString()}</div></div><div class="kpi"><div class="l">Last 7 days</div><div class="v">${t.week.toLocaleString()}</div><div class="sm">${anPct(t.week_growth)} vs week before</div></div>
+      <div class="kpi"><div class="l">Last 30 days</div><div class="v">${t.month.toLocaleString()}</div></div><div class="kpi"><div class="l">All time</div><div class="v">${(b.views || 0).toLocaleString()}</div></div></div>
+    ${anChart(d.series)}</div>
+    <div class="card"><h3>Promotions of this book<span class="sub">views before → during → after (same number of days)</span></h3>${d.promotions.length ? `<table class="tbl"><thead><tr><th>Shelf</th><th>When</th><th>Before</th><th>During</th><th>After</th><th>Lift</th></tr></thead><tbody>
+      ${d.promotions.map(p => `<tr><td>${E(p.shelf)}</td><td class="sm">${D(p.starts_at)} → ${p.ends_at ? D(p.ends_at) : 'now'}</td><td>${p.before ? p.before.views.toLocaleString() : '—'}</td><td>${p.during ? p.during.views.toLocaleString() : '—'}</td><td>${p.after ? p.after.views.toLocaleString() : '—'}</td><td>${anPct(p.lift)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">Never placed on a shelf.</div>'}</div>`;
+}
+function anResults(d) {
+  return `<div class="card"><h3>By shelf<span class="sub">average lift in views while promoted</span></h3>${d.by_shelf.length ? `<table class="tbl"><thead><tr><th>Shelf</th><th>Placements</th><th>Views during</th><th>Average lift</th></tr></thead><tbody>
+      ${d.by_shelf.map(s => `<tr><td><b>${E(s.shelf)}</b></td><td>${s.placements}</td><td>${s.views_during.toLocaleString()}</td><td>${anPct(s.avg_lift)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No finished placements yet.</div>'}</div>
+    <div class="card"><h3>Every placement<span class="sub">compare books</span></h3>${d.placements.length ? `<table class="tbl"><thead><tr><th>Book</th><th>Shelf</th><th>When</th><th>Before</th><th>During</th><th>After</th><th>Lift</th></tr></thead><tbody>
+      ${d.placements.sort((a, b) => (b.lift ?? -1e9) - (a.lift ?? -1e9)).map(p => `<tr><td><div class="row" style="flex-wrap:nowrap;">${cover(p.book)}<b>${E(p.book.title)}</b></div></td><td class="sm">${E(p.shelf)}</td><td class="sm">${D(p.starts_at)}</td>
+        <td>${p.before ? p.before.views.toLocaleString() : '—'}</td><td>${p.during ? p.during.views.toLocaleString() : '—'}</td><td>${p.after ? p.after.views.toLocaleString() : '—'}</td><td>${anPct(p.lift)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">No placements in this period.</div>'}</div>
+    <div class="card"><h3>Pop-ups &amp; full-screen</h3>${d.popups.length ? `<table class="tbl"><thead><tr><th>Book</th><th>Style</th><th>Shown</th><th>Tapped</th><th>Tap rate</th></tr></thead><tbody>${d.popups.map(p => `<tr><td>${E(p.book)}</td><td class="sm">${E(p.kind)}</td><td>${p.shown.toLocaleString()}</td><td>${p.tapped.toLocaleString()}</td><td>${p.ctr === null ? '—' : p.ctr + '%'}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">None in this period.</div>'}</div>
+    <div class="card"><h3>Social media posts</h3>${d.social.length ? `<table class="tbl"><thead><tr><th>Post</th><th>Network</th><th>Views</th><th>Likes</th><th>Comments</th><th>Shares</th></tr></thead><tbody>${d.social.map(p => `<tr><td class="sm">${p.url ? `<a href="${E(p.url)}" target="_blank" style="color:var(--role)">` : ''}${E(p.text) || '(media)'}${p.url ? '</a>' : ''}${p.book ? `<div class="muted">${E(p.book)}</div>` : ''}</td><td class="sm">${E(p.network)}</td><td>${(p.views || 0).toLocaleString()}</td><td>${p.likes}</td><td>${p.comments}</td><td>${p.shares}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">None in this period.</div>'}</div>
+    <p class="sm muted">${E(d.note)}</p>`;
+}
+
+(async () => {
+  try {
+    await loadShelfOptions();
+    const g = await API.get('/promotion/genres/');
+    $('#bgenre').innerHTML = $('#anGenre').innerHTML = '<option value="">All genres</option>' + g.map(x => `<option value="${x.id}">${E(x.name)}</option>`).join('');
+  } catch (e) {}
+  loadOverview();
+})();
+</script>
+<script src="{% static 'novelux/js/keep_place.js' %}"></script>
+</body>
+</html>

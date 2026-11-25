@@ -15,14 +15,14 @@ MAX_IMAGE_MB = 8
 
 def can_manage(user):
     return bool(user and user.is_authenticated and
-                (user.is_superuser or getattr(user, 'role', '') in ('admin', 'ce', 'se')))
+                (user.is_superuser or getattr(user, 'role', '') in ('admin', 'ce', 'se', 'promo')))
 
 
 def can_edit(user, promo):
     """Admins and chief editors edit any promotion; senior editors their own."""
     if not can_manage(user):
         return False
-    return user.is_superuser or user.role in ('admin', 'ce') or promo.created_by_id == user.pk
+    return user.is_superuser or user.role in ('admin', 'ce', 'promo') or promo.created_by_id == user.pk
 
 
 class CanManage(BasePermission):

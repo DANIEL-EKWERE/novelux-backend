@@ -734,26 +734,44 @@ def _promoted_qs(category, user=None):
     return None
 
 
+def with_shelf(key, organic, user=None, limit=200):
+    """A shelf as the app shows it: the Promotion team's live placements
+    first (slot order), then SE promotion slots, then the shelf's usual books
+    (minus duplicates). Without any placement the usual queryset is returned
+    untouched."""
+    try:
+        from apps.promotion.models import live_story_ids
+        ids = live_story_ids(key)
+    except Exception:
+        ids = []
+    legacy = _promoted_qs(key, user)
+    if legacy is not None:
+        ids += [pk for pk in legacy.values_list('pk', flat=True) if pk not in ids]
+    if not ids:
+        return organic
+    by_id = {s.pk: s for s in exclude_explicit(
+        Story.objects.exclude(status__in=['draft', 'rejected']).filter(pk__in=ids)
+        .select_related('genre', 'author').prefetch_related('tags'), user)}
+    promoted = [by_id[i] for i in ids if i in by_id]
+    taken = {s.pk for s in promoted}
+    rest = organic[:limit] if hasattr(organic, 'query') else organic
+    return promoted + [s for s in rest if s.pk not in taken]
+
+
 class TrendingStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        promoted = _promoted_qs('trending', self.request.user)
-        if promoted is not None:
-            return promoted
         qs = published_stories(self.request.user).order_by('-total_views')
-        return qs[:20]
+        return with_shelf('trending', qs[:20], self.request.user)
 
 
 class FeaturedStoriesView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        promoted = _promoted_qs('featured', self.request.user)
-        if promoted is not None:
-            return promoted
         qs = published_stories(self.request.user).filter(is_featured=True)
-        return qs
+        return with_shelf('featured', qs, self.request.user)
 
 
 class WorldFamousStoriesView(generics.ListAPIView):
@@ -793,7 +811,7 @@ class EditorsPickView(generics.ListAPIView):
 
     def get_queryset(self):
         qs = published_stories(self.request.user).filter(is_editors_pick=True)
-        return qs
+        return with_shelf('editors-pick', qs, self.request.user)
     
     
 
@@ -1389,7 +1407,7 @@ class ShortStoriesView(generics.ListAPIView):
         qs = published_stories(self.request.user)\
             .filter(target_word_count='50,000 – 80,000')\
             .order_by('-average_rating', '-total_views')
-        return qs
+        return with_shelf('short-stories', qs, self.request.user)
 
 
 class NewArrivalsView(generics.ListAPIView):
@@ -1402,7 +1420,7 @@ class NewArrivalsView(generics.ListAPIView):
         qs = published_stories(self.request.user)\
             .filter(published_at__gte=cutoff)\
             .order_by('-published_at')
-        return qs
+        return with_shelf('new-arrivals', qs, self.request.user)
 
 
 class RecommendedForYouView(generics.ListAPIView):
@@ -1444,9 +1462,9 @@ class RecommendedForYouView(generics.ListAPIView):
                 qs = qs.exclude(id__in=read_story_ids)\
                        .order_by('-total_views')
 
-            return prefer_gender(qs, user)[:20]
+            return with_shelf('recommended', list(prefer_gender(qs, user)[:20]), user)
 
-        return qs.order_by('-total_views')[:20]
+        return with_shelf('recommended', qs.order_by('-total_views')[:20], user)
 
 
 class FreeDiscountView(generics.ListAPIView):
@@ -1469,9 +1487,6 @@ class RankingsView(generics.ListAPIView):
     serializer_class = StoryListSerializer
 
     def get_queryset(self):
-        promoted = _promoted_qs('ranking', self.request.user)
-        if promoted is not None:
-            return promoted
         period = self.request.query_params.get('period', 'all-time')
         qs     = published_stories(self.request.user)
 
@@ -1493,7 +1508,7 @@ class RankingsView(generics.ListAPIView):
                 )
             ).order_by('-period_views', '-total_views')
 
-        return qs[:50]
+        return with_shelf('ranking', qs[:50], self.request.user)
 
 
 class AuthorSpotlightView(APIView):
@@ -1589,7 +1604,16 @@ class ExploreTabView(APIView):
         })
 
     def _pinned_ids(self, tab, section):
-        """Return ordered list of story PKs pinned to this tab/section by CE/SE."""
+        """Ordered story PKs for this tab/section: the Promotion team's live
+        placements, then pins by the CE/SE."""
+        try:
+            from apps.promotion.models import live_story_ids
+            team = live_story_ids(f'explore:{tab}:{section}')
+        except Exception:
+            team = []
+        return team + [i for i in self._pins_only(tab, section) if i not in team]
+
+    def _pins_only(self, tab, section):
         try:
             from django.db.models import Q
             from django.utils import timezone
@@ -2051,6 +2075,40 @@ def my_promotions(request):
             'promoted_by':    (p.se.get_full_name() or p.se.username) if p.se else 'HuxNovel editorial',
             'performance':    performance,
         })
+
+    # The Promotion team's shelf placements
+    try:
+        from apps.promotion.models import Placement
+        for pl in (Placement.objects.filter(story_id__in=by_id, cancelled=False)
+                   .select_related('shelf').order_by('-starts_at')[:30]):
+            st = pl.status(now)
+            if st == 'paused':
+                continue
+            state = {'active': 'live', 'scheduled': 'scheduled'}.get(st, 'ended')
+            end = pl.ends_at or (now + timedelta(days=3650))
+            total_secs = max((end - pl.starts_at).total_seconds(), 1)
+            elapsed = min(max((now - pl.starts_at).total_seconds(), 0), total_secs)
+            performance = None
+            if state in ('live', 'ended'):
+                start_d = timezone.localtime(pl.starts_at).date()
+                end_d = min(timezone.localtime(end).date(), today)
+                span = (end_d - start_d).days + 1
+                during = window_stats(pl.story_id, start_d, end_d)
+                before = window_stats(pl.story_id, start_d - timedelta(days=span), start_d - timedelta(days=1))
+                performance = {'days_measured': span, 'during': during, 'before': before,
+                               'views_change_pct': (round((during['views'] - before['views']) * 100 / before['views'])
+                                                    if before['views'] else None)}
+            promos.append({
+                'id': f'pl{pl.pk}', 'story': story_info(by_id[pl.story_id]), 'section': pl.shelf.name,
+                'state': state, 'starts_at': pl.starts_at.isoformat(),
+                'expires_at': pl.ends_at.isoformat() if pl.ends_at else None,
+                'duration_days': max(round(total_secs / 86400), 1) if pl.ends_at else None,
+                'days_left': max((end - now).days, 0) if state in ('live', 'scheduled') else 0,
+                'progress_pct': round(elapsed * 100 / total_secs) if pl.ends_at else 0,
+                'queue_position': None, 'promoted_by': 'HuxNovel Promotion team', 'performance': performance,
+            })
+    except Exception:
+        pass
 
     highlights = []
     for s in stories:

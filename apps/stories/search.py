@@ -26,6 +26,7 @@ class RankedSearchFilter(BaseFilterBackend):
         phrase = ' '.join(request.query_params.get(self.param, '').split())
         if not phrase:
             return queryset
+        _log_search(request, phrase)
         words = phrase.split(' ')
 
         title_has_all = reduce(and_, (Q(title__icontains=w) for w in words))
@@ -60,3 +61,17 @@ class RankedSearchFilter(BaseFilterBackend):
         if request.query_params.get('ordering'):
             return queryset          # OrderingFilter already applied the client's order
         return queryset.order_by('-search_rank', '-total_views', '-created_at')
+
+
+def _log_search(request, phrase):
+    """Record a reader's search once per request (first page only) for the
+    Promotion team's "searched but not read" insights. Never breaks search."""
+    if getattr(request, '_search_logged', False) or str(request.query_params.get('page', '1')) != '1':
+        return
+    request._search_logged = True
+    try:
+        from apps.promotion.models import SearchLog
+        user = request.user if getattr(request.user, 'is_authenticated', False) else None
+        SearchLog.objects.create(query=phrase.lower()[:120], user=user)
+    except Exception:
+        pass

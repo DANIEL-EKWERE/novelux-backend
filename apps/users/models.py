@@ -795,12 +795,14 @@ class User(AbstractUser):
     ROLE_ADMIN  = 'admin'
     ROLE_SE     = 'se'   # Senior Editor — reviews chapters, quality control
     ROLE_CE     = 'ce'   # Chief Editor — head of editorial, sends contracts
+    ROLE_PROMO  = 'promo'  # Promotion team — shelves, campaigns, promotion requests
     ROLE_CHOICES = [
         (ROLE_READER, 'Reader'),
         (ROLE_AUTHOR, 'Author'),
         (ROLE_ADMIN,  'Admin'),
         (ROLE_SE,     'Senior Editor'),
         (ROLE_CE,     'Chief Editor'),
+        (ROLE_PROMO,  'Promotion Team'),
     ]
 
     email       = models.EmailField(unique=True)

@@ -3990,6 +3990,10 @@ def se_promotion_requests(request):
             'created_at':  r.created_at.isoformat(),
             'reviewed_at': r.reviewed_at.isoformat() if r.reviewed_at else None,
             'reviewed_by': r.reviewed_by.username if r.reviewed_by else None,
+            'reviewer_role': ('Promotion team' if r.reviewed_by.role == 'promo' else 'Chief Editor'
+                              if r.reviewed_by.role == 'ce' else 'Admin') if r.reviewed_by else None,
+            'forwarded_at': r.forwarded_at.isoformat() if r.forwarded_at else None,
+            **_request_stage(r),
         } for r in qs]
         return Response({'count': len(data), 'results': data})
 
@@ -7062,3 +7066,56 @@ def ce_home_summary(request):
         'live_books': Story.objects.exclude(status__in=['draft', 'rejected']).count(),
         'signed_books': Story.objects.filter(contract_status='signed').count(),
     })
+
+
+def _request_stage(r):
+    """Where an SE promotion request stands: pending / rejected / scheduled
+    (placed, not started) / promoted (live or done), with its shelf + dates."""
+    from django.utils import timezone as _tz
+    try:
+        from apps.promotion.models import Placement
+        p = Placement.objects.filter(request=r, cancelled=False).select_related('shelf').order_by('starts_at').first()
+    except Exception:
+        p = None
+    if p:
+        stage = 'scheduled' if p.starts_at > _tz.now() else 'promoted'
+        return {'stage': stage, 'shelf': p.shelf.name, 'starts_at': p.starts_at.isoformat(),
+                'ends_at': p.ends_at.isoformat() if p.ends_at else None}
+    pin = getattr(r, 'resulting_pin', None) if r.status == 'approved' else None
+    if pin:
+        return {'stage': 'promoted', 'shelf': f'{r.tab} → {r.section}',
+                'starts_at': (pin.starts_at or pin.pinned_at).isoformat(),
+                'ends_at': pin.expires_at.isoformat() if pin.expires_at else None}
+    return {'stage': r.status, 'shelf': None, 'starts_at': None, 'ends_at': None}
+
+
+@api_view(['POST'])
+@permission_classes([IsSE])
+def se_forward_promotion_feedback(request, pk):
+    """POST /api/editorial/promotion-requests/<pk>/forward/ {message?}
+    The SE passes the decision (and the reviewer's feedback) on to the author."""
+    from datetime import datetime
+    from django.utils import timezone as _tz
+    from apps.editorial.models import SEPromotionRequest
+    r = get_object_or_404(SEPromotionRequest.objects.select_related('story__author'), pk=pk, se=request.user)
+    if r.status == 'pending':
+        return Response({'detail': 'Wait for a decision first.'}, status=400)
+    extra = (request.data.get('message') or '').strip()
+    if r.status == 'rejected':
+        title = f'About promoting "{r.story.title}"'
+        body = ("Your book wasn't selected for promotion this time."
+                + (f' Feedback: {r.ce_note}' if r.ce_note else '') + (f' {extra}' if extra else ''))
+    else:
+        st = _request_stage(r)
+        title = f'"{r.story.title}" is being promoted 🎉'
+        body = (f"Your book was selected for {st['shelf'] or 'a promotion'}"
+                + (f" from {_tz.localtime(datetime.fromisoformat(st['starts_at'])):%d %b}" if st['starts_at'] else '')
+                + '.' + (f' {extra}' if extra else ''))
+    try:
+        from apps.notifications.services import create_notification
+        create_notification(r.story.author, 'system', title, body, data={'screen': 'my_books', 'slug': r.story.slug})
+    except Exception:
+        return Response({'detail': 'Could not notify the author.'}, status=502)
+    r.forwarded_at = _tz.now()
+    r.save(update_fields=['forwarded_at'])
+    return Response({'detail': 'Sent to the author.'})

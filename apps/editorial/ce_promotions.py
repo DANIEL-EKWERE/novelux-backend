@@ -19,7 +19,7 @@ from rest_framework.decorators import api_view, parser_classes, permission_class
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .permissions import IsCE
+from .permissions import IsCE, IsCEOrPromo
 
 DEFAULT_DAYS = 7
 
@@ -218,7 +218,7 @@ def slot_detail(request, pk):
 # ── Explore tab pins ──────────────────────────────────────────────────────────
 
 @api_view(['POST'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 def add_pin(request):
     """POST …/pins/ {story_id, tab, section, starts_at?, days?, order?}"""
     from apps.stories.models import Story
@@ -237,7 +237,7 @@ def add_pin(request):
 
 
 @api_view(['PATCH', 'DELETE'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 def pin_detail(request, pk):
     from .models import ExploreTabPin
     p = get_object_or_404(ExploreTabPin, pk=pk)
@@ -258,7 +258,7 @@ def pin_detail(request, pk):
 # ── Home banners ──────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def add_banner(request):
     """POST …/banners/ (multipart) {title, slug, image, color, order, starts_at, days|ends_at}"""
@@ -279,7 +279,7 @@ def add_banner(request):
 
 
 @api_view(['PATCH', 'DELETE'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def banner_detail(request, pk):
     from apps.stories.models import PromoBanner
@@ -306,7 +306,7 @@ def banner_detail(request, pk):
 # ── Library carousel ──────────────────────────────────────────────────────────
 
 @api_view(['POST'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 def library_toggle(request, pk):
     """POST …/library/<story id>/ {on: true|false}"""
     from apps.stories.models import Story
@@ -319,7 +319,7 @@ def library_toggle(request, pk):
 # ── Book search + insights ────────────────────────────────────────────────────
 
 @api_view(['GET'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 def books(request):
     from apps.stories.models import Story
     q = (request.query_params.get('q') or '').strip()
@@ -330,7 +330,7 @@ def books(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsCE])
+@permission_classes([IsCEOrPromo])
 def book_insights(request, slug):
     """GET …/insights/<slug>/ — how a book performs, to judge it before
     promoting: reach, how far readers get, money, quality signals, and a

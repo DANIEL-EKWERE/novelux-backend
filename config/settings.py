@@ -70,7 +70,8 @@ LOCAL_APPS = [
     'apps.blog',           # SE-authored blog / learning content
     'apps.analytics',
     'apps.social',
-    'apps.promos',         # Book promotions shown when the app opens         # Posting to HuxNovel's social accounts      # Visitor tracking
+    'apps.promos',
+    'apps.promotion',      # Promotion team: shelves, scheduled placements         # Book promotions shown when the app opens         # Posting to HuxNovel's social accounts      # Visitor tracking
     'novelux_web',
 
 ]

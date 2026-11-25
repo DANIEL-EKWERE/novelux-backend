@@ -21,6 +21,7 @@ urlpatterns = [
     path('flags/', views.se_my_flags, name='se-my-flags'),
     path('flags/submit/', views.se_submit_flag, name='se-submit-flag'),
     path('promotion-requests/', views.se_promotion_requests, name='se-promotion-requests'),
+    path('promotion-requests/<int:pk>/forward/', views.se_forward_promotion_feedback, name='se-promotion-forward'),
     path('author-balances/', views.se_author_balances, name='se-author-balances'),
     path('author-balance/<int:author_id>/approve/', views.se_approve_author_balance, name='se-approve-balance'),
     path('authors/<int:author_id>/',  views.se_author_detail,    name='se-author-detail'),

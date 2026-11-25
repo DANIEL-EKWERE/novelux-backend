@@ -57,7 +57,8 @@ urlpatterns = [
     path('api/blog/',         include('apps.blog.urls')),       # SE-authored blog / learning content
     path('api/master/',       include('apps.analytics.urls')),  # owner's master dashboard (admins only)
     path('api/social/',       include('apps.social.urls')),
-    path('api/promos/',       include('apps.promos.urls')),     # book promotions on app open     # team posting to social media
+    path('api/promos/',       include('apps.promos.urls')),
+    path('api/promotion/',    include('apps.promotion.urls')),  # Promotion team dashboard API     # book promotions on app open     # team posting to social media
     # Scheduled jobs without a Celery worker (called by an outside scheduler)
     path('api/cron/run/',     analytics_cron.cron_run),
     path('api/cron/ping/',    analytics_cron.cron_ping),

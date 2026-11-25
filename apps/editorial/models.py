@@ -980,8 +980,10 @@ class EditorInvite(models.Model):
     """
 
     ROLE_SE = 'se'
+    ROLE_PROMO = 'promo'
     ROLE_CHOICES = [
         (ROLE_SE, 'Senior Editor'),
+        (ROLE_PROMO, 'Promotion Team'),
     ]
 
     STATUS_PENDING  = 'pending'
@@ -1087,7 +1089,8 @@ class EditorInvite(models.Model):
             )
 
         # Generate editor code for SE so they can share it with authors
-        user.generate_editor_code()
+        if self.role == self.ROLE_SE:
+            user.generate_editor_code()
 
         return user
 
@@ -1270,6 +1273,8 @@ class SEPromotionRequest(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True)
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
                                     related_name='reviewed_promotions')
+    forwarded_at = models.DateTimeField(null=True, blank=True,
+                                        help_text='When the SE passed the decision/feedback on to the author.')
 
     class Meta:
         db_table = 'se_promotion_requests'

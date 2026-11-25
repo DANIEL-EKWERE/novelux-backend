@@ -1899,13 +1899,18 @@ html.dark .brd{color:hsl(0 70% 65%);}
 const NUX = {
   token:   document.querySelector('meta[name="nux-token"]')?.content || '',
   apiBase: document.querySelector('meta[name="nux-api"]')?.content || '/api',
-  async call(p, o={}) {
+  async call(p, o={}, retry=true) {
     const r = await fetch(this.apiBase + p, {
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, ...(o.headers||{}) },
       ...o,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token, ...(o.headers||{}) },
     });
+    // Access tokens last an hour: fetch a fresh one and try once more
+    if (r.status === 401 && retry) {
+      const t = await fetch('/master/token/', { credentials: 'same-origin' });
+      if (t.ok) { this.token = (await t.json()).access; return this.call(p, o, false); }
+    }
     if (!r.ok) { const e = await r.json().catch(()=>({})); throw e; }
-    return r.json();
+    return r.status === 204 ? {} : r.json();
   },
   post(p, b) { return this.call(p, { method: 'POST', body: JSON.stringify(b) }); },
   get(p)     { return this.call(p); },
@@ -4307,11 +4312,23 @@ function _renderPromos(items) {
           <p class="story-title">${r.story_title}</p>
           ${r.book_code ? `<p style="font-size:11px;color:var(--muted-fg);margin-bottom:2px;font-family:monospace;">Book: <strong>${r.book_code}</strong></p>` : ''}
           <p class="story-sub" style="white-space:pre-wrap;margin-top:4px;">${r.message}</p>
-          ${r.ce_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>CE note:</strong> ${r.ce_note}</p>` : ''}
-          <p style="font-size:11px;color:var(--muted-fg);margin-top:6px;">${new Date(r.created_at).toLocaleDateString()}</p>
+          ${r.stage === 'scheduled' || r.stage === 'promoted' ? `<p style="font-size:12px;margin-top:6px;"><span class="bdg ${r.stage === 'promoted' ? 'bgr' : 'bbl'}" style="font-size:10px;">${r.stage === 'promoted' ? 'Promoted' : 'Scheduled'}</span> on <strong>${r.shelf || ''}</strong>${r.starts_at ? ' · ' + new Date(r.starts_at).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : ''}${r.ends_at ? ' → ' + new Date(r.ends_at).toLocaleDateString([], {day:'numeric',month:'short'}) : ''}</p>` : ''}
+          ${r.ce_note ? `<p style="font-size:12px;color:var(--muted-fg);margin-top:6px;font-style:italic;"><strong>${r.reviewer_role || 'Reviewer'} feedback:</strong> ${r.ce_note}</p>` : ''}
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;">
+            <span style="font-size:11px;color:var(--muted-fg);">${new Date(r.created_at).toLocaleDateString()}${r.reviewed_by ? ' · decided by ' + r.reviewed_by : ''}</span>
+            ${r.status !== 'pending' ? (r.forwarded_at
+              ? `<span style="font-size:11px;color:var(--muted-fg);">✓ Sent to the author ${new Date(r.forwarded_at).toLocaleDateString()}</span>`
+              : `<button class="btn bol bsm" style="font-size:11px;" onclick="forwardPromo(${r.id})">Forward to author</button>`) : ''}
+          </div>
         </div>
       </div>
     </div>`).join('');
+}
+async function forwardPromo(id) {
+  const msg = prompt('Add a personal note for the author (optional). They will also see the decision and the feedback:');
+  if (msg === null) return;
+  try { const r = await NUX.post('/editorial/promotion-requests/' + id + '/forward/', { message: msg }); toast(r.detail || 'Sent.'); loadMyPromotions(); }
+  catch (e) { toast(e.detail || 'Could not send.'); }
 }
 function searchPromos(q) {
   q = q.trim().toLowerCase();

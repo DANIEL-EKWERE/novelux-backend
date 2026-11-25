@@ -47,6 +47,7 @@ urlpatterns = [
     path('master/token/',            views.master_token,          name='master_token'),
     path('social/',                  views.social_dashboard,      name='social_dashboard'),
     path('promotions/',              views.promos_dashboard,      name='promos_dashboard'),
+    path('promotion/',               views.promotion_dashboard,   name='promotion_dashboard'),
 
     # ── Editor onboarding invites ────────────────────────────────────────────
     path('editorial/invite/create/',              views.ce_invite_create_web,  name='invite_create'),

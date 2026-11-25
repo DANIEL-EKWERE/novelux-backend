@@ -604,6 +604,7 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
   <!-- ══════ PAGE: DASHBOARD ══════ -->
   <div class="page active" id="page-dashboard">
 
+    <div id="offerNotice" style="display:none;margin:0 0 14px;padding:12px 16px;border-radius:12px;border:1px solid hsl(330 70% 45% / .35);background:hsl(330 70% 45% / .08);cursor:pointer;" onclick="document.querySelector('.nav-btn[onclick*=promotions]')?.click()"></div>
     <!-- Banner Carousel -->
     <div class="banner-carousel" id="bannerCarousel">
       <div id="bannerSlides"></div>
@@ -1246,6 +1247,10 @@ html.dark .sys-notice.success{color:hsl(142 60% 55%);}
         <div class="earn-card featured"><div class="earn-lbl">Live now</div><div class="earn-val" id="promo-live">—</div><div class="earn-sub">Showing in the app today</div></div>
         <div class="earn-card"><div class="earn-lbl">Coming up</div><div class="earn-val" id="promo-next">—</div><div class="earn-sub">Scheduled or in the queue</div></div>
         <div class="earn-card"><div class="earn-lbl">Highlights</div><div class="earn-val" id="promo-hl">—</div><div class="earn-sub">Featured, Editor's Pick…</div></div>
+      </div>
+      <div id="offerWrap" style="display:none;">
+        <h2 class="promo-h">Promotion offers for you</h2>
+        <div id="offerList"></div>
       </div>
       <h2 class="promo-h">Promotion slots</h2>
       <div id="promoList"><div class="promo-empty">Loading…</div></div>
@@ -2105,7 +2110,62 @@ function _pDate(iso){ return iso ? new Date(iso).toLocaleDateString(undefined,{d
 function _pNum(n){ return Number(n || 0).toLocaleString(); }
 const _P_STATE = { live:'Live', scheduled:'Scheduled', queued:'In queue', ended:'Ended' };
 
+// ── Promotion offers from the Promotion team ──
+async function loadOffers(){
+  let d;
+  try {
+    const r = await fetch('/api/promotion/my-tasks/', { headers: _editorHeaders() });
+    if(!r.ok) return;
+    d = await r.json();
+  } catch(e){ return; }
+  const offers = d.results || [];
+  const waiting = offers.filter(t => t.status === 'sent');
+  const note = document.getElementById('offerNotice');
+  if(note){
+    note.style.display = waiting.length ? '' : 'none';
+    note.innerHTML = waiting.length ? `🎉 <b>You have ${waiting.length} promotion offer${waiting.length>1?'s':''}</b> from the HuxNovel Promotion team — tap to see ${waiting.length>1?'them':'it'}.` : '';
+  }
+  const wrap = document.getElementById('offerWrap');
+  if(!wrap) return;
+  wrap.style.display = offers.length ? '' : 'none';
+  const label = {sent:'Waiting for your answer', accepted:'In progress', declined:'Declined', met:'Requirements met 🎉', missed:'Requirements missed', qualified:'Qualified — promoted 🏆'};
+  document.getElementById('offerList').innerHTML = offers.map(t => {
+    const p = t.progress || {};
+    const days = (p.days || []).map(x => `<span title="Day ${x.day} (${x.date}): ${x.chapters} chapter(s)" style="display:inline-block;width:16px;height:16px;border-radius:4px;margin-right:3px;background:${
+      x.state==='met'?'hsl(142 60% 40%)':x.state==='missed'?'hsl(0 70% 50%)':x.state==='today'?'hsl(38 92% 50%)':'var(--border)'};"></span>`).join('');
+    return `<div class="promo-card" style="display:block;">
+      <div class="promo-top"><div><div class="promo-title">${_pEsc(t.title)}</div><div class="promo-sec">${_pEsc(t.book.title)}</div></div>
+        <span class="promo-state ${t.status==='qualified'||t.status==='met'?'live':t.status==='sent'?'scheduled':''}">${label[t.status]||t.status}</span></div>
+      <p style="margin:8px 0;white-space:pre-wrap;line-height:1.6;">${_pEsc(t.message)}</p>
+      <div style="font-size:13px;line-height:1.7;">
+        <div>📝 <b>${t.chapters_per_day}</b> new chapter${t.chapters_per_day>1?'s':''} a day for <b>${t.duration_days}</b> days</div>
+        <div>🎁 ${_pEsc(t.reward)}</div>
+        ${t.promotion_start?`<div>📅 Promotion starts ${_pDate(t.promotion_start)}</div>`:''}
+        ${t.respond_by && t.status==='sent'?`<div>⏳ Answer before ${new Date(t.respond_by).toLocaleString()}</div>`:''}
+        ${t.conditions?`<div>ℹ️ ${_pEsc(t.conditions)}</div>`:''}
+      </div>
+      ${t.accepted_at?`<div style="margin-top:10px;">${days}</div><div style="font-size:12px;color:var(--muted-fg);margin-top:4px;">${p.days_met}/${t.duration_days} days met · ${p.uploaded}/${p.required} chapters uploaded — the day counts as soon as you upload.</div>`:''}
+      ${t.status==='sent'?`<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+        <button class="btn btn-outline btn-sm" onclick="answerOffer(${t.id},false)">Decline</button>
+        <button class="btn btn-primary btn-sm" onclick="answerOffer(${t.id},true)">Accept the challenge</button></div>`:''}
+    </div>`;
+  }).join('');
+}
+async function answerOffer(id, accept){
+  let reason = '';
+  if(!accept){ reason = prompt('Mind telling us why? (optional)'); if(reason === null) return; }
+  else if(!confirm('Accept? The days start counting now.')) return;
+  try {
+    const r = await fetch(`/api/promotion/my-tasks/${id}/respond/`, { method:'POST', headers:_editorHeaders(), body: JSON.stringify({accept, reason}) });
+    const d = await r.json().catch(()=>({}));
+    if(typeof showToast === 'function') showToast(d.detail || (r.ok ? 'Done' : 'Could not save')); else alert(d.detail || 'Done');
+  } catch(e){}
+  loadOffers();
+}
+document.addEventListener('DOMContentLoaded', loadOffers);
+
 async function loadPromotions(){
+  loadOffers();
   const list = document.getElementById('promoList');
   list.innerHTML = '<div class="promo-empty">Loading…</div>';
   let d;

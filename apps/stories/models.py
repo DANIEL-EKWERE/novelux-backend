@@ -519,7 +519,14 @@ class PromoBanner(models.Model):
         if self.image:
             url = self.image.url
             return request.build_absolute_uri(url) if request else url
-        return self.image_url
+        if self.image_url:
+            return self.image_url
+        # No picture uploaded: use the linked book's cover
+        story = Story.objects.filter(slug=self.slug).only('cover_image').first() if self.slug else None
+        if story and story.cover_image:
+            url = story.cover_image.url
+            return request.build_absolute_uri(url) if request else url
+        return ''
     
 
 class BookRequest(models.Model):

@@ -282,3 +282,34 @@ class AuthorBenefitsPageTests(TestCase):
             self.assertEqual(r.status_code, 200, (url, r.status_code))
             self.assertIn(expect, r.content.decode(), url)
             self.assertIn('share_benefits.js', r.content.decode(), url)
+
+
+class BannerFixesTests(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.promo = User.objects.create_user(email='p@x.com', username='tola', password='x', role='promo')
+        author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        self.book = Story.objects.create(author=author, title='Spare Luna', slug='spare-luna', status='ongoing')
+        png = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89'
+               b'\x00\x00\x00\rIDATx\x9cc\xf8\x0f\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82')
+        self.book.cover_image = SimpleUploadedFile('c.png', png, 'image/png')
+        self.book.save()
+        self.c = APIClient()
+        self.c.force_authenticate(self.promo)
+
+    def test_cover_is_used_and_double_clicks_add_one_banner(self):
+        for _ in range(5):
+            r = self.c.post('/api/editorial/ce/promo-center/banners/', {'slug': 'spare-luna', 'days': 7}, format='multipart')
+            self.assertIn(r.status_code, (200, 201), r.data)
+        from apps.stories.models import PromoBanner
+        self.assertEqual(PromoBanner.objects.count(), 1)
+        b = APIClient().get('/api/stories/banners/').data
+        self.assertEqual(b[0]['title'], 'Spare Luna')
+        self.assertIn('c', b[0]['image'])                       # the book's cover
+        pk = PromoBanner.objects.get().pk
+        self.assertEqual(self.c.delete(f'/api/editorial/ce/promo-center/banners/{pk}/').status_code, 200)
+        self.assertEqual(PromoBanner.objects.count(), 0)
+
+    def test_banner_needs_a_picture_or_a_book_cover(self):
+        r = self.c.post('/api/editorial/ce/promo-center/banners/', {'title': 'Sale'}, format='multipart')
+        self.assertEqual(r.status_code, 400)

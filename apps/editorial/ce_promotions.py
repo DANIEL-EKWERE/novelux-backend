@@ -265,13 +265,23 @@ def add_banner(request):
     from apps.stories.models import PromoBanner, Story
     title = (request.data.get('title') or '').strip()
     slug = (request.data.get('slug') or '').strip()
-    if not title:
-        return Response({'detail': 'Give the banner a title.'}, status=400)
-    if slug and not Story.objects.filter(slug=slug).exists():
+    story = Story.objects.filter(slug=slug).first() if slug else None
+    if slug and not story:
         return Response({'detail': 'That book was not found.'}, status=400)
+    title = title or (story.title if story else '')
+    if not title:
+        return Response({'detail': 'Give the banner a title or choose a book.'}, status=400)
     img = request.FILES.get('image')
     if img and (img.size > 8 * 1024 * 1024 or not (img.content_type or '').startswith('image/')):
         return Response({'detail': 'Upload a picture up to 8 MB.'}, status=400)
+    if not img and not (story and story.cover_image):
+        return Response({'detail': 'Upload a picture, or choose a book that has a cover.'}, status=400)
+    # A double click must not add the same banner twice
+    from datetime import timedelta as _td
+    dup = PromoBanner.objects.filter(title=title[:200], slug=slug, is_active=True,
+                                     created_at__gte=timezone.now() - _td(minutes=10)).first()
+    if dup:
+        return Response({'detail': 'That banner was already added.', 'id': dup.pk}, status=200)
     starts, ends = _window(request.data, default_days=None)
     b = PromoBanner.objects.create(title=title[:200], slug=slug, image=img, color=request.data.get('color') or '#C15F3C',
                                    order=int(request.data.get('order') or 0), starts_at=starts, ends_at=ends)

@@ -361,6 +361,7 @@ function renderChips() {
 }
 function scShelfChanged() { if (!$('#scStart').value) $('#scStart').value = localNow(5); renderChips(); }
 async function saveSet() {
+  const btn = event && event.target; if (btn) { if (btn.disabled) return; btn.disabled = true; setTimeout(() => btn.disabled = false, 2500); }
   const dur = $('#scDur').value, body = { shelf_id: +$('#scShelf').value, books: SC.map(b => b.id), starts_at: iso($('#scStart').value),
     label: $('#scLabel').value, replace: $('#scReplace').checked };
   if (dur === 'custom') body.ends_at = iso($('#scEnd').value); else if (dur) body.days = dur;
@@ -394,6 +395,7 @@ function roSpread() {
   roRender(); toast(`Each day gets ${per} book(s), rotating through the pool.`);
 }
 async function saveRotation() {
+  const btn = event && event.target; if (btn) { if (btn.disabled) return; btn.disabled = true; setTimeout(() => btn.disabled = false, 2500); }
   try {
     const r = await API.post('/promotion/rotation/', { shelf_id: +$('#roShelf').value, start_date: $('#roDate').value, switch_time: $('#roTime').value,
       tz_offset_minutes: -new Date().getTimezoneOffset(), days: RO.map(d => d.map(b => b.id)) });
@@ -526,26 +528,34 @@ async function loadBanners() {
       ${b.results.length ? `<table class="tbl"><tbody>${b.results.map(x => `<tr><td>${x.image ? `<img src="${E(x.image)}" style="width:110px;height:46px;object-fit:cover;border-radius:6px;">` : ''}</td>
         <td><b>${E(x.title)}</b><div class="sm muted">${x.book ? 'Opens ' + E(x.book.title) : 'No book link'}</div></td><td class="sm">${D(x.starts_at)} → ${x.ends_at ? D(x.ends_at) : 'until removed'}</td>
         <td><span class="bdg ${x.state === 'live' ? 'active' : x.state}">${x.state}</span></td>
-        <td><button class="btn sm" onclick="banEdit(${x.id},{extend_days:7})">+7 days</button> <button class="btn sm danger" onclick="banEdit(${x.id},{end_now:true})">End</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">No banners.</div>'}</div>
+        <td><div class="row" style="gap:4px;flex-wrap:nowrap;">${x.state !== 'ended' ? `<button class="btn sm" onclick="banEdit(${x.id},{extend_days:7})">+7 days</button> <button class="btn sm" onclick="banEdit(${x.id},{end_now:true})">End</button>` : `<button class="btn sm" onclick="banEdit(${x.id},{extend_days:7})">Run 7 more days</button>`}
+          <button class="btn sm danger" onclick="banDelete(${x.id})">Delete</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">No banners.</div>'}</div>
     <div class="card"><h3>Library carousel <span class="sub">top of the library screen</span></h3>
       <div class="chips">${l.results.map(x => `<span class="chip">${x.book.cover ? `<img src="${E(x.book.cover)}">` : ''}${E(x.book.title)}<button onclick="libToggle(${x.book.id},false)">✕</button></span>`).join('') || '<span class="sm muted">Empty — the most-read books show.</span>'}</div>
       <input type="text" id="libQ" placeholder="Add a book: search…" style="margin-top:8px;" oninput="miniSearch('libQ','libR',b=>libToggle(b.id,true))"><div id="libR"></div></div>`;
+}
+async function banDelete(id) {
+  if (!confirm('Delete this banner? It disappears from the app straight away.')) return;
+  try { await API.del(`/editorial/ce/promo-center/banners/${id}/`); toast('Deleted'); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); }
 }
 async function banEdit(id, body) { try { await API.patch(`/editorial/ce/promo-center/banners/${id}/`, body); toast('Saved'); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); } }
 async function libToggle(id, on) { try { const r = await API.post(`/editorial/ce/promo-center/library/${id}/`, { on }); toast(r.detail); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); } }
 let BB = null;
 function bannerForm() {
   BB = null;
-  openModal(`<h3 style="margin-bottom:10px;">New home banner</h3><label class="lbl">Title</label><input type="text" id="bT" placeholder="e.g. Werewolf Week">
-    <label class="lbl">Picture (wide, about 1200×500)</label><input type="file" id="bI" accept="image/*">
-    <label class="lbl">Opens a book (optional)</label><div id="bBk" class="sm muted">None</div><input type="text" id="bQ" placeholder="Search…" oninput="miniSearch('bQ','bR',b=>{BB=b;document.getElementById('bBk').textContent=b.title;})"><div id="bR"></div>
+  openModal(`<h3 style="margin-bottom:10px;">New home banner</h3>
+    <label class="lbl">Book</label><div id="bBk" class="sm muted">None — choose one, or upload your own picture below</div><input type="text" id="bQ" placeholder="Search a book…" oninput="miniSearch('bQ','bR',b=>{BB=b;document.getElementById('bBk').innerHTML=(b.cover?'<img src=&quot;'+E(b.cover)+'&quot; style=&quot;width:40px;height:54px;object-fit:cover;border-radius:4px;vertical-align:middle;margin-right:8px;&quot;>':'')+'<b>'+E(b.title)+'</b>';if(!document.getElementById('bT').value)document.getElementById('bT').value=b.title;})"><div id="bR"></div>
+    <label class="lbl">Title</label><input type="text" id="bT" placeholder="e.g. Werewolf Week (the book's title if left empty)">
+    <label class="lbl">Picture (optional — the book's cover is used if you skip this; wide pictures about 1200×500 look best)</label><input type="file" id="bI" accept="image/*">
     <div class="row"><div style="flex:1;"><label class="lbl">Starts</label><input type="datetime-local" id="bS" value="${localNow(5)}"></div><div style="flex:1;"><label class="lbl">For</label><select id="bD"><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option><option value="30">30 days</option><option value="">Until removed</option></select></div></div>
     <div class="row" style="margin-top:14px;justify-content:flex-end;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn p" onclick="saveBanner()">Add banner</button></div>`);
 }
 async function saveBanner() {
+  const btn = event && event.target; if (btn) { if (btn.disabled) return; btn.disabled = true; btn.textContent = 'Adding…'; }
   const fd = new FormData(); fd.append('title', $('#bT').value); if (BB) fd.append('slug', BB.slug);
   if ($('#bI').files[0]) fd.append('image', $('#bI').files[0]); fd.append('starts_at', iso($('#bS').value)); if ($('#bD').value) fd.append('days', $('#bD').value);
-  try { const r = await API.post('/editorial/ce/promo-center/banners/', fd); closeModal(); toast(r.detail); loadBanners(); } catch (e) { toast(e.detail || 'Failed'); }
+  try { const r = await API.post('/editorial/ce/promo-center/banners/', fd); closeModal(); toast(r.detail); loadBanners(); }
+  catch (e) { toast(e.detail || 'Failed'); if (btn) { btn.disabled = false; btn.textContent = 'Add banner'; } }
 }
 
 // ── History ──

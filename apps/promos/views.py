@@ -64,25 +64,31 @@ def _manage(request, p):
 @permission_classes([AllowAny])
 def next_promo(request):
     """GET /api/promos/next/?seen=3,5 — the one promotion to show on this app
-    launch (or {"promo": null}). `seen` lists ids this device has already
-    shown, for readers who aren't signed in."""
-    from apps.stories.models import explicit_blocked
+    launch (or {"promo": null}). Live promotions take turns: each launch shows
+    the one after the last this reader saw (book 1, book 2, book 1, …).
+    `seen` is the device's list of ids shown so far, in order — used for
+    readers who aren't signed in."""
+    from apps.stories.models import explicit_blocked, Story
     now = timezone.now()
     qs = (InAppPromo.objects.filter(is_active=True, starts_at__lte=now)
           .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
-          .exclude(story__status='draft').select_related('story__author'))
-    seen = [int(x) for x in (request.query_params.get('seen') or '').split(',') if x.strip().isdigit()]
-    if seen:
-        qs = qs.exclude(pk__in=seen)
+          .exclude(story__status__in=['draft', 'rejected']).exclude(story__author__is_banned=True)
+          .select_related('story__author').order_by('-priority', 'starts_at', 'id'))
+    live = [p for p in qs[:30]
+            if not (p.kind == InAppPromo.KIND_SPLASH and not p.image)       # full screen needs its poster
+            and not explicit_blocked(p.story, request.user, request)]
+    if not live:
+        return Response({'promo': None})
+    ids = [p.id for p in live]
+    last = None
     if request.user.is_authenticated:
-        qs = qs.exclude(views__user=request.user)
-    for p in qs[:10]:
-        if p.kind == InAppPromo.KIND_SPLASH and not p.image:
-            continue            # a full-screen promo needs its poster
-        if explicit_blocked(p.story, request.user, request):
-            continue
-        return Response({'promo': _public(request, p)})
-    return Response({'promo': None})
+        last = (PromoView.objects.filter(user=request.user, promo_id__in=ids)
+                .order_by('-seen_at').values_list('promo_id', flat=True).first())
+    if last is None:
+        seen = [int(x) for x in (request.query_params.get('seen') or '').split(',') if x.strip().isdigit()]
+        last = next((s for s in reversed(seen) if s in ids), None)
+    nxt = live[(ids.index(last) + 1) % len(live)] if last in ids else live[0]
+    return Response({'promo': _public(request, nxt)})
 
 
 @api_view(['POST'])
@@ -94,7 +100,9 @@ def promo_event(request, pk, event):
     if event == 'seen':
         InAppPromo.objects.filter(pk=pk).update(impressions=F('impressions') + 1)
         if user:
-            PromoView.objects.get_or_create(promo=p, user=user)
+            v, created = PromoView.objects.get_or_create(promo=p, user=user)
+            if not created:     # remember the latest showing (promotions take turns)
+                PromoView.objects.filter(pk=v.pk).update(seen_at=timezone.now())
     elif event == 'click':
         InAppPromo.objects.filter(pk=pk).update(clicks=F('clicks') + 1)
         if user:

@@ -45,7 +45,7 @@ class PromoTests(TestCase):
         self.assertEqual(r.status_code, 201, r.data)
         self.assertTrue(r.data['image'])
 
-    def test_shown_once_per_reader_one_at_a_time(self):
+    def test_promotions_take_turns_one_at_a_time(self):
         first = self.create(self.se, priority=5).data['id']
         second = self.create(self.se).data['id']
         c = APIClient()
@@ -55,18 +55,22 @@ class PromoTests(TestCase):
         self.assertEqual(p['story']['slug'], 'spare-luna')
         c.post(f'/api/promos/{first}/seen/')
         self.assertEqual(c.get('/api/promos/next/').data['promo']['id'], second)
+        from datetime import timedelta as _td
+        PromoView.objects.filter(promo_id=first).update(seen_at=timezone.now() - _td(minutes=5))
         c.post(f'/api/promos/{second}/seen/')
         c.post(f'/api/promos/{second}/click/')
-        self.assertIsNone(c.get('/api/promos/next/').data['promo'])   # each shown once
+        self.assertEqual(c.get('/api/promos/next/').data['promo']['id'], first)   # back to book 1
         self.assertTrue(PromoView.objects.get(promo_id=second, user=self.reader).clicked_at)
         p2 = InAppPromo.objects.get(pk=second)
         self.assertEqual((p2.impressions, p2.clicks), (1, 1))
 
     def test_guests_use_the_device_seen_list(self):
         first = self.create(self.se).data['id']
+        second = self.create(self.se).data['id']
         guest = APIClient()
         self.assertEqual(guest.get('/api/promos/next/').data['promo']['id'], first)
-        self.assertIsNone(guest.get(f'/api/promos/next/?seen={first}').data['promo'])
+        self.assertEqual(guest.get(f'/api/promos/next/?seen={first}').data['promo']['id'], second)
+        self.assertEqual(guest.get(f'/api/promos/next/?seen={first},{second}').data['promo']['id'], first)
 
     def test_schedule_pause_and_drafts(self):
         pid = self.create(self.se, starts_at=(timezone.now() + timedelta(days=1)).isoformat()).data['id']

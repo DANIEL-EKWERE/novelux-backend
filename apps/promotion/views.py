@@ -223,6 +223,11 @@ def schedule(request):
                     .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=starts)):
                 p.ends_at = starts
                 p.save(update_fields=['ends_at'])
+        # A double click must not schedule the same book twice
+        if Placement.objects.filter(shelf=shelf, story_id=sid, position=pos, cancelled=False,
+                                    starts_at__gte=starts - timedelta(minutes=2),
+                                    starts_at__lte=starts + timedelta(minutes=2)).exists():
+            continue
         warnings += _conflicts(shelf, sid, pos, starts, ends)
         created.append(Placement(shelf=shelf, story=stories[sid], position=pos, starts_at=starts, ends_at=ends,
                                  label=(request.data.get('label') or '')[:80], note=(request.data.get('note') or '')[:255],

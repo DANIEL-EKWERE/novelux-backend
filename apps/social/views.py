@@ -17,6 +17,7 @@ from .service import (can_manage, can_post, can_review, can_review_post, check_l
                       notify_review_needed, notify_reviewed, publish_in_background)
 
 MAX_MB = {'image': 15, 'video': 250}
+UPLOAD_PREFIX = 'social/uploads/'
 
 
 class CanPost(BasePermission):
@@ -230,7 +231,17 @@ def posts(request):
         return Response({'detail': 'Choose at least one account to post to.'}, status=400)
     text = (d.get('text') or '').strip()
     files = request.FILES.getlist('files') if hasattr(request, 'FILES') else []
-    if not text and not files and not d.get('use_cover'):
+    # Files the browser already sent straight to storage (big videos) — see upload_url
+    try:
+        uploaded = [u for u in json.loads(d.get('uploaded') or '[]')
+                    if str(u.get('key', '')).startswith(UPLOAD_PREFIX) and u.get('kind') in ('image', 'video')]
+    except (ValueError, AttributeError):
+        uploaded = []
+    from django.core.files.storage import default_storage
+    for u in uploaded:
+        if not default_storage.exists(u['key']):
+            return Response({'detail': 'An upload did not finish — please add the file again.'}, status=400)
+    if not text and not files and not uploaded and not d.get('use_cover'):
         return Response({'detail': 'Write something or add a picture or video.'}, status=400)
     for f in files:
         kind = 'video' if (f.content_type or '').startswith('video') else 'image'
@@ -259,6 +270,9 @@ def posts(request):
     for i, f in enumerate(files):
         SocialMedia.objects.create(post=post, file=f, order=i,
                                    kind='video' if (f.content_type or '').startswith('video') else 'image')
+    for j, u in enumerate(uploaded):
+        SocialMedia.objects.create(post=post, file=u['key'], order=len(files) + j, kind=u['kind'])
+    files = files + uploaded   # (counted below for the book cover's position)
     if str(d.get('use_cover', '')).lower() in ('1', 'true', 'on') and story and story.cover_image:
         # The book's cover, already in storage — no need to upload it again
         SocialMedia.objects.create(post=post, file=story.cover_image.name, order=len(files), kind='image')
@@ -530,3 +544,44 @@ def inbox_handled(request, pk):
     c.handled_by, c.handled_at = (request.user, timezone.now()) if c.handled else (None, None)
     c.save(update_fields=['handled', 'handled_by', 'handled_at'])
     return Response(_comment(c))
+
+
+@api_view(['POST'])
+@permission_classes([CanPost])
+def upload_url(request):
+    """POST /api/social/upload-url/ {name, type, size} — permission for the
+    browser to send a file straight to S3, so big videos never pass through
+    (and time out on) the web server. {"direct": false} when files are stored
+    locally — the browser then uploads with the post as before."""
+    import re
+    import uuid
+    ctype = str(request.data.get('type') or '')
+    kind = 'video' if ctype.startswith('video') else 'image' if ctype.startswith('image') else None
+    if not kind:
+        return Response({'detail': 'Only pictures and videos can be posted.'}, status=400)
+    try:
+        size = int(request.data.get('size') or 0)
+    except (TypeError, ValueError):
+        size = 0
+    if size > MAX_MB[kind] * 1024 * 1024:
+        return Response({'detail': f'That {kind} is over {MAX_MB[kind]} MB.'}, status=400)
+    from django.core.files.storage import storages
+    if 'S3' not in type(storages['default']).__name__:
+        return Response({'direct': False})
+    name = re.sub(r'[^A-Za-z0-9._-]+', '-', str(request.data.get('name') or 'file'))[-80:] or 'file'
+    key = f'{UPLOAD_PREFIX}{uuid.uuid4().hex}/{name}'
+    import boto3
+    client = boto3.client('s3', region_name=getattr(settings, 'AWS_S3_REGION_NAME', None),
+                          aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                          aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+    location = (getattr(settings, 'AWS_LOCATION', '') or '').strip('/')
+    object_key = f'{location}/{key}' if location else key
+    fields, conditions = {'Content-Type': ctype}, [{'Content-Type': ctype},
+                                                   ['content-length-range', 1, MAX_MB[kind] * 1024 * 1024]]
+    acl = getattr(settings, 'AWS_DEFAULT_ACL', None)
+    if acl:
+        fields['acl'] = acl
+        conditions.append({'acl': acl})
+    post = client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, object_key, Fields=fields,
+                                          Conditions=conditions, ExpiresIn=3600)
+    return Response({'direct': True, 'url': post['url'], 'fields': post['fields'], 'key': key, 'kind': kind})

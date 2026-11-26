@@ -245,12 +245,14 @@ def on_new_chapter(story, chapter_title: str):
                 title=f'📖 New chapter: {story.title}',
                 body=chapter_title,
                 data={'screen': 'story', 'slug': story.slug},
+                image_url=_story_cover_url(story),
             )
 
     notify_all(
         title=f'📖 New chapter: {story.title}',
         body=chapter_title,
         data={'screen': 'story', 'slug': story.slug},
+        image_url=_story_cover_url(story),
         exclude_user_ids=bookmarker_ids,
     )
 

@@ -89,9 +89,11 @@ def send_due(now=None):
             ctx = {'story': r.story.title, 'chapter': nxt,
                    'name': r.user.first_name or r.user.username}
             try:
+                from .services import _story_cover_url
                 notify_user(r.user, s.title.format(**ctx), s.body.format(**ctx),
                             data={'screen': 'story', 'slug': r.story.slug,
-                                  'chapter_number': nxt, 'action': 'continue'})
+                                  'chapter_number': nxt, 'action': 'continue'},
+                            image_url=_story_cover_url(r.story))
                 fields.update(sent_at=now, sent_count=F('sent_count') + 1)
                 sent += 1
             except Exception:

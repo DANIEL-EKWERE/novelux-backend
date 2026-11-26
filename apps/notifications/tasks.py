@@ -33,11 +33,13 @@ def notify_followers_new_chapter(chapter_id: int):
     Notification.objects.bulk_create(notifications, batch_size=500)
 
     # Push notification
+    from .services import _story_cover_url
     _send_push_bulk(
         [f.follower for f in followers],
         title=f'📖 New chapter: {story.title}',
         body=f'Chapter {chapter.chapter_number} — {chapter.title}',
-        data={'story_slug': story.slug, 'chapter_number': str(chapter.chapter_number)},
+        data={'screen': 'story', 'slug': story.slug, 'chapter_number': str(chapter.chapter_number)},
+        image_url=_story_cover_url(story),
     )
 
 
@@ -60,11 +62,13 @@ def notify_tip_received(tip_id: int):
                 + (f' Message: {tip.message}' if tip.message else ''),
         data={'story_slug': tip.story.slug, 'coins': tip.coins_amount},
     )
+    from .services import _story_cover_url
     _send_push(
         tip.recipient,
         title='💰 New tip received!',
-        body=f'{tip.sender.username} sent you {tip.coins_amount} coins.',
+        body=f'{tip.sender.username} sent you {tip.coins_amount} coins on "{tip.story.title}".',
         data={'story_slug': tip.story.slug},
+        image_url=_story_cover_url(tip.story),
     )
 
 
@@ -115,50 +119,19 @@ def notify_comment_reply(comment_id: int):
     )
 
 
-def _send_push(user, title: str, body: str, data: dict = None):
-    """Send FCM push notification to a single user."""
-    from .models import DeviceToken
-    tokens = DeviceToken.objects.filter(user=user, is_active=True).values_list('token', flat=True)
-    if tokens:
-        _fcm_send(list(tokens), title, body, data or {})
+def _send_push(user, title: str, body: str, data: dict = None, image_url: str = ''):
+    """Push to one user's phones (current FCM API)."""
+    _send_push_bulk([user], title, body, data, image_url)
 
 
-def _send_push_bulk(users, title: str, body: str, data: dict = None):
-    """Send FCM push notifications to multiple users."""
-    from .models import DeviceToken
-    tokens = DeviceToken.objects.filter(
-        user__in=users, is_active=True
-    ).values_list('token', flat=True)
-    if tokens:
-        _fcm_send(list(tokens), title, body, data or {})
-
-
-def _fcm_send(tokens: list, title: str, body: str, data: dict):
-    """Send via Firebase Cloud Messaging (FCM v1 API)."""
-    import requests
-    from django.conf import settings
-
-    fcm_key = getattr(settings, 'FCM_SERVER_KEY', '')
-    if not fcm_key or not tokens:
-        return
-
-    headers = {
-        'Authorization': f'key={fcm_key}',
-        'Content-Type': 'application/json',
-    }
-    payload = {
-        'registration_ids': tokens[:500],
-        'notification': {'title': title, 'body': body},
-        'data': data,
-    }
-    try:
-        resp = requests.post(
-            'https://fcm.googleapis.com/fcm/send',
-            json=payload, headers=headers, timeout=10
-        )
-        resp.raise_for_status()
-    except Exception as e:
-        logger.error(f'FCM push failed: {e}')
+def _send_push_bulk(users, title: str, body: str, data: dict = None, image_url: str = ''):
+    """Push to many users' phones, 500 devices per call. (This used Google's
+    legacy server-key API, which was shut down in 2024 — nothing arrived.)"""
+    from apps.users.models import FCMDevice
+    from .fcm import send_to_tokens
+    tokens = list(FCMDevice.objects.filter(user__in=users, is_active=True).values_list('token', flat=True))
+    for i in range(0, len(tokens), 500):
+        send_to_tokens(tokens[i:i + 500], title, body, data or {}, image_url)
 
 
 @shared_task

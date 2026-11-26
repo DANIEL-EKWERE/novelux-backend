@@ -176,7 +176,7 @@ class EngagementPushTests(TestCase):
         _, push = self.run_at(self.lagos(7))
         push.assert_not_called()                                   # before the first slot
         out, push = self.run_at(self.lagos(8))
-        (tok, title, body, data), = self.sent(push)
+        (tok, title, body, data, *_), = self.sent(push)
         self.assertEqual(tok, 'tok-ada')
         self.assertEqual(data['screen'], 'rewards')                # morning: check-in
         _, push = self.run_at(self.lagos(8, minute=25))
@@ -185,7 +185,7 @@ class EngagementPushTests(TestCase):
     def test_continue_reading_names_their_book(self):
         self.run_at(self.lagos(8))
         _, push = self.run_at(self.lagos(10))
-        (tok, title, body, data), = self.sent(push)
+        (tok, title, body, data, *_), = self.sent(push)
         self.assertIn('Spare Luna', title + body)
         self.assertIn('2', title + body)                           # the next chapter
         self.assertEqual(data, {'screen': 'story', 'slug': 'luna', 'chapter_number': 2, 'action': 'continue'})
@@ -226,3 +226,36 @@ class EngagementPushTests(TestCase):
         _, push = self.run_at(self.lagos(8))
         push.assert_not_called()
 
+
+
+class BookPushImageTests(TestCase):
+    """Pushes that come from a book carry its cover."""
+
+    def setUp(self):
+        from django.core.files.base import ContentFile
+        from apps.users.models import FCMDevice
+        self.author = User.objects.create_user(email='a@x.com', username='amaka', password='x', role='author')
+        self.fan = User.objects.create_user(email='f@x.com', username='fan', password='x')
+        FCMDevice.objects.create(user=self.fan, token='tok-fan', platform='Android', device_model='', app_version='')
+        self.story = Story.objects.create(author=self.author, title='Spare Luna', slug='luna', status='ongoing')
+        self.story.cover_image.save('luna.png', ContentFile(b'img'), save=True)
+
+    def test_new_chapter_push_has_the_cover(self):
+        with mock.patch('apps.notifications.services.send_to_tokens') as push, \
+                mock.patch('apps.notifications.services.notify_all') as everyone:
+            services.on_new_chapter(self.story, 'Chapter 9')
+        self.assertIn('luna', everyone.call_args.kwargs['image_url'])
+
+    def test_followers_push_uses_the_current_api_with_cover(self):
+        from apps.chapters.models import Chapter
+        from apps.users.models import Follow
+        from .tasks import notify_followers_new_chapter
+        Follow.objects.create(follower=self.fan, following=self.author)
+        ch = Chapter.objects.create(story=self.story, title='The Bite', chapter_number=4, is_published=True)
+        with mock.patch('apps.notifications.fcm.send_to_tokens') as push:
+            notify_followers_new_chapter(ch.pk)
+        tokens, title, body, data, image = push.call_args[0]
+        self.assertEqual(tokens, ['tok-fan'])
+        self.assertIn('Spare Luna', title)
+        self.assertEqual(data['slug'], 'luna')
+        self.assertIn('luna', image)

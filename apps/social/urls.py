@@ -9,6 +9,7 @@ urlpatterns = [
     path('accounts/<int:pk>/',                 views.account_detail),
     path('accounts/<int:pk>/test/',            views.account_test),
     path('books/',                             views.books),
+    path('upload-url/',                       views.upload_url),
     path('posts/',                             views.posts),
     path('posts/<int:pk>/',                    views.post_detail),
     path('posts/<int:pk>/<str:action>/',       views.post_action),

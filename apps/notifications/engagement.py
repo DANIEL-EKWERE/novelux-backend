@@ -245,10 +245,16 @@ def send_due(now=None):
     for uid, t in FCMDevice.objects.filter(user_id__in=[p[0].pk for p in pushes if p[0]], is_active=True) \
             .values_list('user_id', 'token'):
         tokens[uid].append(t)
+    # Pushes about a book show its cover
+    from apps.stories.models import Story
+    from .services import _story_cover_url
+    slugs = {p[5].get('slug') for p in pushes if p[5].get('slug')}
+    covers = {s.slug: _story_cover_url(s) for s in Story.objects.filter(slug__in=slugs).only('slug', 'cover_image')}
     items = []
     for user, tok, kind, title, body, data in pushes:
+        img = covers.get(data.get('slug'), '')
         for t in ([tok] if tok else tokens.get(user.pk, [])):
-            items.append((t, title, body, data))
+            items.append((t, title, body, data, img))
     sent, failed, dead = send_personal(items)
     if dead:
         FCMDevice.objects.filter(token__in=dead).update(is_active=False)

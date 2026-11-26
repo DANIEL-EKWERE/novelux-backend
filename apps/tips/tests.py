@@ -142,8 +142,12 @@ class PaidGiftTests(TestCase):
         self.assertTrue(services.release_tip_earning(tip.pk))
         self.assertFalse(services.release_tip_earning(tip.pk))
         self.profile.refresh_from_db()
-        # 3.40 × (1 − 0.15) × 0.25 = 0.7225 → 0.72
-        self.assertEqual(str(self.profile.pending_payout), '0.72')
+        # 3.40 × (1 − store fee) × the author's gift share, in cents
+        from decimal import Decimal
+        from django.conf import settings
+        expected = (Decimal('3.40') * Decimal(1 - settings.STORE_FEE_RATE)
+                    * Decimal(settings.GIFT_AUTHOR_SHARE)).quantize(Decimal('0.01'))
+        self.assertEqual(self.profile.pending_payout, expected)
 
     def test_refund_after_approval_claws_back(self, rc, notify):
         rc.return_value = rc_subscriber('GPA.1')

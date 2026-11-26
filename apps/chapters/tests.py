@@ -1,3 +1,6 @@
+from decimal import ROUND_HALF_UP, Decimal
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
@@ -153,7 +156,7 @@ class BookDownloadTests(TestCase):
         self.assertEqual(ChapterUnlock.objects.filter(user=self.reader).count(), 3)
         earnings = ChapterUnlockEarning.objects.filter(author=self.author)
         self.assertEqual([e.status for e in earnings], ['held'] * 3)
-        self.assertEqual(sum(e.coins for e in earnings), 3 * int(18 * 0.20))
+        self.assertEqual(sum(e.coins for e in earnings), 3 * int(18 * settings.AUTHOR_REVENUE_SHARE))
         # Second download is free — everything is owned now
         self.assertEqual(self.client.post(self.url).data['coins_spent'], 0)
 
@@ -216,20 +219,21 @@ class VipPayoutTests(TestCase):
 
     def test_light_reader_pays_value_and_records_excess(self):
         from .vip_payouts import run_vip_payout
-        u = self.vip('light', 10)             # pool: 10 × 30/30 days in Sept × 0.85 × 0.20 = $1.70
-        self.read(u, self.chapters[:2])       # value: 2 × 50 × 0.20 / 100 = $0.20
+        u = self.vip('light', 10)             # pool: 10 × 30/30 days in Sept × net × share
+        self.read(u, self.chapters[:2])       # value: 2 × 50 × share / 100
         run = run_vip_payout(self.month)
         [e] = run.earnings.all()
-        self.assertEqual((e.coins, e.reads, e.status), (20, 2, 'held'))
-        self.assertEqual(str(run.excess_ignored_usd), '1.50')
+        pool, value = 10 * _net() * _share(), 2 * 50 * _share() / 100
+        self.assertEqual((e.coins, e.reads, e.status), (_coins(value), 2, 'held'))
+        self.assertEqual(run.excess_ignored_usd, (pool - value).quantize(Decimal('0.01')))
         self.assertEqual((run.readers_with_excess, run.readers_scaled_down), (1, 0))
 
     def test_heavy_reader_is_scaled_to_their_pool(self):
         from .vip_payouts import run_vip_payout
-        u = self.vip('heavy', 1)              # pool: $0.17
-        self.read(u, self.chapters)           # value: $1.00
+        u = self.vip('heavy', 1)              # pool: $1 × net × share — less than the reads are worth
+        self.read(u, self.chapters)           # value: 10 × 50 × share / 100
         run = run_vip_payout(self.month)
-        self.assertEqual(run.earnings.get().coins, 17)
+        self.assertEqual(run.earnings.get().coins, _coins(1 * _net() * _share()))
         self.assertEqual((run.readers_scaled_down, str(run.excess_ignored_usd)), (1, '0.00'))
 
     def test_month_runs_once_and_release_pays_author(self):
@@ -241,7 +245,7 @@ class VipPayoutTests(TestCase):
         self.assertTrue(e.release())
         self.assertFalse(e.release())
         self.author.refresh_from_db()
-        self.assertEqual(self.author.coin_balance, 20)
+        self.assertEqual(self.author.coin_balance, _coins(2 * 50 * _share() / 100))
 
     def test_record_vip_read_skips_bought_and_own_chapters(self):
         from .models import ChapterUnlock, VipChapterRead, record_vip_read
@@ -375,3 +379,16 @@ class ContractThresholdTests(TestCase):
                                format='json')
         self.assertEqual(res.status_code, 400)
         self.assertFalse(Chapter.objects.filter(story=self.story, status=Chapter.STATUS_PENDING_REVIEW).exists())
+
+
+# Payout amounts follow the settings, so the tests keep passing when the shares change
+def _share():
+    return Decimal(str(settings.AUTHOR_REVENUE_SHARE))
+
+
+def _net():
+    return Decimal(1) - Decimal(str(settings.STORE_FEE_RATE))
+
+
+def _coins(usd):
+    return int((usd * 100).to_integral_value(rounding=ROUND_HALF_UP))

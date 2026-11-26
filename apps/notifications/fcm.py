@@ -109,7 +109,8 @@ def send_to_topic(topic: str, title: str, body: str,
 
 def send_personal(items):
     """Send a different message to each device in one go (500 per batch).
-    items: [(token, title, body, data)]. Returns (sent, failed, dead_tokens)."""
+    items: [(token, title, body, data)] or (token, title, body, data, image_url).
+    Returns (sent, failed, dead_tokens)."""
     if not items:
         return 0, 0, []
     _get_app()
@@ -117,15 +118,7 @@ def send_personal(items):
     dead = []
     for i in range(0, len(items), 500):
         chunk = items[i:i + 500]
-        msgs = [messaging.Message(
-            token=tok,
-            notification=messaging.Notification(title=title, body=body),
-            data={str(k): str(v) for k, v in (data or {}).items()},
-            android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(
-                icon='ic_notification', color='#C15F3C', sound='default', channel_id='high_importance_channel')),
-            apns=messaging.APNSConfig(headers={'apns-priority': '10'}, payload=messaging.APNSPayload(
-                aps=messaging.Aps(alert=messaging.ApsAlert(title=title, body=body), sound='default'))),
-        ) for tok, title, body, data in chunk]
+        msgs = [_personal_message(*item) for item in chunk]
         try:
             res = messaging.send_each(msgs)
         except Exception as e:
@@ -140,3 +133,20 @@ def send_personal(items):
                 if r.exception and type(r.exception).__name__ in ('UnregisteredError', 'SenderIdMismatchError'):
                     dead.append(tok)
     return sent, failed, dead
+
+
+def _personal_message(tok, title, body, data=None, image_url=''):
+    image_url = image_url or None
+    return messaging.Message(
+        token=tok,
+        notification=messaging.Notification(title=title, body=body, image=image_url),
+        data={str(k): str(v) for k, v in (data or {}).items()},
+        android=messaging.AndroidConfig(priority='high', notification=messaging.AndroidNotification(
+            icon='ic_notification', color='#C15F3C', sound='default', channel_id='high_importance_channel',
+            image=image_url)),
+        apns=messaging.APNSConfig(
+            headers={'apns-priority': '10'},
+            payload=messaging.APNSPayload(aps=messaging.Aps(
+                alert=messaging.ApsAlert(title=title, body=body), sound='default', mutable_content=bool(image_url))),
+            fcm_options=messaging.APNSFCMOptions(image=image_url) if image_url else None),
+    )

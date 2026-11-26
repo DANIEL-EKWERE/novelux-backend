@@ -364,3 +364,60 @@ class SocialInsightsTests(TestCase):
         self.c.force_authenticate(reader)
         for url in ('/api/social/analytics/', '/api/social/inbox/'):
             self.assertEqual(self.c.get(url).status_code, 403)
+
+
+@override_settings(STORAGES=MEM)
+@mock.patch('apps.social.views.publish_in_background', _sync_publish)
+class DirectUploadTests(TestCase):
+    """Big videos go browser → S3 directly; the post then refers to the key."""
+
+    def setUp(self):
+        self.p = mock.patch.dict(publishers.PUBLISHERS, {'telegram': FakeNet})
+        self.p.start()
+        self.addCleanup(self.p.stop)
+        FakeNet.sent = []
+        self.boss = User.objects.create_superuser(email='b@x.com', username='boss', password='x')
+        self.c = APIClient()
+        self.c.force_authenticate(self.boss)
+        self.acc = SocialAccount.objects.create(platform='telegram', name='HuxNovel Telegram',
+                                                config={'chat_id': '@hux'})
+
+    def test_local_storage_says_upload_normally(self):
+        r = self.c.post('/api/social/upload-url/', {'name': 'v.mp4', 'type': 'video/mp4', 'size': 1000}, format='json')
+        self.assertEqual(r.data, {'direct': False})
+        self.assertEqual(self.c.post('/api/social/upload-url/', {'name': 'x.pdf', 'type': 'application/pdf'},
+                                     format='json').status_code, 400)
+        r = self.c.post('/api/social/upload-url/', {'name': 'v.mp4', 'type': 'video/mp4', 'size': 900 * 1024 * 1024},
+                        format='json')
+        self.assertEqual(r.status_code, 400)                  # over the video limit
+
+    def test_s3_gives_a_presigned_upload(self):
+        fake_storage = type('S3Boto3Storage', (), {})()
+        client = mock.Mock()
+        client.generate_presigned_post.return_value = {'url': 'https://bucket.s3.amazonaws.com/', 'fields': {'key': 'k'}}
+        with mock.patch('django.core.files.storage.storages', {'default': fake_storage}), \
+                mock.patch('boto3.client', return_value=client), \
+                self.settings(AWS_STORAGE_BUCKET_NAME='bucket', AWS_ACCESS_KEY_ID='a', AWS_SECRET_ACCESS_KEY='s',
+                              AWS_DEFAULT_ACL='public-read'):
+            r = self.c.post('/api/social/upload-url/', {'name': 'My video!.mp4', 'type': 'video/mp4', 'size': 5000}, format='json')
+        self.assertTrue(r.data['direct'], r.data)
+        self.assertTrue(r.data['key'].startswith('social/uploads/'))
+        self.assertTrue(r.data['key'].endswith('/My-video-.mp4'))
+        kwargs = client.generate_presigned_post.call_args.kwargs
+        self.assertIn({'acl': 'public-read'}, kwargs['Conditions'])
+
+    def test_post_with_an_uploaded_video(self):
+        import json
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+        key = default_storage.save('social/uploads/abc/clip.mp4', ContentFile(b'video-bytes'))
+        r = self.c.post('/api/social/posts/', {'action': 'publish', 'text': 'Watch!', 'account_ids': [self.acc.pk],
+                        'uploaded': json.dumps([{'key': key, 'kind': 'video'}])}, format='multipart')
+        self.assertEqual(r.status_code, 201, r.data)
+        post = SocialPost.objects.get()
+        self.assertEqual(post.media.get().kind, 'video')
+        self.assertEqual(FakeNet.sent[0][3], True)            # went out as a video
+        # A key that isn't in storage (upload never finished) is refused; foreign keys are ignored
+        r = self.c.post('/api/social/posts/', {'action': 'publish', 'text': 'x', 'account_ids': [self.acc.pk],
+                        'uploaded': json.dumps([{'key': 'social/uploads/zzz/missing.mp4', 'kind': 'video'}])}, format='multipart')
+        self.assertEqual(r.status_code, 400)

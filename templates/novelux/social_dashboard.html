@@ -430,7 +430,6 @@ async function submit(action) {
   fd.append('link', $('#link').value);
   fd.append('title', $('#title').value);
   sel.forEach(a => fd.append('account_ids', a.id));
-  files.forEach(f => fd.append('files', f));
   fd.append('overrides', JSON.stringify(overrides));
   if (book) { fd.append('story_id', book.id); if ($('#useCover').checked) fd.append('use_cover', 'true'); }
   if (action === 'schedule') {
@@ -439,13 +438,49 @@ async function submit(action) {
   }
   document.querySelectorAll('#postNow,#schedule,#draft').forEach(b => b.disabled = true);
   try {
+    // Videos and big pictures go straight to storage first (no server timeout)
+    const uploaded = [];
+    for (const f of files) {
+      if (f.size > 4 * 1024 * 1024 || (f.type || '').startsWith('video')) {
+        const key = await uploadDirect(f);
+        if (key) { uploaded.push(key); continue; }
+      }
+      fd.append('files', f);
+    }
+    if (uploaded.length) fd.append('uploaded', JSON.stringify(uploaded));
+    showProgress('');
     const p = await API.post('/social/posts/', fd);
     toast(p.status === 'pending_approval' ? 'Sent for approval' : action === 'schedule' ? 'Scheduled ✓' : action === 'draft' ? 'Draft saved' : 'Posting… check Posts for the result');
     files = []; overrides = {}; book = null; $('#text').value = ''; $('#link').value = ''; $('#title').value = ''; $('#when').value = '';
     $('#bookSel').textContent = ''; $('#coverWrap').style.display = 'none'; renderThumbs(); refresh();
     if (action === 'publish') setTimeout(() => go('posts'), 600);
-  } catch (e) { showErr(e.detail || 'Something went wrong.'); }
+  } catch (e) { showProgress(''); showErr(e.detail || 'Something went wrong.'); }
   finally { document.querySelectorAll('#postNow,#schedule,#draft').forEach(b => b.disabled = false); }
+}
+function showProgress(m) {
+  let el = document.getElementById('upProg');
+  if (!el) { el = document.createElement('div'); el.id = 'upProg'; el.className = 'note'; $('#cErr').parentNode.insertBefore(el, $('#cErr')); }
+  el.innerHTML = m; el.style.display = m ? '' : 'none';
+}
+// Returns {key, kind} once the file is in storage, or null to send it the old way
+async function uploadDirect(file) {
+  const u = await API.post('/social/upload-url/', { name: file.name, type: file.type, size: file.size });
+  if (!u.direct) return null;
+  const form = new FormData();
+  Object.entries(u.fields).forEach(([k, v]) => form.append(k, v));
+  form.append('file', file);
+  await new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', u.url);
+    x.upload.onprogress = ev => { if (ev.lengthComputable) {
+      const pct = Math.round(ev.loaded * 100 / ev.total);
+      showProgress(`Uploading <b>${_e(file.name)}</b>… ${pct}% <div style="height:6px;background:var(--border);border-radius:3px;margin-top:6px;"><div style="height:6px;width:${pct}%;background:var(--role);border-radius:3px;"></div></div>`);
+    } };
+    x.onload = () => (x.status >= 200 && x.status < 300) ? resolve() : reject({ detail: `Upload to storage failed (${x.status}). If this keeps happening, the S3 bucket needs CORS set up for this site.` });
+    x.onerror = () => reject({ detail: 'Upload to storage was blocked — the S3 bucket needs CORS set up for this site.' });
+    x.send(form);
+  });
+  return { key: u.key, kind: u.kind };
 }
 function showErr(m) { const e = $('#cErr'); e.textContent = m; e.style.display = ''; }
 $('#postNow').onclick = () => submit('publish');
